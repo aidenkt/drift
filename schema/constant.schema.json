@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "drift/model.schema.json",
+  "title": "Drift model report",
+  "type": "object",
+  "required": ["model_id", "filename", "built_on", "checked_on", "outputs", "constants"],
+  "properties": {
+    "model_id": { "type": "string" },
+    "filename": { "type": "string" },
+    "built_on": { "type": "string", "format": "date", "description": "When the model's assumptions were set" },
+    "checked_on": { "type": "string", "format": "date" },
+    "outputs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["cell", "label", "value"],
+        "properties": {
+          "cell": { "type": "string", "examples": ["P&L!F40"] },
+          "label": { "type": "string", "examples": ["EBITDA"] },
+          "value": { "type": "number" }
+        }
+      }
+    },
+    "constants": { "type": "array", "items": { "$ref": "#/$defs/constant" } }
+  },
+  "$defs": {
+    "constant": {
+      "type": "object",
+      "required": ["cell", "value", "embedded", "label", "label_source", "confirmed", "feeds", "outputs", "check", "impact"],
+      "properties": {
+        "cell": { "type": "string", "examples": ["Assumptions!C14"] },
+        "value": { "type": "number", "description": "Value as written in the workbook" },
+        "embedded": { "type": "boolean", "description": "True if the number is a literal inside a formula, e.g. the 1.035 in =B5*1.035" },
+        "formula": { "type": ["string", "null"], "description": "Containing formula when embedded" },
+        "label": { "type": "string", "examples": ["EUR/USD rate"] },
+        "driver": { "type": ["string", "null"], "description": "Key into engine/checks/drivers.py, null if unmapped" },
+        "label_source": { "enum": ["header", "llm", "user"] },
+        "confirmed": { "type": "boolean" },
+        "feeds": { "type": "integer", "description": "Cells that depend on this one, transitively" },
+        "outputs": { "type": "array", "items": { "type": "string" }, "description": "Output cells this constant reaches" },
+        "check": {
+          "type": ["object", "null"],
+          "required": ["kind", "status"],
+          "properties": {
+            "kind": { "enum": ["series", "news"] },
+            "status": { "enum": ["stale", "current", "unknown"] },
+            "live": { "type": ["number", "null"] },
+            "drift_pct": { "type": ["number", "null"] },
+            "p_stale": { "type": ["number", "null"], "minimum": 0, "maximum": 1, "description": "News checks only, from Jev" },
+            "as_of": { "type": ["string", "null"], "format": "date" },
+            "source_name": { "type": ["string", "null"] },
+            "source_url": { "type": ["string", "null"] },
+            "evidence": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["quote", "url"],
+                "properties": {
+                  "quote": { "type": "string" },
+                  "url": { "type": "string" },
+                  "publisher": { "type": "string" },
+                  "date": { "type": "string", "format": "date" }
+                }
+              }
+            }
+          }
+        },
+        "impact": {
+          "type": "array",
+          "description": "Change in each output when only this constant is set to its live value",
+          "items": {
+            "type": "object",
+            "required": ["output", "delta"],
+            "properties": {
+              "output": { "type": "string" },
+              "delta": { "type": "number" }
+            }
+          }
+        }
+      }
+    }
+  }
+}

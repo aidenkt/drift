@@ -1,0 +1,107 @@
+{
+  "_note": "PLACEHOLDER. Hand-written shape example for building the UI. Numbers are illustrative, not real market data. Replace with real engine output once data/case_study_aug2026.xlsx exists.",
+  "model_id": "case-study",
+  "filename": "case_study_aug2026.xlsx",
+  "built_on": "2026-08-01",
+  "checked_on": "2026-10-10",
+  "outputs": [
+    { "cell": "P&L!F40", "label": "EBITDA", "value": 12400000 },
+    { "cell": "DCF!C22", "label": "NPV", "value": 48100000 }
+  ],
+  "constants": [
+    {
+      "cell": "Assumptions!C14",
+      "value": 1.08,
+      "embedded": false,
+      "formula": null,
+      "label": "EUR/USD rate",
+      "driver": "eurusd",
+      "label_source": "header",
+      "confirmed": true,
+      "feeds": 214,
+      "outputs": ["P&L!F40", "DCF!C22"],
+      "check": {
+        "kind": "series",
+        "status": "stale",
+        "live": 1.12,
+        "drift_pct": 3.7,
+        "p_stale": null,
+        "as_of": "2026-10-09",
+        "source_name": "FRED DEXUSEU",
+        "source_url": "https://fred.stlouisfed.org/series/DEXUSEU",
+        "evidence": []
+      },
+      "impact": [
+        { "output": "P&L!F40", "delta": -400000 },
+        { "output": "DCF!C22", "delta": -1100000 }
+      ]
+    },
+    {
+      "cell": "COGS!D9",
+      "value": 2400,
+      "embedded": true,
+      "formula": "=D8*2400",
+      "label": "Container freight $/FEU",
+      "driver": "freight_feu",
+      "label_source": "llm",
+      "confirmed": true,
+      "feeds": 131,
+      "outputs": ["P&L!F40", "DCF!C22"],
+      "check": {
+        "kind": "news",
+        "status": "stale",
+        "live": null,
+        "drift_pct": null,
+        "p_stale": 0.82,
+        "as_of": "2026-10-10",
+        "source_name": null,
+        "source_url": null,
+        "evidence": [
+          { "quote": "PLACEHOLDER quote from a scraped article", "url": "https://example.com", "publisher": "Example", "date": "2026-09-30" }
+        ]
+      },
+      "impact": [
+        { "output": "P&L!F40", "delta": -800000 },
+        { "output": "DCF!C22", "delta": -2300000 }
+      ]
+    },
+    {
+      "cell": "Debt!B6",
+      "value": 0.043,
+      "embedded": false,
+      "formula": null,
+      "label": "SOFR",
+      "driver": "sofr",
+      "label_source": "header",
+      "confirmed": true,
+      "feeds": 58,
+      "outputs": ["DCF!C22"],
+      "check": {
+        "kind": "series",
+        "status": "current",
+        "live": 0.0428,
+        "drift_pct": -0.5,
+        "p_stale": null,
+        "as_of": "2026-10-09",
+        "source_name": "FRED SOFR",
+        "source_url": "https://fred.stlouisfed.org/series/SOFR",
+        "evidence": []
+      },
+      "impact": [{ "output": "DCF!C22", "delta": 30000 }]
+    },
+    {
+      "cell": "Assumptions!C21",
+      "value": 0.035,
+      "embedded": false,
+      "formula": null,
+      "label": "Revenue growth",
+      "driver": null,
+      "label_source": "header",
+      "confirmed": false,
+      "feeds": 302,
+      "outputs": ["P&L!F40", "DCF!C22"],
+      "check": null,
+      "impact": []
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+:root {
+  --paper: #fbf8f3;
+  --ink: #141210;
+  --accent: #d9622b; /* sparingly */
+  --serif: "Iowan Old Style", Palatino, Georgia, serif;
+  --mono: ui-monospace, "SF Mono", Menlo, monospace;
+  --sans: -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--sans);
+}
+
+.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
