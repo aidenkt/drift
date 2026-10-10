@@ -1,12 +1,14 @@
 :root {
-  --paper: #fbf8f3;
-  --ink: #141210;
-  --accent: #d9622b; /* STALE and adverse only */
-  --accent-wash: rgba(217, 98, 43, 0.09);
+  --paper: #ffffff;
+  --ink: #0e0e0e;
+  --accent: #e5246b; /* STALE only */
+  --accent-deep: #a3134a; /* adverse deltas */
+  --accent-wash: rgba(229, 36, 107, 0.08);
+  --fresh: #0f8b8d;
   --input: #1f47b8; /* hardcoded inputs, banker convention */
-  --rule: #e6e0d5; /* gridlines */
-  --chrome: #f2ede4; /* headers, bars */
-  --muted: #6e685f;
+  --rule: #e4e4e4; /* gridlines */
+  --chrome: #f4f4f4; /* headers, bars */
+  --muted: #6b6b6b;
   --serif: "Iowan Old Style", Palatino, Georgia, serif;
   --mono: ui-monospace, "SF Mono", Menlo, monospace;
   --sans: -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
@@ -61,7 +63,7 @@ body {
   color: var(--paper);
   font-size: 13px;
 }
-.btn:hover { background: #2b2824; }
+.btn:hover { background: #2a2a2a; }
 .btn-quiet { padding: 0; border: 0; background: none; }
 
 /* ---------- model list ---------- */
@@ -140,7 +142,7 @@ body {
   flex: 1;
   overflow: auto;
   min-height: 0;
-  background: #fffdf9;
+  background: #fff;
 }
 .grid:focus { outline: none; }
 
@@ -165,7 +167,7 @@ body {
 .grid thead th { top: 0; height: 22px; text-align: center; }
 .grid tbody th { left: 0; text-align: right; padding-right: 8px; }
 .grid thead th.corner { left: 0; z-index: 2; }
-.grid th.on { color: var(--ink); background: #e9e2d6; }
+.grid th.on { color: var(--ink); background: #e9e9e9; }
 
 .grid td {
   position: relative;
@@ -226,7 +228,7 @@ body {
   white-space: nowrap;
 }
 .tabs button.on {
-  background: #fffdf9;
+  background: #fff;
   color: var(--ink);
   box-shadow: inset 0 2px 0 var(--ink);
 }
@@ -257,7 +259,7 @@ body {
   place-items: center;
   border: 2px dashed var(--ink);
   border-radius: 6px;
-  background: rgba(251, 248, 243, 0.92);
+  background: rgba(255, 255, 255, 0.92);
   font-size: 15px;
   pointer-events: none;
 }
@@ -395,7 +397,7 @@ body {
   min-width: 0;
   overflow-y: auto;
   padding: 22px 32px 48px;
-  background: #fffdf9;
+  background: #fff;
 }
 
 .detail-topline { display: flex; align-items: baseline; gap: 14px; font-size: 13px; }
@@ -449,7 +451,7 @@ body {
 .state-values div { display: grid; gap: 2px; }
 .state-values span { font-size: 11.5px; }
 .state-values strong { font-size: 20px; font-weight: 500; }
-.adverse { color: var(--accent); }
+.adverse { color: var(--accent-deep); }
 .small { font-size: 11.5px; margin: 6px 0 0; }
 
 .sparkline { display: block; max-width: 100%; }
@@ -492,7 +494,7 @@ body {
   padding-left: 10px;
   border-left: 2px solid var(--rule);
   font-size: 13px;
-  color: #3a3631;
+  color: #3a3a3a;
 }
 .source-card footer { display: flex; gap: 12px; }
 .src-value { color: var(--ink); }
@@ -561,7 +563,7 @@ body {
 
 .docbar-sub { display: flex; align-items: center; gap: 14px; min-width: 0; font-size: 13px; }
 .doc-status { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); white-space: nowrap; }
-.doc-status::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: #8fb3a0; }
+.doc-status::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--fresh); }
 .doc-status.stale { color: var(--accent); }
 .doc-status.stale::before { background: var(--accent); }
 .doc-built { color: var(--muted); font-size: 12px; white-space: nowrap; }
@@ -586,10 +588,10 @@ body {
   z-index: 20;
   min-width: 200px;
   padding: 5px;
-  background: #fffdf9;
+  background: #fff;
   border: 1px solid var(--rule);
   border-radius: 6px;
-  box-shadow: 0 8px 24px rgba(20, 18, 16, 0.12);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
 }
 .menu-pop button {
   display: flex;
@@ -622,7 +624,7 @@ body {
   padding: 0 10px;
   border-top: 1px solid var(--rule);
   border-bottom: 1px solid var(--rule);
-  background: #fffdf9;
+  background: #fff;
 }
 .tb-group { display: flex; align-items: center; gap: 2px; padding: 0 8px; }
 .tb-group + .tb-group { border-left: 1px solid var(--rule); }
@@ -639,7 +641,7 @@ body {
   border: 0;
   border-radius: 4px;
   background: none;
-  color: #3a3631;
+  color: #3a3a3a;
   font: 13px var(--sans);
   cursor: pointer;
 }
