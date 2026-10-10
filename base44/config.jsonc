@@ -1,11 +1,12 @@
 // Base44 hosts the web app (and later: entities, scheduled re-checks).
 // Auth is Clerk, so the Base44 app itself is public.
+// Lives at the repo root so Base44's GitHub integration finds it; the site is built from web/.
 {
   "name": "since",
   "description": "Catch stale assumptions in financial models",
   "visibility": "public",
   "site": {
-    "buildCommand": "npm run build",
-    "outputDirectory": "./dist"
+    "buildCommand": "cd web && npm ci && npm run build",
+    "outputDirectory": "./web/dist"
   }
 }
