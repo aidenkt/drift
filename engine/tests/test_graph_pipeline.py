@@ -61,4 +61,9 @@ def test_a_live_value_flows_through_to_impact(model, monkeypatch):
     assert fx["cell"] == "Model!B1"
     assert fx["impact"] == [{"output": "Model!B3", "delta": pytest.approx(12.5)}]
     assert report["combined"] == [{"output": "Model!B3", "delta": pytest.approx(12.5)}]
+    # measured before the check ran: +1% on the rate moves EBITDA by +1%
+    effect = fx["sensitivity"]["effects"][0]
+    assert (effect["output"], effect["direction"], effect["pct"]) == ("Model!B3", "rises", pytest.approx(1.0))
+    assert effect["path"][0]["formula"] == "=B2*B1*0.5"
+    assert all("sensitivity" not in c for c in report["constants"][1:])
     assert [c["check"] for c in report["constants"][1:]] == [None, None]
