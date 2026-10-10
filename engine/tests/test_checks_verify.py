@@ -144,3 +144,27 @@ def test_zero_value_tariff_goes_stale():
     assert c["drift_pct"] is None
     assert c["status"] == "stale"
     jsonschema.validate(c, CHECK_SCHEMA)
+
+
+SENS = {"change": "+10%", "from": 1.2, "to": 1.32, "outputs": [
+    {"output": "M!B9", "label": "EBITDA", "value": 106.0, "delta": -5.0},
+    {"output": "M!B12", "label": "Enterprise value (NPV)", "value": 905.5, "delta": -60.0},
+]}
+
+
+def test_effects_come_from_the_recalculated_model():
+    f = finding(kind="level", number=56, transform="percent_more_to_ratio",
+                quotes=["collision repair on EVs cost about 56% more than on gas cars"], page=1,
+                effects=[{"output": "EBITDA", "direction": "up"}])  # the model's guess is ignored
+    c = build_check({"cell": "X!A1", "value": 1.2, "sensitivity": SENS}, f, PAGES, "2023-12-04")
+    assert c["effects"] == [{"output": "EBITDA", "direction": "down"},
+                            {"output": "Enterprise value (NPV)", "direction": "down"}]
+
+
+def test_sensitivity_figures_and_scaled_impact_are_allowed():
+    # live 1.56 is +0.36, three times the +0.12 bump, so EBITDA moves about -15 and EV about -180
+    f = finding(kind="level", number=56, transform="percent_more_to_ratio",
+                quotes=["collision repair on EVs cost about 56% more than on gas cars"], page=1,
+                prediction="A 10% rise lowers EBITDA by 5; at 1.56 EBITDA falls about 15 and EV about 180.")
+    c = build_check({"cell": "X!A1", "value": 1.2, "sensitivity": SENS}, f, PAGES, "2023-12-04")
+    assert c["prediction"].startswith("A 10% rise lowers EBITDA by 5")

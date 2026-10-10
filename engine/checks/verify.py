@@ -49,7 +49,8 @@ def build_check(constant: dict, finding: dict, pages: list[dict], as_of: str) ->
             evidence.append(item)
 
     events = verified_events(finding, pages)
-    allowed = allowed_numbers(value, live, drift_pct, pages)
+    sens = constant.get("sensitivity")
+    allowed = allowed_numbers(value, live, drift_pct, pages) + sensitivity_numbers(sens, live)
     steps = [step for step in finding.get("next_steps") or [] if uses_only(step, allowed)][:3]
 
     return {
@@ -64,11 +65,41 @@ def build_check(constant: dict, finding: dict, pages: list[dict], as_of: str) ->
         "evidence": evidence,
         # additive: the comparison of graph summary and sources (steps 3 and 4)
         "events": events,
-        "effects": [e for e in finding.get("effects") or [] if e.get("direction") in ("up", "down", "unclear")],
+        "effects": effects_from_sensitivity(sens, value, live)
+        or [e for e in finding.get("effects") or [] if e.get("direction") in ("up", "down", "unclear")],
         "assumption": _sentence(finding.get("assumption"), allowed),
         "prediction": _sentence(finding.get("prediction"), allowed),
         "next_steps": steps,
     }
+
+
+def sensitivity_numbers(sens: dict | None, live: float | None) -> list[float]:
+    """Output values and deltas from the sensitivity, plus the deltas scaled to the verified live value."""
+    if not sens:
+        return []
+    nums = [sens["from"], sens["to"], *numbers_in(sens.get("change", ""))]
+    step = sens["to"] - sens["from"]
+    scale = (live - sens["from"]) / step if live is not None and step else None
+    for o in sens.get("outputs", []):
+        nums += [o["value"], o["delta"]]
+        if scale is not None:
+            nums.append(o["delta"] * scale)
+    return nums
+
+
+def effects_from_sensitivity(sens: dict | None, value: float, live: float | None) -> list[dict]:
+    """Direction of each output when the constant moves to live, from the recalculated model. [] without a live value."""
+    if not sens or live is None or live == value:
+        return []
+    up = live > value
+    out = []
+    for o in sens.get("outputs", []):
+        if abs(o["delta"]) < 1e-9:
+            direction = "unclear"
+        else:
+            direction = "up" if (o["delta"] > 0) == up else "down"
+        out.append({"output": o["label"], "direction": direction})
+    return out
 
 
 def verified_events(finding: dict, pages: list[dict]) -> list[dict]:

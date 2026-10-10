@@ -214,3 +214,7 @@ Added after the graph half landed (`build_graph` on `main`). For each market con
 4. **Verification** (`verify.py`). Event quotes must be on the cited page. A sentence in `assumption`, `prediction` or `next_steps` is dropped if it uses a number that is not the model's value, the verified suggestion or drift, or a number on a source page. A model value of 0 (a 0% tariff) goes stale when a stated rate moves 0.25pp or more.
 
 New fields are additive: `role`, `search`, `events`, `graph_summary` on the constant; `events`, `effects`, `assumption`, `prediction`, `next_steps` on `check`. The README rule "no generated prose on screen" conflicts with `assumption`/`prediction`/`next_steps`; agree with the team before the web app shows them.
+
+## Update: dollar impact visible to the LLM
+
+`sensitivity.py` recalculates the model with each market constant raised 10% (a constant at 0 is raised by 0.01), using graph's `impact.deltas`, before the LLM runs. The LLM gets each output's current value and its change, so it can state direction and size. `verify.py` takes the output directions (`effects`) from these recalculated numbers rather than from the LLM, and allows dollar figures quoted from the sensitivity or scaled to the verified live value. The exact impact at the live value is still computed by graph after the check.

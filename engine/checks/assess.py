@@ -14,6 +14,7 @@ SYSTEM = """You review one hardcoded assumption in a financial model against rec
 You get:
 - assumption: its label, value and cell, set on built_on.
 - graph: how the value flows through the model (paths from the assumption to each output it reaches) and the inputs it is combined with.
+- sensitivity: the dollar impact, recalculated in the model: how much each output changes when the assumption rises from "from" to "to" (usually +10%). Deltas are in the same units as each output's value. Use it for the direction and size of every effect: if the assumption should fall, the outputs move the opposite way to the deltas.
 - pages: numbered sources. kind "data" is an official series, "figure" is a published value of this quantity, "event" is news that could move it.
 
 Use ONLY the pages for facts and numbers. Never use your own knowledge for numbers.
@@ -26,11 +27,11 @@ Use ONLY the pages for facts and numbers. Never use your own knowledge for numbe
    - "none": no page supports a number.
    quotes: one or two sentences copied EXACTLY from that one page, containing every number reported. page: its id.
 2. events: up to 3 events from the pages that move this quantity, each with a short factual summary, the direction it pushes the quantity (raises / lowers / unclear), the page id and an exact quote.
-3. effects: for each output in the graph paths, the direction the outputs move if the assumption is updated to the finding (up / down / unclear), following the path.
+3. effects: for each output in the sensitivity, the direction it moves if the assumption is updated to the finding (up / down / unclear). Take the direction from the sensitivity, not from the path names.
 4. assumption: one sentence stating what the assumption should be now and why, citing the finding or events.
-5. prediction: one sentence on what happens to the model's outputs, following the graph paths.
-6. next_steps: 1 to 3 short imperative actions for the analyst (e.g. "Update Assumptions!B20 to $125.44/bbl", "Rerun the DCF").
-In assumption, prediction and next_steps use only numbers that appear in the pages or in the assumption itself.
+5. prediction: one sentence on what happens to the model's outputs and roughly by how much, using the sensitivity. Either quote a sensitivity delta as given ("a 10% rise lowers EBITDA by 8.5") or scale it in proportion to the change you found.
+6. next_steps: 1 to 3 short imperative actions for the analyst. Name the cell and the output most affected; put the update with the largest dollar impact first. Avoid generic steps like "rerun the model" unless nothing else applies.
+In assumption, prediction and next_steps use only numbers that appear in the pages, the assumption, or the sensitivity (as given or scaled to your finding).
 p_stale: probability (0 to 1) that the value was materially wrong on as_of. Use 0.5 when the pages say nothing useful."""
 
 _EVENT = {
@@ -102,6 +103,7 @@ def assess(constant: dict, pages: list[dict], built_on: str, as_of: str) -> dict
                 "combined_with": summary.get("combined_with", []),
                 "feeds_cells": constant.get("feeds"),
             },
+            "sensitivity": constant.get("sensitivity"),
             "built_on": built_on,
             "as_of": as_of,
             "pages": [{k: p.get(k) for k in ("id", "kind", "publisher", "date", "title", "text")} for p in pages],
