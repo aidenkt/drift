@@ -55,6 +55,10 @@ The only thing that passes between the two halves is the constant dict from the 
 
 **`check.live` is always in the same units as `value`.** The checks half converts before writing it, so the impact step substitutes the number as is. If the live value cannot be converted, set `live` to `null`; impact for that constant is then empty.
 
+**An embedded constant can cover several cells.** A literal copied across a row, such as `=0.0366+Assumptions!$B$29` in `P&L!C35:G35`, is one constant, not five. Its `cell` is the range string `"P&L!C35:G35"`, and two extra fields say where it lives: `cells` (every formula cell, left to right) and `literal_index` (which number in the formula). Typed numbers in cells are never grouped. `wb.context()` accepts the range string and describes its first cell.
+
+**The report has a top-level `combined` list** of `{output, delta}`: every live value applied at once. `cells`, `literal_index` and `combined` are extra fields the schema allows but does not list yet.
+
 **`wb.context(cell)`** returns what the labeler needs to read the cell:
 
 ```python

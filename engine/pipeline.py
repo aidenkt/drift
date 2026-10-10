@@ -12,15 +12,10 @@ def run(path: Path, *, model_id: str, filename: str, built_on: str) -> dict:
     graph = parse.build_graph(wb)
     found = constants.find(wb, graph)
     outputs = constants.find_outputs(wb, graph)
+    impact.fill_outputs(wb, graph, outputs)
 
     for c in found:
-        label.apply(c, wb)
-        if c["driver"] and series.handles(c["driver"]):
-            c["check"] = series.check(c, built_on)
-        elif c["driver"]:
-            c["check"] = news.check(c, built_on)
-        else:
-            c["check"] = None
+        c["check"] = _check(c, wb, built_on)
         c["impact"] = impact.deltas(wb, graph, c, outputs)
 
     found.sort(key=lambda c: sum(abs(d["delta"]) for d in c["impact"]), reverse=True)
@@ -31,4 +26,18 @@ def run(path: Path, *, model_id: str, filename: str, built_on: str) -> dict:
         "checked_on": date.today().isoformat(),
         "outputs": outputs,
         "constants": found,
+        "combined": impact.combined(wb, graph, found, outputs),
     }
+
+
+def _check(c: dict, wb, built_on: str) -> dict | None:
+    """Label one constant and check it. A stage that fails leaves the constant unchecked, not the report broken."""
+    try:
+        label.apply(c, wb)
+        if not c["driver"]:
+            return None
+        if series.handles(c["driver"]):
+            return series.check(c, built_on)
+        return news.check(c, built_on)
+    except Exception:
+        return None
