@@ -4,7 +4,7 @@ from pathlib import Path
 import jsonschema
 import pytest
 
-from checks.verify import build_check, numbers_in, suggested_value
+from checks.verify import build_check, effects_from_sensitivity, numbers_in, suggested_value
 
 SCHEMA = json.loads((Path(__file__).parents[2] / "schema" / "constant.schema.json").read_text())
 CHECK_SCHEMA = SCHEMA["$defs"]["constant"]["properties"]["check"]
@@ -146,25 +146,53 @@ def test_zero_value_tariff_goes_stale():
     jsonschema.validate(c, CHECK_SCHEMA)
 
 
-SENS = {"change": "+10%", "from": 1.2, "to": 1.32, "outputs": [
-    {"output": "M!B9", "label": "EBITDA", "value": 106.0, "delta": -5.0},
-    {"output": "M!B12", "label": "Enterprise value (NPV)", "value": 905.5, "delta": -60.0},
-]}
+SENS = {  # graph's impact.sensitivity: +1% on the constant
+    "bump": {"from": 1.2, "to": 1.212, "kind": "relative", "size": 0.01},
+    "effects": [
+        {"output": "M!B9", "label": "EBITDA", "baseline": 106.0, "delta": -0.5, "pct": -0.471698, "direction": "falls",
+         "path": [{"cell": "M!B5", "label": "Repair cost", "col_header": None, "formula": "=B4*X!A1",
+                   "baseline": 40.0, "delta": 0.4, "pct": 1.0, "direction": "rises"}]},
+        {"output": "M!B12", "label": "Enterprise value (NPV)", "baseline": 905.5, "delta": -6.0, "pct": -0.662617,
+         "direction": "falls", "path": []},
+        {"output": "M!B14", "label": "Share count", "baseline": 50.0, "delta": 0.0, "pct": 0.0,
+         "direction": "unchanged", "path": []},
+    ],
+}
 
 
 def test_effects_come_from_the_recalculated_model():
     f = finding(kind="level", number=56, transform="percent_more_to_ratio",
                 quotes=["collision repair on EVs cost about 56% more than on gas cars"], page=1,
-                effects=[{"output": "EBITDA", "direction": "up"}])  # the model's guess is ignored
+                effects=[{"output": "EBITDA", "direction": "up"}])  # anything the model says is ignored
     c = build_check({"cell": "X!A1", "value": 1.2, "sensitivity": SENS}, f, PAGES, "2023-12-04")
     assert c["effects"] == [{"output": "EBITDA", "direction": "down"},
-                            {"output": "Enterprise value (NPV)", "direction": "down"}]
+                            {"output": "Enterprise value (NPV)", "direction": "down"},
+                            {"output": "Share count", "direction": "unclear"}]
+    jsonschema.validate(c, CHECK_SCHEMA)
+
+
+def test_effects_flip_when_the_constant_should_fall():
+    assert effects_from_sensitivity(SENS, 1.2, 1.0)[:2] == [{"output": "EBITDA", "direction": "up"},
+                                                           {"output": "Enterprise value (NPV)", "direction": "up"}]
+
+
+def test_no_effects_without_a_live_value_or_when_the_model_cant_recalculate():
+    assert build_check({"cell": "X!A1", "value": 1.2, "sensitivity": SENS}, finding(), PAGES, "2023-12-04")["effects"] == []
+    flat = {"bump": None, "effects": [{"output": "M!B9", "label": "EBITDA", "baseline": None, "delta": None,
+                                       "pct": None, "direction": None, "path": []}]}
+    f = finding(kind="level", number=56, transform="percent_more_to_ratio",
+                quotes=["collision repair on EVs cost about 56% more than on gas cars"], page=1,
+                prediction="EBITDA falls by 0.5.")
+    c = build_check({"cell": "X!A1", "value": 1.2, "sensitivity": flat}, f, PAGES, "2023-12-04")
+    assert c["effects"] == [{"output": "EBITDA", "direction": "unclear"}]
+    assert c["prediction"] is None  # no recalculated numbers to back 0.5
+    jsonschema.validate(c, CHECK_SCHEMA)
 
 
 def test_sensitivity_figures_and_scaled_impact_are_allowed():
-    # live 1.56 is +0.36, three times the +0.12 bump, so EBITDA moves about -15 and EV about -180
+    # live 1.56 is +0.36, thirty times the +0.012 bump, so EBITDA moves about -15 and EV about -180
     f = finding(kind="level", number=56, transform="percent_more_to_ratio",
                 quotes=["collision repair on EVs cost about 56% more than on gas cars"], page=1,
-                prediction="A 10% rise lowers EBITDA by 5; at 1.56 EBITDA falls about 15 and EV about 180.")
+                prediction="A 1% rise lowers EBITDA by 0.5; at 1.56 EBITDA falls about 15 and EV about 180.")
     c = build_check({"cell": "X!A1", "value": 1.2, "sensitivity": SENS}, f, PAGES, "2023-12-04")
-    assert c["prediction"].startswith("A 10% rise lowers EBITDA by 5")
+    assert c["prediction"].startswith("A 1% rise lowers EBITDA by 0.5")

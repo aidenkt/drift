@@ -10,7 +10,7 @@ import re
 from openpyxl.utils import column_index_from_string, get_column_letter
 from openpyxl.utils.cell import coordinate_from_string
 
-from checks import graph_summary, sensitivity
+from checks import graph_summary
 from checks.openai_client import LLMUnavailable, chat_json
 
 ROLES = ("market", "lever", "internal", "unit")
@@ -56,7 +56,6 @@ def apply(constant: dict, wb, graph=None) -> None:
     constant["search"] = result.get("search", []) if result["role"] in ("market", "lever") else []
     constant["events"] = result.get("events", []) if result["role"] == "market" else []
     constant["graph_summary"] = {"paths": clues.get("paths_to_outputs", []), "combined_with": clues.get("combined_with", [])}
-    constant["sensitivity"] = _sensitivity(constant, wb, graph) if result["role"] == "market" else None
     constant["driver"] = slug(result["label"]) if result["role"] == "market" else None
     constant["label_source"] = result["source"]
     constant["confirmed"] = False
@@ -128,15 +127,6 @@ def describe(constant: dict, wb, graph=None) -> dict:
         clues["combined_with"] = summary["combined_with"]
         clues["paths_to_outputs"] = graph_summary.describe_paths(summary)
     return clues
-
-
-def _sensitivity(constant: dict, wb, graph) -> dict | None:
-    if graph is None:
-        return None
-    try:
-        return sensitivity.for_constant(constant, wb, graph)
-    except Exception:
-        return None
 
 
 def _graph(wb):

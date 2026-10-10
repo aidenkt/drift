@@ -63,10 +63,9 @@ def build_check(constant: dict, finding: dict, pages: list[dict], as_of: str) ->
         "source_name": page.get("publisher") if backed and live is not None else None,
         "source_url": page["url"] if backed and live is not None else None,
         "evidence": evidence,
-        # additive: the comparison of graph summary and sources (steps 3 and 4)
+        # additive: the comparison of graph's sensitivity and sources (steps 3 and 4)
         "events": events,
-        "effects": effects_from_sensitivity(sens, value, live)
-        or [e for e in finding.get("effects") or [] if e.get("direction") in ("up", "down", "unclear")],
+        "effects": effects_from_sensitivity(sens, value, live),
         "assumption": _sentence(finding.get("assumption"), allowed),
         "prediction": _sentence(finding.get("prediction"), allowed),
         "next_steps": steps,
@@ -74,31 +73,36 @@ def build_check(constant: dict, finding: dict, pages: list[dict], as_of: str) ->
 
 
 def sensitivity_numbers(sens: dict | None, live: float | None) -> list[float]:
-    """Output values and deltas from the sensitivity, plus the deltas scaled to the verified live value."""
-    if not sens:
+    """Figures from graph's sensitivity (bump, and each output's and path step's baseline, delta and pct),
+    plus the deltas scaled to the verified live value."""
+    bump = (sens or {}).get("bump")
+    if not bump:
         return []
-    nums = [sens["from"], sens["to"], *numbers_in(sens.get("change", ""))]
-    step = sens["to"] - sens["from"]
-    scale = (live - sens["from"]) / step if live is not None and step else None
-    for o in sens.get("outputs", []):
-        nums += [o["value"], o["delta"]]
-        if scale is not None:
-            nums.append(o["delta"] * scale)
+    nums = [bump["from"], bump["to"], bump["size"] * 100]
+    step = bump["to"] - bump["from"]
+    scale = (live - bump["from"]) / step if live is not None and step else None
+    for effect in sens.get("effects") or []:
+        for item in [effect, *(effect.get("path") or [])]:
+            nums += [n for n in (item.get("baseline"), item.get("delta"), item.get("pct")) if n is not None]
+            if scale is not None:
+                nums += [item[k] * scale for k in ("delta", "pct") if item.get(k) is not None]
     return nums
 
 
 def effects_from_sensitivity(sens: dict | None, value: float, live: float | None) -> list[dict]:
-    """Direction of each output when the constant moves to live, from the recalculated model. [] without a live value."""
+    """Direction of each output when the constant moves to live, from graph's recalculated sensitivity
+    (measured for a rise). [] without a live value; "unclear" where the model couldn't be recalculated."""
     if not sens or live is None or live == value:
         return []
     up = live > value
     out = []
-    for o in sens.get("outputs", []):
-        if abs(o["delta"]) < 1e-9:
-            direction = "unclear"
+    for effect in sens.get("effects") or []:
+        moved = effect.get("direction")
+        if moved in ("rises", "falls"):
+            direction = "up" if (moved == "rises") == up else "down"
         else:
-            direction = "up" if (o["delta"] > 0) == up else "down"
-        out.append({"output": o["label"], "direction": direction})
+            direction = "unclear"
+        out.append({"output": effect.get("label") or effect["output"], "direction": direction})
     return out
 
 
