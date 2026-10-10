@@ -1,7 +1,7 @@
 // Base44 hosts the web app (and later: entities, scheduled re-checks).
 // Auth is Clerk, so the Base44 app itself is public.
 {
-  "name": "drift",
+  "name": "since",
   "description": "Catch stale assumptions in financial models",
   "visibility": "public",
   "site": {

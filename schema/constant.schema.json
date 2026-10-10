@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "drift/model.schema.json",
-  "title": "Drift model report",
+  "$id": "since/model.schema.json",
+  "title": "Since model report",
   "type": "object",
   "required": ["model_id", "filename", "built_on", "checked_on", "outputs", "constants"],
   "properties": {

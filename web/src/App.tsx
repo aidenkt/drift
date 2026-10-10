@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { getModel } from "./api";
 import { readXlsx } from "./lib/workbook";
+import caseStudyUrl from "../../data/case_study_aug2026.xlsx?url";
 import ModelList from "./pages/ModelList";
 import WorkbookPage, { type OpenModel } from "./pages/WorkbookPage";
 
@@ -12,7 +13,7 @@ export default function App() {
   const [dragging, setDragging] = useState(false);
 
   const importFile = useCallback(async (file: File) => {
-    if (!ACCEPT.test(file.name)) return setError(`${file.name} isn't a spreadsheet. Drift opens .xlsx, .xlsm and .xls files.`);
+    if (!ACCEPT.test(file.name)) return setError(`${file.name} isn't a spreadsheet. Since opens .xlsx, .xlsm and .xls files.`);
     try {
       setOpen({ id: Date.now(), filename: file.name, builtOn: null, book: readXlsx(await file.arrayBuffer()), report: null });
       setError(null);
@@ -22,8 +23,8 @@ export default function App() {
   }, []);
 
   const openModel = async (id: string) => {
-    // Until the engine returns uploaded workbooks, the case study opens the placeholder sample.
-    const [report, buf] = await Promise.all([getModel(id), fetch("/sample.xlsx").then((r) => r.arrayBuffer())]);
+    // Until the engine returns uploaded workbooks, the report opens the case-study workbook.
+    const [report, buf] = await Promise.all([getModel(id), fetch(caseStudyUrl).then((r) => r.arrayBuffer())]);
     setOpen({ id: Date.now(), filename: report.filename, builtOn: report.built_on, book: readXlsx(buf), report });
     setError(null);
   };
@@ -54,7 +55,7 @@ export default function App() {
   return (
     <>
       {open ? (
-        <WorkbookPage model={open} onImport={importFile} onBack={() => setOpen(null)} />
+        <WorkbookPage key={open.id} model={open} onImport={importFile} onBack={() => setOpen(null)} />
       ) : (
         <ModelList onOpen={openModel} onImport={importFile} />
       )}
@@ -64,7 +65,7 @@ export default function App() {
           <button onClick={() => setError(null)} aria-label="Dismiss">×</button>
         </div>
       )}
-      {dragging && <div className="drop-veil">Drop to open in Drift</div>}
+      {dragging && <div className="drop-veil">Drop to open in Since</div>}
     </>
   );
 }

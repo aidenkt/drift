@@ -19,7 +19,7 @@ function Gate({ children }: { children: ReactNode }) {
   if (!isSignedIn)
     return (
       <div className="signin">
-        <span className="wordmark">Drift</span>
+        <span className="wordmark">Since</span>
         <SignIn routing="hash" />
       </div>
     );

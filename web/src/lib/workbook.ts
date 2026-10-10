@@ -27,6 +27,14 @@ export const ref = (sheet: string, row: number, col: number) =>
 
 export const colName = (col: number) => XLSX.utils.encode_col(col);
 
+/** "P&L!C12" -> { sheet: "P&L", row: 11, col: 2 } */
+export const parseRef = (r: string) => {
+  const n = normalizeRef(r);
+  const i = n.lastIndexOf("!");
+  const { r: row, c: col } = XLSX.utils.decode_cell(n.slice(i + 1));
+  return { sheet: n.slice(0, i), row, col };
+};
+
 /** "'P&L'!$C$12" -> "P&L!C12" so engine refs and grid refs compare equal. */
 export const normalizeRef = (r: string) => {
   const i = r.lastIndexOf("!");
@@ -137,4 +145,36 @@ function parseInput(text: string): { value: RawCellContent; format?: string } {
   if (/^-?\d*\.?\d+(e[+-]?\d+)?$/i.test(num)) return { value: (neg ? -1 : 1) * Number(num) };
 
   return { value: text };
+}
+
+export const FORMATS: { label: string; example: string; fmt: string }[] = [
+  { label: "Automatic", example: "1234.5", fmt: "General" },
+  { label: "Number", example: "1,234.50", fmt: "#,##0.00;(#,##0.00)" },
+  { label: "Accounting", example: "$(1,234)", fmt: '$#,##0;($#,##0);"-"' },
+  { label: "Percent", example: "3.50%", fmt: "0.00%" },
+  { label: "Rate", example: "1.0842", fmt: "0.0000" },
+];
+
+export function getFormat(book: Book, sheet: SheetMeta, row: number, col: number): string {
+  return book.formats.get(ref(sheet.name, row, col)) ?? "General";
+}
+
+export function setFormat(book: Book, sheet: SheetMeta, row: number, col: number, fmt: string) {
+  const key = ref(sheet.name, row, col);
+  if (fmt === "General") book.formats.delete(key);
+  else book.formats.set(key, fmt);
+}
+
+/** Add or remove one decimal place in every section of a number format. */
+export function shiftDecimals(fmt: string, delta: 1 | -1): string {
+  const base = fmt === "General" ? "0" : fmt;
+  return base
+    .split(";")
+    .map((section) =>
+      section.replace(/0(\.(0+))?(?!.*0)/, (_m, _d, zeros: string | undefined) => {
+        const n = Math.max(0, (zeros?.length ?? 0) + delta);
+        return n === 0 ? "0" : `0.${"0".repeat(n)}`;
+      }),
+    )
+    .join(";");
 }

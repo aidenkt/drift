@@ -1,7 +1,8 @@
 import type { Constant } from "../types";
 import Stamp from "./Stamp";
 
-const RATE_DRIVERS = new Set(["sofr", "ust10y", "fed_funds", "cpi", "tariff"]);
+const RATE_DRIVERS = new Set(["sofr", "ust10y", "fed_funds", "cpi"]);
+const PP_DRIVERS = new Set(["tariff", "tax"]);
 
 /** Data about the selected constant. Numbers, refs and sources only: no prose. */
 export default function ConstantStrip({ constant: c }: { constant: Constant }) {
@@ -20,7 +21,13 @@ export default function ConstantStrip({ constant: c }: { constant: Constant }) {
             <span className="muted"> → </span>
             {k.live}
             <span className="strip-drift">
-              {rate ? bps(k.live - c.value) : k.drift_pct != null ? signed(k.drift_pct, "%") : ""}
+              {rate
+                ? bps(k.live - c.value)
+                : c.driver && PP_DRIVERS.has(c.driver)
+                  ? signed((k.live - c.value) * 100, " pp")
+                  : k.drift_pct != null
+                    ? signed(k.drift_pct, "%")
+                    : ""}
             </span>
           </>
         )}

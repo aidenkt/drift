@@ -13,7 +13,7 @@ export default function ModelList({ onOpen, onImport }: Props) {
   return (
     <div className="page">
       <header className="bar">
-        <span className="wordmark">Drift</span>
+        <span className="wordmark">Since</span>
         <span className="bar-spacer" />
         <ImportButton onImport={onImport} />
         <Account />
