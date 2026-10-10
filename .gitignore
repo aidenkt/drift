@@ -24,3 +24,6 @@ engine/uploads/
 # build artifacts
 *.egg-info/
 *.tsbuildinfo
+
+# fetched pages and API responses (engine/checks/scrape.py)
+engine/.cache/

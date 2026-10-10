@@ -1,11 +1,10 @@
-"""Public time series (FRED): value at built_on vs latest → drift_pct."""
-
-from checks.drivers import DRIVERS
+"""Kept so pipeline.py's routing still works. FRED now feeds the LLM as one more source (scrape.py),
+so every labeled constant goes through news.check."""
 
 
 def handles(driver: str) -> bool:
-    return DRIVERS[driver][1] == "series"
+    return False
 
 
 def check(constant: dict, built_on: str) -> dict:
-    raise NotImplementedError
+    raise NotImplementedError("FRED is fetched in checks/scrape.py; use checks.news.check")

@@ -148,7 +148,8 @@ A suggestion is kept only if all of these pass; otherwise `live = null` (the `p_
 1. The quote appears word for word (whitespace-normalized) in the text of the page it cites.
 2. The number appears in the quote.
 3. After conversion, `live` is within 5x of `value` (catches 4.3 vs 0.043 mistakes).
-4. The page date is between `built_on` and `as_of`, or undated.
+
+Page dates are not enforced: the search is already limited to `built_on` → `as_of`, and some good sources are published later about the period (the Axios piece on CCC repair costs is dated 2024-01-11).
 
 Then:
 - `drift_pct = (live − value) / value × 100`.
@@ -193,7 +194,7 @@ Real-data runs won't match the synthetic `Market_Data` numbers exactly, so value
 
 ## Needs from others
 
-- **Ethan:** pass `graph` to `label.apply` (`label.apply(c, wb, graph)` in `pipeline.py`). Add `as_of` to `pipeline.run` (defaults to today). Skip or strip the answer-key sheets for the Hertz test. Keep `wb` and `graph` per `model_id` for the PATCH route.
+- **Ethan:** pass `graph` to the labeler: `label.apply(c, wb, graph)`, or better `label.apply_all(found, wb, graph)` once before the loop (runs the LLM calls in parallel). Add `as_of` to `pipeline.run` and pass it to `news.check` (until then, `DRIFT_AS_OF` in `.env` sets it). Skip or strip the answer-key sheets for the Hertz test. Keep `wb` and `graph` per `model_id` for the PATCH route.
 - **Team (schema, additive):** new `role` field on each constant; `checked_on` = `as_of`. For `lever` constants (revenue per day), decide whether the reference value shows.
 - **Matthew:** merge `data/hertz-fleet-model` into `main`; reconcile the workbook name and dates in `ground_truth.md` (it notes this itself).
 - **Keys in `.env`:** `OPENAI_API_KEY`, `OPENAI_MODEL`, `BRIGHTDATA_API_KEY`, Bright Data zone names (`BRIGHTDATA_SERP_ZONE`, `BRIGHTDATA_UNLOCKER_ZONE`), `FRED_API_KEY`.
