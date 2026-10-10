@@ -10,11 +10,12 @@ dependencies = [
   "formulas",
   "httpx",
   "python-dotenv",
+  "pyjwt[crypto]",
 ]
 
 [project.optional-dependencies]
 dev = ["pytest", "jsonschema"]
 
 [tool.setuptools]
-py-modules = ["app", "pipeline"]
+py-modules = ["app", "collab", "pipeline"]
 packages = ["graph", "checks"]

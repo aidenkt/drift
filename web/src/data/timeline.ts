@@ -27,7 +27,9 @@ export type TimelineEvent = {
   date: string;
   title: string;
   kind: "drift" | "news" | "check" | "baseline" | "edit";
-  status: "stale" | "watching" | "current" | "edited";
+  // updated, kept and gone are a stale assumption that has since been dealt with
+  status: "stale" | "watching" | "current" | "edited" | "updated" | "kept" | "gone";
+  resolution?: { note: string; at?: string; by?: string }; // how, when and by whom
   cells: string[];
   driver: string | null;
   state?: {
