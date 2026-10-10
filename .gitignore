@@ -27,3 +27,6 @@ engine/uploads/
 
 # fetched pages and API responses (engine/checks/scrape.py)
 engine/.cache/
+
+# base44: per-checkout app link
+.app.jsonc

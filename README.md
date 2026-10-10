@@ -1,6 +1,6 @@
-# Drift
+# Since
 
-Financial models are built on hardcoded assumptions — interest rates, FX, commodity prices, freight, tariffs — that were right the day the model was built and drift after. Upload an Excel model and Drift finds every hardcoded assumption (including numbers buried inside formulas), labels the real-world driver it stands for, checks it against today's data and recent news, and shows which ones have gone stale, by how much, and what that does to the outputs.
+Financial models are built on hardcoded assumptions — interest rates, FX, commodity prices, freight, tariffs — that were right the day the model was built and drift after. Upload an Excel model and Since finds every hardcoded assumption (including numbers buried inside formulas), labels the real-world driver it stands for, checks it against today's data and recent news, and shows which ones have gone stale, by how much, and what that does to the outputs.
 
 Built for FP&A analysts and anyone reviewing many models at once.
 

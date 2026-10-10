@@ -1,106 +1,301 @@
 {
-  "_note": "PLACEHOLDER. Hand-written shape example for building the UI. Numbers are illustrative, not real market data. Replace with real engine output once data/case_study_aug2026.xlsx exists.",
+  "_note": "Hand-built from data/ground_truth.md for case_study_aug2026.xlsx (Calder & Finch Home). Values and sources are the answer key; impacts are one at a time in US$ millions; feeds computed from the workbook's formula graph. Replace with real engine output when it runs.",
   "model_id": "case-study",
   "filename": "case_study_aug2026.xlsx",
   "built_on": "2026-08-01",
   "checked_on": "2026-10-10",
   "outputs": [
-    { "cell": "P&L!F40", "label": "EBITDA", "value": 12400000 },
-    { "cell": "DCF!C22", "label": "NPV", "value": 48100000 }
+    {
+      "cell": "P&L!C27",
+      "label": "EBITDA",
+      "value": 105.977
+    },
+    {
+      "cell": "DCF!B38",
+      "label": "Enterprise value",
+      "value": 905.4766
+    },
+    {
+      "cell": "P&L!C39",
+      "label": "Net income",
+      "value": 54.2329
+    }
   ],
   "constants": [
     {
-      "cell": "Assumptions!C14",
-      "value": 1.08,
+      "cell": "Assumptions!B23",
+      "value": 0,
       "embedded": false,
       "formula": null,
-      "label": "EUR/USD rate",
-      "driver": "eurusd",
+      "label": "Tariff on Canada-origin furniture",
+      "driver": "tariff",
       "label_source": "header",
       "confirmed": true,
-      "feeds": 214,
-      "outputs": ["P&L!F40", "DCF!C22"],
+      "feeds": 66,
+      "outputs": [
+        "P&L!C27",
+        "DCF!B38"
+      ],
+      "check": {
+        "kind": "news",
+        "status": "stale",
+        "live": 0.5,
+        "drift_pct": null,
+        "p_stale": null,
+        "as_of": "2026-09-15",
+        "source_name": "CBP CSMS #69606660",
+        "source_url": "https://content.govdelivery.com/accounts/USDHSCBP/bulletins/4261d04",
+        "evidence": [
+          {
+            "quote": "50% Section 338 duty, in force 2026-08-22; seating and furniture added to the covered list 2026-09-15",
+            "url": "https://zonos.com/docs/guides/country-guides/united-states/section-338-canada-tariffs",
+            "publisher": "Zonos",
+            "date": "2026-09-15"
+          }
+        ]
+      },
+      "impact": [
+        {
+          "output": "P&L!C27",
+          "delta": -48.1
+        },
+        {
+          "output": "DCF!B38",
+          "delta": -552.4
+        }
+      ]
+    },
+    {
+      "cell": "P&L!C18",
+      "value": 5739,
+      "embedded": true,
+      "formula": "=C17*5739/1000000",
+      "label": "Ocean freight, Shanghai–Los Angeles ($/FEU)",
+      "driver": "freight_feu",
+      "label_source": "header",
+      "confirmed": true,
+      "feeds": 13,
+      "outputs": [
+        "P&L!C27",
+        "DCF!B38"
+      ],
       "check": {
         "kind": "series",
         "status": "stale",
-        "live": 1.12,
-        "drift_pct": 3.7,
+        "live": 7624,
+        "drift_pct": 32.8,
         "p_stale": null,
-        "as_of": "2026-10-09",
+        "as_of": "2026-10-08",
+        "source_name": "Drewry WCI via Daily Cargo News",
+        "source_url": "https://thedcn.com.au/news/world-container-index-8-october-2026",
+        "evidence": []
+      },
+      "impact": [
+        {
+          "output": "P&L!C27",
+          "delta": -18.5
+        },
+        {
+          "output": "DCF!B38",
+          "delta": -212.0
+        }
+      ]
+    },
+    {
+      "cell": "Assumptions!B20",
+      "value": 96.95,
+      "embedded": false,
+      "formula": null,
+      "label": "Brent crude oil ($/bbl)",
+      "driver": "brent",
+      "label_source": "header",
+      "confirmed": true,
+      "feeds": 66,
+      "outputs": [
+        "P&L!C27",
+        "DCF!B38"
+      ],
+      "check": {
+        "kind": "series",
+        "status": "stale",
+        "live": 125.44,
+        "drift_pct": 29.4,
+        "p_stale": null,
+        "as_of": "2026-10-06",
+        "source_name": "FRED DCOILBRENTEU",
+        "source_url": "https://fred.stlouisfed.org/series/DCOILBRENTEU",
+        "evidence": []
+      },
+      "impact": [
+        {
+          "output": "P&L!C27",
+          "delta": -12.0
+        },
+        {
+          "output": "DCF!B38",
+          "delta": -137.3
+        }
+      ]
+    },
+    {
+      "cell": "DCF!B6",
+      "value": 0.0475,
+      "embedded": false,
+      "formula": null,
+      "label": "Risk-free rate, 10-year US Treasury",
+      "driver": "ust10y",
+      "label_source": "header",
+      "confirmed": true,
+      "feeds": 17,
+      "outputs": [
+        "DCF!B38"
+      ],
+      "check": {
+        "kind": "series",
+        "status": "stale",
+        "live": 0.0522,
+        "drift_pct": 9.9,
+        "p_stale": null,
+        "as_of": "2026-10-08",
+        "source_name": "FRED DGS10",
+        "source_url": "https://fred.stlouisfed.org/series/DGS10",
+        "evidence": []
+      },
+      "impact": [
+        {
+          "output": "DCF!B38",
+          "delta": -41.5
+        }
+      ]
+    },
+    {
+      "cell": "Assumptions!B21",
+      "value": 1.1519,
+      "embedded": false,
+      "formula": null,
+      "label": "EUR/USD exchange rate",
+      "driver": "eurusd",
+      "label_source": "header",
+      "confirmed": true,
+      "feeds": 66,
+      "outputs": [
+        "P&L!C27",
+        "DCF!B38"
+      ],
+      "check": {
+        "kind": "series",
+        "status": "stale",
+        "live": 1.1259,
+        "drift_pct": -2.3,
+        "p_stale": null,
+        "as_of": "2026-10-02",
         "source_name": "FRED DEXUSEU",
         "source_url": "https://fred.stlouisfed.org/series/DEXUSEU",
         "evidence": []
       },
       "impact": [
-        { "output": "P&L!F40", "delta": -400000 },
-        { "output": "DCF!C22", "delta": -1100000 }
+        {
+          "output": "P&L!C27",
+          "delta": 1.9
+        },
+        {
+          "output": "DCF!B38",
+          "delta": 22.1
+        }
       ]
     },
     {
-      "cell": "COGS!D9",
-      "value": 2400,
+      "cell": "P&L!C35",
+      "value": 0.0366,
       "embedded": true,
-      "formula": "=D8*2400",
-      "label": "Container freight $/FEU",
-      "driver": "freight_feu",
-      "label_source": "llm",
-      "confirmed": true,
-      "feeds": 131,
-      "outputs": ["P&L!F40", "DCF!C22"],
-      "check": {
-        "kind": "news",
-        "status": "stale",
-        "live": null,
-        "drift_pct": null,
-        "p_stale": 0.82,
-        "as_of": "2026-10-10",
-        "source_name": null,
-        "source_url": null,
-        "evidence": [
-          { "quote": "PLACEHOLDER quote from a scraped article", "url": "https://example.com", "publisher": "Example", "date": "2026-09-30" }
-        ]
-      },
-      "impact": [
-        { "output": "P&L!F40", "delta": -800000 },
-        { "output": "DCF!C22", "delta": -2300000 }
-      ]
-    },
-    {
-      "cell": "Debt!B6",
-      "value": 0.043,
-      "embedded": false,
-      "formula": null,
-      "label": "SOFR",
+      "formula": "=0.0366+Assumptions!$B$29",
+      "label": "SOFR, floating base rate on the term loan",
       "driver": "sofr",
       "label_source": "header",
       "confirmed": true,
-      "feeds": 58,
-      "outputs": ["DCF!C22"],
+      "feeds": 22,
+      "outputs": [
+        "P&L!C39",
+        "DCF!B38"
+      ],
       "check": {
         "kind": "series",
-        "status": "current",
-        "live": 0.0428,
-        "drift_pct": -0.5,
+        "status": "stale",
+        "live": 0.0387,
+        "drift_pct": 5.7,
         "p_stale": null,
-        "as_of": "2026-10-09",
+        "as_of": "2026-10-08",
         "source_name": "FRED SOFR",
         "source_url": "https://fred.stlouisfed.org/series/SOFR",
         "evidence": []
       },
-      "impact": [{ "output": "DCF!C22", "delta": 30000 }]
+      "impact": [
+        {
+          "output": "P&L!C27",
+          "delta": 0
+        },
+        {
+          "output": "P&L!C39",
+          "delta": -0.5
+        },
+        {
+          "output": "DCF!B38",
+          "delta": -5.1
+        }
+      ]
     },
     {
-      "cell": "Assumptions!C21",
-      "value": 0.035,
+      "cell": "Assumptions!B22",
+      "value": 0.125,
       "embedded": false,
       "formula": null,
-      "label": "Revenue growth",
-      "driver": null,
+      "label": "Tariff on Vietnam-origin furniture",
+      "driver": "tariff",
       "label_source": "header",
-      "confirmed": false,
-      "feeds": 302,
-      "outputs": ["P&L!F40", "DCF!C22"],
-      "check": null,
+      "confirmed": true,
+      "feeds": 66,
+      "outputs": [
+        "P&L!C27",
+        "DCF!B38"
+      ],
+      "check": {
+        "kind": "news",
+        "status": "current",
+        "live": 0.125,
+        "drift_pct": 0.0,
+        "p_stale": null,
+        "as_of": "2026-09-30",
+        "source_name": "C.H. Robinson",
+        "source_url": "https://www.chrobinson.com/en-us/resources/insights-and-advisories/client-advisories/2026q3/07-24-26-client-advisory-new-section-301-forced-labor-tariffs-now-in-effect/",
+        "evidence": []
+      },
+      "impact": []
+    },
+    {
+      "cell": "Assumptions!B24",
+      "value": 0.21,
+      "embedded": false,
+      "formula": null,
+      "label": "US federal corporate income tax rate",
+      "driver": "tax",
+      "label_source": "header",
+      "confirmed": true,
+      "feeds": 33,
+      "outputs": [
+        "P&L!C39",
+        "DCF!B38"
+      ],
+      "check": {
+        "kind": "news",
+        "status": "current",
+        "live": 0.21,
+        "drift_pct": 0.0,
+        "p_stale": null,
+        "as_of": "2026-10-10",
+        "source_name": "26 U.S.C. § 11(b)",
+        "source_url": "https://www.law.cornell.edu/uscode/text/26/11",
+        "evidence": []
+      },
       "impact": []
     }
   ]
