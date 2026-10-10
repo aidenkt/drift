@@ -75,10 +75,11 @@ def model(tmp_path_factory):
 
 def test_outputs(model):
     wb, graph, _ = model
+    # the first projection year of each headline row
     assert [o["cell"] for o in constants.find_outputs(wb, graph)] == [
-        "P&L!F10",
-        "P&L!F12",
-        "P&L!F14",
+        "P&L!B10",
+        "P&L!B12",
+        "P&L!B14",
         "DCF Summary!B2",
         "DCF Summary!B3",
         "DCF Summary!B4",
@@ -99,11 +100,49 @@ def test_year_headers_are_not_constants(model):
 def test_embedded_literals(model):
     _, _, found = model
     embedded = {key: c for key, c in found.items() if c["embedded"]}
-    assert sorted({c["value"] for c in embedded.values()}) == [0.21, 0.93, 1.08]
-    growth = embedded[("P&L!C2", 0)]
-    assert growth["formula"] == "=B2*1.08"
+    # one constant per row the literal is copied across, not one per cell
     # the 1 in (1-0.21) and the 0 digits argument of ROUND are skipped; 0.21 keeps its token position
-    assert [key for key in embedded if key[0] == "P&L!F14"] == [("P&L!F14", 1)]
+    assert list(embedded) == [("P&L!C2:F2", 0), ("P&L!B3:F3", 0), ("P&L!B14:F14", 1)]
+    assert [c["value"] for c in embedded.values()] == [1.08, 0.93, 0.21]
+
+    growth = embedded[("P&L!C2:F2", 0)]
+    assert growth["formula"] == "=B2*1.08"
+    assert growth["cells"] == ["P&L!C2", "P&L!D2", "P&L!E2", "P&L!F2"]
+    assert embedded[("P&L!B3:F3", 0)]["cells"] == [f"P&L!{col}3" for col in "BCDEF"]
+    assert embedded[("P&L!B14:F14", 1)]["formula"] == "=ROUND((B12-B13)*(1-0.21),0)"
+
+
+def test_cell_inputs_carry_no_cells(model):
+    _, _, found = model
+    assert len(found) == 17  # 14 assumptions and 3 grouped literals
+    assert not any("cells" in c for c in found.values() if not c["embedded"])
+
+
+def test_group_reach(model):
+    _, _, found = model
+    # units from 2027 on, the 9 rows that scale with units in those 4 years, and the 3 summary cells;
+    # 2026 has no growth in it, so none of the first-year outputs
+    growth = found[("P&L!C2:F2", 0)]
+    assert growth["feeds"] == 4 + 9 * 4 + 3
+    assert growth["outputs"] == ["DCF Summary!B2", "DCF Summary!B3", "DCF Summary!B4"]
+
+    # price, revenue, gross margin, EBITDA and net income across 5 years, plus the 3 summary cells
+    price = found[("P&L!B3:F3", 0)]
+    assert price["feeds"] == 5 * 5 + 3
+    assert len(price["outputs"]) == 6
+
+    # net income in each year and nothing after it; only the first year is an output
+    tax = found[("P&L!B14:F14", 1)]
+    assert tax["feeds"] == 5
+    assert tax["outputs"] == ["P&L!B14"]
+
+
+def test_group_keys_resolve_to_context(model):
+    wb, _, found = model
+    for cell, _ in found:
+        assert wb.context(cell)["sheet"] in wb.sheets
+    assert wb.context("P&L!C2:F2")["row_label"] == "Units"
+    assert wb.context("P&L!C2:F2")["col_header"] == "2027"
 
 
 def test_reach(model):
@@ -115,11 +154,11 @@ def test_reach(model):
 
     sofr = found[("Assumptions!B3", None)]
     assert sofr["feeds"] == 10  # interest and net income across 5 years
-    assert sofr["outputs"] == ["P&L!F14"]
+    assert sofr["outputs"] == ["P&L!B14"]
 
     # reached only through SUM ranges and the NPV range
     opex = found[("Assumptions!B14", None)]
-    assert opex["outputs"] == ["P&L!F12", "P&L!F14", "DCF Summary!B2", "DCF Summary!B3"]
+    assert opex["outputs"] == ["P&L!B12", "P&L!B14", "DCF Summary!B2", "DCF Summary!B3"]
 
     # reached only through a defined name
     discount = found[("Assumptions!B15", None)]
@@ -143,9 +182,11 @@ def test_saved_workbook_with_cached_values():
     assert wb.context("Assumptions!B6")["comment"] == "Spot rate, Jan"
 
     outputs = {o["label"]: o["value"] for o in constants.find_outputs(wb, graph)}
-    assert outputs["EBITDA"] == pytest.approx(5072522.166)
+    # 2026: 100,000 units at 129 * 0.93, less goods 4.86m, tariff 0.486m, steel 1.7m, freight 0.12m, opex 1.5m
+    assert outputs["EBITDA"] == pytest.approx(3331000)
     assert outputs["NPV"] == pytest.approx(15488785.26)
 
     found = constants.find(wb, graph)
-    assert len(found) == 28
+    assert len(found) == 17
     assert {c["cell"] for c in found if not c["embedded"]} == {f"Assumptions!B{row}" for row in range(2, 16)}
+    assert [c["cell"] for c in found if c["embedded"]] == ["P&L!C2:F2", "P&L!B3:F3", "P&L!B14:F14"]

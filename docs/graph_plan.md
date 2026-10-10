@@ -2,6 +2,19 @@
 
 Owner: Ethan. Scope: `engine/graph/` and `engine/tests/test_graph_*.py`. [engine_plan.md](engine_plan.md) has the ownership split and the seam with the checks half; [overall_plan.md](overall_plan.md) has the product plan and the day's schedule.
 
+## Status
+
+Milestones 1 to 4 are built, plus the combined run from milestone 5. Still open from milestone 5: regenerating `schema/fixtures/case_study.json` from real engine output (shared file, agree with Aiden first).
+
+What changed from the plan below once the case study workbook arrived:
+
+- **Embedded literals are grouped.** The same literal in adjacent cells of a row, with the same formula shape, is one constant whose `cell` is a range (`P&L!C35:G35`) and whose `cells` lists the formula cells. Impact changes all of them together.
+- **Outputs take the leftmost formula cell of a labelled row** (the first forecast year), not the rightmost, and skip rows that only link to another cell.
+- **`impact.fill_outputs`** replaces the `0.0` placeholder with the recalculated value when a workbook has no cached values.
+- **Size guard:** a workbook with more than 5,000 formulas, or a used area above 500,000 cells, is not recalculated and gets the path-only fallback.
+- **`Literal` carries `func` and `arg`**, and `Workbook` carries `names`.
+- **Tests against the ground truth** are in `tests/test_graph_case_study.py`, not the shared `tests/test_case_study.py`.
+
 ## Rules that keep this conflict-free
 
 1. **New code goes in new files.** Everything below lives in `engine/graph/` or in `engine/tests/test_graph_*.py`. Nobody else writes there.

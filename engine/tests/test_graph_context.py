@@ -239,6 +239,48 @@ def test_key_normalisation():
     assert context_for(wb, "Assumptions!C$14") == expected
 
 
+def test_range_key_gives_the_context_of_its_first_cell():
+    wb = make_wb(
+        {
+            "C4": "FY2026E",
+            "G4": "FY2030E",
+            "A35": "Interest rate (SOFR + margin)",
+            "C35": 0.0641,
+            "D35": 0.0641,
+            "F35": "per annum",
+            "G35": 0.0641,
+        },
+        sheet="P&L",
+        bounds=(1, 1, 40, 8),
+        formats={"P&L!C35": "0.00%", "P&L!G35": "0.0000"},
+        comments={"P&L!C35": "SOFR at model date", "P&L!G35": "last year"},
+    )
+    expected = {
+        "sheet": "P&L",
+        "row_label": "Interest rate (SOFR + margin)",
+        "col_header": "FY2026E",
+        "number_format": "0.00%",
+        "comment": "SOFR at model date",
+    }
+    assert context_for(wb, "P&L!C35:G35") == expected
+    assert context_for(wb, "P&L!C35") == expected
+    assert wb.context("P&L!C35:G35") == expected
+    assert context_for(wb, "P&L!G35")["row_label"] == "per annum"
+
+
+def test_range_key_normalisation():
+    wb = make_wb({"A14": "EUR/USD rate", "C1": "FY2026", "C14": 1.08}, formats={"Assumptions!C14": "0.00"})
+    expected = context_for(wb, "Assumptions!C14")
+    assert expected["number_format"] == "0.00"
+    assert context_for(wb, "Assumptions!$c$14:$g$14") == expected
+    assert context_for(wb, "Assumptions!C14:C14") == expected
+
+
+def test_range_key_on_an_unknown_sheet_raises_key_error():
+    with pytest.raises(KeyError):
+        context_for(assumptions_table(), "Inputs!B2:F2")
+
+
 def test_sheet_name_with_space():
     wb = make_wb(
         {"A1": "Driver", "B1": "FY2026", "A2": "SOFR", "B2": 0.043},
@@ -252,6 +294,7 @@ def test_sheet_name_with_space():
         "number_format": "0.00%",
         "comment": None,
     }
+    assert context_for(wb, "Rate Inputs!B2:F2") == context_for(wb, "Rate Inputs!B2")
 
 
 def test_multiple_sheets_do_not_leak():

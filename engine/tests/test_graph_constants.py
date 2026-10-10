@@ -51,6 +51,15 @@ def find_outputs(cells, edges=(), literals=(), sheets=None) -> list[dict]:
     return constants.find_outputs(*build(cells, edges, literals, sheets))
 
 
+def copied(formulas: dict[str, str], *values: float) -> list[Literal]:
+    """The literals of a formula copied across cells: one per value, in order, for every cell."""
+    return [Literal(cell, index, value) for cell in formulas for index, value in enumerate(values)]
+
+
+def keys(found: list[dict]) -> list[str]:
+    return [c["cell"] for c in found]
+
+
 def chain_model() -> tuple[Workbook, Graph]:
     """Inputs!B1 -> Model!B2 -> Model!B3 -> P&L!B5 (EBITDA), plus a tax rate that never reaches it."""
     return build(
@@ -223,6 +232,7 @@ def test_embedded_literal():
         "check": None,
         "impact": [],
         "literal_index": 0,
+        "cells": ["M!C5"],
     }
 
 
@@ -348,6 +358,228 @@ def test_other_arguments_are_kept(func, arg):
     assert found["value"] == 7.0
 
 
+# --- literals copied across a row ---
+
+
+def test_literal_copied_across_a_row_is_one_constant():
+    formulas = {f"P&L!{col}35": "=0.0366+Assumptions!$B$29" for col in "CDEFG"}
+    found = find({"P&L!A35": "Interest rate", **formulas}, literals=copied(formulas, 0.0366))
+    assert found == [
+        {
+            "cell": "P&L!C35:G35",
+            "cells": ["P&L!C35", "P&L!D35", "P&L!E35", "P&L!F35", "P&L!G35"],
+            "literal_index": 0,
+            "value": 0.0366,
+            "embedded": True,
+            "formula": "=0.0366+Assumptions!$B$29",
+            "label": "",
+            "driver": None,
+            "label_source": "header",
+            "confirmed": False,
+            "feeds": 5,
+            "outputs": ["P&L!C35", "P&L!D35", "P&L!E35", "P&L!F35", "P&L!G35"],
+            "check": None,
+            "impact": [],
+        }
+    ]
+
+
+def test_relative_references_and_spacing_do_not_change_the_shape():
+    formulas = {"M!C5": "=C4*1.08", "M!D5": "=D4*1.08", "M!E5": "= 'Other Sheet'!$E$4 * 1.08", "M!F5": "=Rate*1.08"}
+    (found,) = find(formulas, literals=copied(formulas, 1.08))
+    assert found["cell"] == "M!C5:F5"
+    assert found["cells"] == ["M!C5", "M!D5", "M!E5", "M!F5"]
+    assert found["formula"] == "=C4*1.08"
+
+
+def test_group_of_two():
+    formulas = {"M!Z5": "=Z4*1.08", "M!AA5": "=AA4*1.08"}
+    (found,) = find(formulas, literals=copied(formulas, 1.08))
+    assert found["cell"] == "M!Z5:AA5"
+    assert found["cells"] == ["M!Z5", "M!AA5"]
+
+
+def test_gap_starts_a_new_group():
+    formulas = {f"M!{col}5": f"={col}4*1.08" for col in "CDFG"}
+    found = find(formulas, literals=copied(formulas, 1.08))
+    assert [(c["cell"], c["cells"]) for c in found] == [
+        ("M!C5:D5", ["M!C5", "M!D5"]),
+        ("M!F5:G5", ["M!F5", "M!G5"]),
+    ]
+
+
+def test_formula_without_the_literal_is_a_gap():
+    formulas = {"M!C5": "=C4*1.08", "M!D5": "=D4*E9", "M!E5": "=E4*1.08"}
+    found = find(formulas, literals=[Literal("M!C5", 0, 1.08), Literal("M!E5", 0, 1.08)])
+    assert [(c["cell"], c["cells"]) for c in found] == [("M!C5", ["M!C5"]), ("M!E5", ["M!E5"])]
+
+
+def test_different_values_are_not_grouped():
+    formulas = {"M!C5": "=C4*1.08", "M!D5": "=D4*1.08", "M!E5": "=E4*1.09", "M!F5": "=F4*1.08"}
+    found = find(
+        formulas,
+        literals=[
+            Literal("M!C5", 0, 1.08),
+            Literal("M!D5", 0, 1.08),
+            Literal("M!E5", 0, 1.09),
+            Literal("M!F5", 0, 1.08),
+        ],
+    )
+    assert [(c["cell"], c["value"]) for c in found] == [("M!C5:D5", 1.08), ("M!E5", 1.09), ("M!F5", 1.08)]
+
+
+def test_different_shapes_are_not_grouped():
+    formulas = {"M!C5": "=C4*1.08", "M!D5": "=D4*1.08", "M!E5": "=E4+1.08", "M!F5": "=SUM(F4)*1.08"}
+    found = find(formulas, literals=copied(formulas, 1.08))
+    assert [(c["cell"], c["formula"]) for c in found] == [
+        ("M!C5:D5", "=C4*1.08"),
+        ("M!E5", "=E4+1.08"),
+        ("M!F5", "=SUM(F4)*1.08"),
+    ]
+
+
+def test_another_number_in_the_formula_is_part_of_the_shape():
+    formulas = {"M!C5": "=C4*1.08+250", "M!D5": "=D4*1.08+300"}
+    found = find(
+        formulas,
+        literals=[
+            Literal("M!C5", 0, 1.08),
+            Literal("M!C5", 1, 250.0),
+            Literal("M!D5", 0, 1.08),
+            Literal("M!D5", 1, 300.0),
+        ],
+    )
+    assert [(c["cell"], c["literal_index"], c["value"]) for c in found] == [
+        ("M!C5", 0, 1.08),
+        ("M!C5", 1, 250.0),
+        ("M!D5", 0, 1.08),
+        ("M!D5", 1, 300.0),
+    ]
+
+
+def test_same_value_at_another_literal_index_is_not_grouped():
+    formulas = {"M!C5": "=C4*1.08", "M!D5": "=D4*1.08"}
+    found = find(formulas, literals=[Literal("M!C5", 0, 1.08), Literal("M!D5", 1, 1.08)])
+    assert [(c["cell"], c["literal_index"]) for c in found] == [("M!C5", 0), ("M!D5", 1)]
+
+
+def test_two_literals_in_a_copied_formula_give_two_groups_over_the_same_cells():
+    formulas = {f"P&L!{col}18": f"={col}17*5739/1000000" for col in "CDEFG"}
+    found = find(formulas, literals=copied(formulas, 5739.0, 1000000.0))
+    assert [(c["cell"], c["literal_index"], c["value"]) for c in found] == [
+        ("P&L!C18:G18", 0, 5739.0),
+        ("P&L!C18:G18", 1, 1000000.0),
+    ]
+    assert found[0]["cells"] == found[1]["cells"] == list(formulas)
+    assert found[0]["cells"] is not found[1]["cells"]
+    assert found[0]["formula"] == found[1]["formula"] == "=C17*5739/1000000"
+
+
+def test_skipped_literals_do_not_join_or_break_a_group():
+    formulas = {f"DCF!{col}28": f"=MIN(1,({col}19-$B$5)/365)" for col in "CDE"}
+    literals = [Literal(cell, index, value) for cell in formulas for index, value in ((0, 1.0), (1, 365.0))]
+    found = find(formulas, literals=literals)
+    assert [(c["cell"], c["literal_index"], c["value"]) for c in found] == [("DCF!C28:E28", 1, 365.0)]
+
+
+def test_single_cell_keeps_a_plain_key():
+    (found,) = find({"M!C5": "=C4*1.08"}, literals=[Literal("M!C5", 0, 1.08)])
+    assert found["cell"] == "M!C5"
+    assert found["cells"] == ["M!C5"]
+
+
+def test_copies_down_a_column_are_not_grouped():
+    formulas = {"M!C5": "=B5*1.08", "M!C6": "=B6*1.08", "M!C7": "=B7*1.08"}
+    found = find(formulas, literals=copied(formulas, 1.08))
+    assert [(c["cell"], c["cells"]) for c in found] == [(cell, [cell]) for cell in formulas]
+
+
+def test_same_row_on_two_sheets_is_not_grouped():
+    formulas = {"One!C5": "=C4*1.08", "Two!D5": "=D4*1.08"}
+    assert keys(find(formulas, literals=copied(formulas, 1.08))) == ["One!C5", "Two!D5"]
+
+
+def test_formulas_the_tokenizer_cannot_read_stay_separate():
+    formulas = {"M!C5": "=A1*1.08)", "M!D5": "=A1*1.08)"}
+    assert keys(find(formulas, literals=copied(formulas, 1.08))) == ["M!C5", "M!D5"]
+
+
+def test_cell_inputs_are_never_grouped():
+    growth = {"A!B33": 0.04, "A!C33": 0.045, "A!D33": 0.045, "A!E33": 0.04, "A!F33": 0.035}
+    links = {f"P!{col}5": f"=A!{col}33" for col in "BCDEF"}
+    found = find(
+        {"A!A33": "Net revenue growth", **growth, **links},
+        edges=[(source, f"P!{split_key(source)[1][0]}5") for source in growth],
+    )
+    assert [(c["cell"], c["value"]) for c in found] == list(growth.items())
+    assert not any("cells" in c or "literal_index" in c for c in found)
+
+
+def test_cell_inputs_with_one_value_across_a_row_are_not_grouped():
+    cells = {"A!B2": 0.05, "A!C2": 0.05, "A!D2": 0.05, "A!B3": "=SUM(B2:D2)"}
+    found = find(cells, edges=[("A!B2", "A!B3"), ("A!C2", "A!B3"), ("A!D2", "A!B3")])
+    assert keys(found) == ["A!B2", "A!C2", "A!D2"]
+    assert not any("cells" in c for c in found)
+
+
+def group_model() -> tuple[Workbook, Graph]:
+    """A rate copied into C5:D5. C5 alone reaches EBITDA (C6), D5 alone reaches NPV (B8), both reach B9."""
+    rate = {"M!C5": "=0.0366+B1", "M!D5": "=0.0366+B1"}
+    return build(
+        {
+            "M!A5": "Interest rate",
+            **rate,
+            "M!A6": "EBITDA",
+            "M!C6": ("=C4-C5", 10.0),
+            "M!D6": ("=D4-D5", 11.0),
+            "M!A8": "NPV",
+            "M!B8": ("=NPV(B2,D6:E6)", 9.0),
+            "M!A9": "Average rate",
+            "M!B9": ("=AVERAGE(C5:D5)", 0.06),
+        },
+        edges=[("M!C5", "M!C6"), ("M!D5", "M!D6"), ("M!D6", "M!B8"), ("M!C5", "M!B9"), ("M!D5", "M!B9")],
+        literals=copied(rate, 0.0366),
+    )
+
+
+def test_group_feeds_is_the_union_of_what_its_cells_feed():
+    wb, graph = group_model()
+    assert graph.downstream("M!C5") | {"M!C5"} == {"M!C5", "M!C6", "M!B9"}
+    assert graph.downstream("M!D5") | {"M!D5"} == {"M!D5", "M!D6", "M!B8", "M!B9"}
+    (found,) = constants.find(wb, graph)
+    assert found["cell"] == "M!C5:D5"
+    assert found["feeds"] == 6
+
+
+def test_group_outputs_are_those_any_of_its_cells_reaches():
+    (found,) = constants.find(*group_model())
+    assert found["outputs"] == ["M!C6", "M!B8"]
+
+
+def test_group_holding_an_output_cell_lists_it():
+    formulas = {"M!C6": "=C4*0.4", "M!D6": "=D4*0.4", "M!E6": "=E4*0.4"}
+    (found,) = find({"M!A6": "EBITDA", **formulas}, literals=copied(formulas, 0.4))
+    assert found["cell"] == "M!C6:E6"
+    assert found["feeds"] == 3
+    assert found["outputs"] == ["M!C6"]
+
+
+def test_groups_are_ordered_by_their_first_cell():
+    upper = {"M!F4": "=F3*2.5", "M!G4": "=G3*2.5"}
+    lower = {"M!C5": "=C4*12+7.5", "M!D5": "=D4*12+7.5"}
+    found = find(
+        {**lower, **upper, "M!A5": "Cost", "M!B5": 40.0},
+        edges=[("M!B5", "M!C5")],
+        literals=[*copied(lower, 12.0, 7.5), *copied(upper, 2.5)],
+    )
+    assert [(c["cell"], c.get("literal_index")) for c in found] == [
+        ("M!F4:G4", 0),
+        ("M!B5", None),
+        ("M!C5:D5", 0),
+        ("M!C5:D5", 1),
+    ]
+
+
 # --- feeds, outputs, ordering ---
 
 
@@ -419,20 +651,69 @@ def test_find_does_not_touch_the_graph():
 # --- find_outputs ---
 
 
-def test_output_is_the_rightmost_formula_cell_of_a_labelled_row():
+def test_output_is_the_leftmost_formula_cell_of_a_labelled_row():
     outputs = find_outputs(
         {
             "P&L!A3": "EBITDA",
-            "P&L!B3": ("=B1-B2", 10.0),
-            "P&L!C3": ("=C1-C2", 12.0),
-            "P&L!D3": ("=D1-D2", 14),
-            "P&L!E3": 99.0,
+            "P&L!B3": 99.0,
+            "P&L!C3": ("=C1-C2", 10),
+            "P&L!D3": ("=D1-D2", 12.0),
+            "P&L!E3": ("=E1-E2", 14.0),
             "P&L!A4": "Opex",
             "P&L!B4": ("=B8+B9", 3.0),
         }
     )
-    assert outputs == [{"cell": "P&L!D3", "label": "EBITDA", "value": 14.0}]
+    assert outputs == [{"cell": "P&L!C3", "label": "EBITDA", "value": 10.0}]
     assert isinstance(outputs[0]["value"], float)
+
+
+def test_row_of_pure_links_is_not_an_output_row():
+    outputs = find_outputs(
+        {
+            "P&L!A27": "EBITDA",
+            "P&L!C27": ("=C22-C25", 106.0),
+            "P&L!D27": ("=D22-D25", 111.0),
+            "DCF!A20": "EBITDA",
+            "DCF!C20": ("='P&L'!C27", 106.0),
+            "DCF!D20": ("='P&L'!D27", 111.0),
+            "DCF!A38": "Enterprise value (NPV)",
+            "DCF!B38": ("=B35+B37", 905.5),
+        },
+        edges=[("P&L!C27", "DCF!C20"), ("P&L!D27", "DCF!D20")],
+    )
+    assert [o["cell"] for o in outputs] == ["P&L!C27", "DCF!B38"]
+
+
+def test_link_at_the_start_of_an_output_row_is_passed_over():
+    outputs = find_outputs(
+        {
+            "P&L!A6": "Net income",
+            "P&L!B6": ("=Assumptions!$B$5", 50.0),
+            "P&L!C6": ("=B6*(1+C5)", 52.0),
+            "P&L!D6": ("=C6*(1+D5)", 54.0),
+        }
+    )
+    assert outputs == [{"cell": "P&L!C6", "label": "Net income", "value": 52.0}]
+
+
+@pytest.mark.parametrize("formula", ["='P&L'!C27", "=Assumptions!$B$5", "=B9", "=$B$9", "= b9 ", "='Q1 ''26'!B9"])
+def test_pure_links_are_not_outputs(formula):
+    outputs = find_outputs({"S!A1": "EBITDA", "S!B1": (formula, 1.5), "S!A2": "NPV", "S!B2": ("=B7-B8", 2.5)})
+    assert [o["cell"] for o in outputs] == ["S!B2"]
+
+
+@pytest.mark.parametrize("formula", ["=-B9", "=B9+B8", "=B9*1.08", "=SUM(B9)", "=SUM(B8:B9)", "='P&L'!C27/'P&L'!C6"])
+def test_formulas_that_do_more_than_link_are_outputs(formula):
+    outputs = find_outputs({"S!A1": "EBITDA", "S!B1": (formula, 1.5), "S!A2": "NPV", "S!B2": ("=B7-B8", 2.5)})
+    assert [o["cell"] for o in outputs] == ["S!B1", "S!B2"]
+
+
+def test_links_still_count_in_the_fallback():
+    outputs = find_outputs({"S!A1": "EBITDA", "S!B1": ("=Other!B5", 1.5), "S!A2": "Margin", "S!B2": ("=B8/B9", 0.4)})
+    assert outputs == [
+        {"cell": "S!B1", "label": "EBITDA", "value": 1.5},
+        {"cell": "S!B2", "label": "Margin", "value": 0.4},
+    ]
 
 
 def test_output_with_dependents_still_counts_when_the_row_is_labelled():
@@ -458,14 +739,14 @@ def test_output_with_dependents_still_counts_when_the_row_is_labelled():
     ],
 )
 def test_output_labels_match_on_word_boundaries(label):
-    assert find_outputs({"S!A1": label, "S!B1": ("=B9", 1.5), "S!A2": "Other", "S!B2": ("=B8", 2.5)}) == [
+    assert find_outputs({"S!A1": label, "S!B1": ("=B8-B9", 1.5), "S!A2": "Other", "S!B2": ("=B7+B8", 2.5)}) == [
         {"cell": "S!B1", "label": label, "value": 1.5}
     ]
 
 
 @pytest.mark.parametrize("label", ["irrelevant", "Stirring cost", "NPVs", "EBITDAX", "Net incomes", "Gross", "Margin"])
 def test_lookalike_labels_are_not_output_rows(label):
-    outputs = find_outputs({"S!A1": label, "S!B1": ("=B9", 1.5), "S!A2": "EBITDA", "S!B2": ("=B8", 2.5)})
+    outputs = find_outputs({"S!A1": label, "S!B1": ("=B8-B9", 1.5), "S!A2": "EBITDA", "S!B2": ("=B7+B8", 2.5)})
     assert [o["cell"] for o in outputs] == ["S!B2"]
 
 
@@ -521,7 +802,7 @@ def test_fallback_is_capped_at_ten():
 
 
 def test_no_fallback_once_any_row_matches():
-    outputs = find_outputs({"S!A1": "EBITDA", "S!B1": ("=B9", 1.0), "S!A2": "Other", "S!B2": ("=B8", 2.0)})
+    outputs = find_outputs({"S!A1": "EBITDA", "S!B1": ("=B8-B9", 1.0), "S!A2": "Other", "S!B2": ("=B7+B8", 2.0)})
     assert [o["cell"] for o in outputs] == ["S!B1"]
 
 
@@ -533,25 +814,31 @@ def test_outputs_are_ordered_across_sheets():
     outputs = find_outputs(
         {
             "DCF!A2": "NPV",
-            "DCF!B2": ("=B9", 48.1),
+            "DCF!B2": ("=NPV(B8,B9:F9)", 48.1),
             "DCF!A1": "IRR",
-            "DCF!C1": ("=B8", 0.14),
+            "DCF!C1": ("=IRR(B9:F9)", 0.14),
             "P&L!A10": "Net income",
-            "P&L!AA10": ("=Z10", 7.0),
-            "P&L!B10": ("=B9", 6.0),
+            "P&L!AA10": ("=Z10-Z9", 7.0),
+            "P&L!Z10": ("=Y10-Y9", 6.0),
             "P&L!A2": "EBITDA",
-            "P&L!B2": ("=B1", 12.4),
+            "P&L!B2": ("=B1-B9", 12.4),
         },
         sheets=["P&L", "DCF"],
     )
-    assert [o["cell"] for o in outputs] == ["P&L!B2", "P&L!AA10", "DCF!C1", "DCF!B2"]
+    assert [o["cell"] for o in outputs] == ["P&L!B2", "P&L!Z10", "DCF!C1", "DCF!B2"]
 
 
 def test_same_row_number_on_two_sheets_gives_two_outputs():
     outputs = find_outputs(
-        {"A!A1": "EBITDA", "A!B1": ("=B9", 1.0), "B!A1": "EBITDA", "B!B1": ("=B9", 2.0), "B!C1": ("=C9", 3.0)}
+        {
+            "A!A1": "EBITDA",
+            "A!C1": ("=C8-C9", 1.0),
+            "A!D1": ("=D8-D9", 2.0),
+            "B!A1": "EBITDA",
+            "B!B1": ("=B8-B9", 3.0),
+        }
     )
-    assert [o["cell"] for o in outputs] == ["A!B1", "B!C1"]
+    assert [o["cell"] for o in outputs] == ["A!C1", "B!B1"]
 
 
 # --- schema ---
@@ -562,6 +849,16 @@ def test_every_constant_matches_the_schema():
     assert {c["embedded"] for c in found} == {True, False}
     for constant in found:
         jsonschema.validate(constant, CONSTANT_SCHEMA)
+
+
+def test_grouped_constant_matches_the_schema():
+    formulas = {f"P&L!{col}18": f"={col}17*5739/1000000" for col in "CDEFG"}
+    found = find({"P&L!A18": "Ocean freight", **formulas}, literals=copied(formulas, 5739.0, 1000000.0))
+    assert keys(found) == ["P&L!C18:G18", "P&L!C18:G18"]
+    for constant in found:
+        assert isinstance(constant["cell"], str)
+        jsonschema.validate(constant, CONSTANT_SCHEMA)
+    json.dumps(found)
 
 
 def test_report_built_from_outputs_and_constants_matches_the_schema():

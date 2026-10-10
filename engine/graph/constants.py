@@ -2,15 +2,18 @@
 
 import re
 
+from openpyxl.formula.tokenizer import Token, Tokenizer
 from openpyxl.utils import column_index_from_string
 from openpyxl.utils.cell import coordinate_from_string
 
-from graph.refs import split_key
+from graph.parse import Literal
+from graph.refs import parse_ref, split_key
 
 _OUTPUT_LABEL = re.compile(r"\b(?:EBITDA|NPV|IRR|net\s+income|gross\s+margin|net\s+present\s+value)\b", re.IGNORECASE)
 _PERIOD_LABEL = re.compile(r"\b(?:year|period|fiscal|FY|date)\b", re.IGNORECASE)
 _MAX_FALLBACK_OUTPUTS = 10
 _TRIVIAL = (0, 1, -1)
+_REFERENCE = "<ref>"
 
 # function -> 0-based argument positions where a number is a digit count, an index or an offset, not an assumption
 _STRUCTURAL_ARGS: dict[str, frozenset[int]] = {
@@ -45,7 +48,8 @@ _STRUCTURAL_ARGS: dict[str, frozenset[int]] = {
 
 def find(wb, graph) -> list[dict]:
     """Literal cells that formulas depend on, plus literals embedded in formulas.
-    Each dict: cell, value, embedded, formula, feeds, outputs (see schema)."""
+    Each dict: cell, value, embedded, formula, feeds, outputs (see schema). A literal copied across a row
+    is one constant: cell is the range ("P&L!C35:G35") and cells lists the formula cells it sits in."""
     sheet_index = {sheet: i for i, sheet in enumerate(wb.sheets)}
     output_cells = [output["cell"] for output in find_outputs(wb, graph)]
     found: list[tuple[tuple[int, int, int], int, dict]] = []
@@ -58,36 +62,77 @@ def find(wb, graph) -> list[dict]:
         reach = graph.downstream(cell)
         found.append((_position(cell, sheet_index), -1, _constant(cell, value, reach, output_cells)))
 
-    for cell, literals in graph.literals.items():
-        kept = [literal for literal in literals if not _is_structural(literal)]
-        if not kept:
-            continue
-        reach = graph.downstream(cell) | {cell}
-        position = _position(cell, sheet_index)
-        formula = wb.formulas.get(cell)
-        for literal in kept:
-            constant = _constant(cell, literal.value, reach, output_cells, embedded=True, formula=formula)
-            constant["literal_index"] = literal.index
-            found.append((position, literal.index, constant))
+    reaches: dict[str, set[str]] = {}
+    for position, literal, cells in _literal_groups(wb, graph, sheet_index):
+        for cell in cells:
+            if cell not in reaches:
+                reaches[cell] = graph.downstream(cell) | {cell}
+        reach = set().union(*(reaches[cell] for cell in cells))
+        key = cells[0] if len(cells) == 1 else f"{cells[0]}:{split_key(cells[-1])[1]}"
+        formula = wb.formulas.get(cells[0])
+        constant = _constant(key, literal.value, reach, output_cells, embedded=True, formula=formula)
+        constant["literal_index"] = literal.index
+        constant["cells"] = cells
+        found.append((position, literal.index, constant))
 
     found.sort(key=lambda item: item[:2])
     return [constant for _, _, constant in found]
 
 
+def _literal_groups(wb, graph, sheet_index: dict[str, int]) -> list[tuple[tuple[int, int, int], Literal, list[str]]]:
+    """Embedded literals as (position of the first cell, its literal, cells). A run of adjacent cells in a
+    row whose formulas have the same shape and the same value at the same literal index is one group."""
+    groups = []
+    runs: dict[tuple, tuple[int, list[str]]] = {}  # group key -> last column and cells of its latest run
+    for position, cell in sorted((_position(cell, sheet_index), cell) for cell in graph.literals):
+        sheet, row, col = position
+        shape = _shape(wb.formulas.get(cell))
+        for literal in graph.literals[cell]:
+            if _is_structural(literal):
+                continue
+            key = (sheet, row, literal.index, literal.value, shape)
+            last_col, cells = runs.get(key, (None, None))
+            if shape is not None and last_col == col - 1:
+                cells.append(cell)
+            else:
+                cells = [cell]
+                groups.append((position, literal, cells))
+            runs[key] = (col, cells)
+    return groups
+
+
+def _shape(formula: str | None) -> tuple | None:
+    """The formula's tokens with every reference replaced by a placeholder, so =C17*2 and =D17*2 match.
+    None when there is no formula or the tokenizer cannot read it."""
+    if formula is None:
+        return None
+    try:
+        tokens = Tokenizer(formula).items
+    except Exception:
+        return None
+    return tuple(
+        (token.type, token.subtype, _REFERENCE if token.subtype == Token.RANGE else token.value)
+        for token in tokens
+        if token.type != Token.WSPACE
+    )
+
+
 def find_outputs(wb, graph) -> list[dict]:
-    """Key result cells (no dependents, or labeled EBITDA / NPV / ...). Each: cell, label, value."""
+    """Key result cells: the first formula cell of each row labeled EBITDA / NPV / ..., links to another
+    cell aside; with no such row, formula cells nothing reads. Each: cell, label, value."""
     sheet_index = {sheet: i for i, sheet in enumerate(wb.sheets)}
     candidates = sorted(
         (_position(cell, sheet_index), cell)
         for cell in wb.formulas
         if wb.values.get(cell) is None or _is_number(wb.values[cell])
     )
-    rightmost: dict[tuple[int, int], str] = {}
+    leftmost: dict[tuple[int, int], str] = {}
     for (sheet, row, _), cell in candidates:
-        rightmost[sheet, row] = cell
+        if not _is_link(wb.formulas[cell]):
+            leftmost.setdefault((sheet, row), cell)
 
     outputs = []
-    for cell in rightmost.values():
+    for cell in leftmost.values():
         label = wb.context(cell)["row_label"]
         if label and _OUTPUT_LABEL.search(label):
             outputs.append(_output(wb, cell, label))
@@ -132,6 +177,12 @@ def _is_period_header(wb, cell: str, value: float) -> bool:
         return False
     label = wb.context(cell)["row_label"]
     return label is None or _PERIOD_LABEL.search(label) is not None
+
+
+def _is_link(formula: str) -> bool:
+    """A formula that is nothing but one cell reference, e.g. ='P&L'!C27."""
+    parsed = parse_ref(formula.removeprefix("=").strip(), "")
+    return parsed is not None and ":" not in parsed[1]
 
 
 def _is_structural(literal) -> bool:

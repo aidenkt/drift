@@ -9,11 +9,12 @@ from graph.refs import make_key, split_key
 
 
 def context_for(wb, cell: str) -> dict:
-    """{"sheet", "row_label", "col_header", "number_format", "comment"} for a cell key."""
+    """{"sheet", "row_label", "col_header", "number_format", "comment"} for a cell key.
+    A range key ("P&L!C35:G35") gives the context of its first cell."""
     sheet, coord = split_key(cell)
     if sheet not in wb.bounds:
         raise KeyError(sheet)
-    key = make_key(sheet, coord)
+    key = make_key(sheet, coord.partition(":")[0])
     letter, row = coordinate_from_string(split_key(key)[1])
     col = column_index_from_string(letter)
     comment = (wb.comments.get(key) or "").strip()
