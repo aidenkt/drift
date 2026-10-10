@@ -1,9 +1,26 @@
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
 import type { Constant } from "../types";
-import { colName, FORMATS, getFormat, parseRef, raw, ref, setFormat, shiftDecimals, view, write, type Book } from "../lib/workbook";
+import {
+  addSheet,
+  colName,
+  FORMATS,
+  getFormat,
+  parseRef,
+  raw,
+  ref,
+  removeSheet,
+  renameSheet,
+  setFormat,
+  shiftDecimals,
+  syncSheets,
+  view,
+  write,
+  type Book,
+} from "../lib/workbook";
 import { Chevron, DecLess, DecMore, Redo, Undo } from "./icons";
 import Menu from "./Menu";
 import ConstantStrip from "./ConstantStrip";
+import { fromTsv, shiftFormula, toHtml, toTsv } from "../lib/clipboard";
 
 const DEFAULT_COL = 96;
 const ROW_HEAD = 44;
@@ -11,29 +28,74 @@ const PAD_ROWS = 30;
 const PAD_COLS = 4;
 
 type Edit = { text: string; from: "cell" | "bar" };
+type Pos = { r: number; c: number };
+/** What a mouse drag is extending: cells, or whole rows/columns from the headers. */
+type Drag = "cell" | "row" | "col";
+type Range = { r0: number; r1: number; c0: number; c1: number };
+export type CellChange = { ref: string; before: string; after: string };
+/** The last range copied or cut here; tsv is what went on the system clipboard, to recognise it on paste. */
+type Clip = { sheetId: number; range: Range; cut: boolean; tsv: string };
 
 type Props = {
   book: Book;
   constants: Map<string, Constant>;
   /** Jump to a cell; nonce lets the same ref be focused twice. */
   focus?: { ref: string; nonce: number } | null;
-  onEdit?: (ref: string, before: string, after: string) => void;
+  /** Every write, one call per user action (a paste or a range clear arrives as one batch). */
+  onEdit?: (changes: CellChange[], moved?: number) => void;
+  /** The active cell, whenever it changes. */
+  onSelectCell?: (ref: string) => void;
   /** Bumped by the page after undo/redo from the menu bar, to re-render. */
   rev?: number;
   toolbarEnd?: ReactNode;
 };
 
-export default function Spreadsheet({ book, constants, focus, onEdit, toolbarEnd }: Props) {
+export default function Spreadsheet({ book, constants, focus, onEdit, onSelectCell, toolbarEnd }: Props) {
   const [sheetIx, setSheetIx] = useState(0);
-  const [sel, setSel] = useState({ r: 0, c: 0 });
+  // sel is the active cell; ext is the other corner of the highlighted range
+  const [sel, setSel] = useState<Pos>({ r: 0, c: 0 });
+  const [ext, setExt] = useState<Pos>({ r: 0, c: 0 });
+  const [drag, setDrag] = useState<Drag | null>(null);
+  const pointerRef = useRef({ x: 0, y: 0 });
   const [edit, setEdit] = useState<Edit | null>(null);
   const [version, setVersion] = useState(0);
+  const [clip, setClip] = useState<Clip | null>(null);
   const gridRef = useRef<HTMLDivElement>(null);
 
-  const sheet = book.sheets[sheetIx];
+  const [renaming, setRenaming] = useState<{ ix: number; text: string } | null>(null);
+  // sheet options open above the tab bar, outside it, since the bar scrolls and would clip them
+  const [tabMenu, setTabMenu] = useState<{ ix: number; left: number } | null>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!tabMenu) return;
+    const close = (e: Event) => {
+      if (e instanceof KeyboardEvent ? e.key === "Escape" : !(e.target as Element).closest(".tab-pop, .tab-more")) setTabMenu(null);
+    };
+    document.addEventListener("mousedown", close);
+    document.addEventListener("keydown", close);
+    return () => {
+      document.removeEventListener("mousedown", close);
+      document.removeEventListener("keydown", close);
+    };
+  }, [tabMenu]);
+
+  // undo/redo can remove the sheet we're on
+  const sheet = book.sheets[Math.min(sheetIx, book.sheets.length - 1)];
   const rows = Math.max(sheet.rows + PAD_ROWS, 60);
   const cols = Math.max(sheet.cols + PAD_COLS, 12);
   const selRef = ref(sheet.name, sel.r, sel.c);
+  const range = {
+    r0: Math.min(sel.r, ext.r),
+    r1: Math.max(sel.r, ext.r),
+    c0: Math.min(sel.c, ext.c),
+    c1: Math.max(sel.c, ext.c),
+  };
+  const multi = range.r0 !== range.r1 || range.c0 !== range.c1;
+  const rangeLabel = multi ? `${colName(range.c0)}${range.r0 + 1}:${colName(range.c1)}${range.r1 + 1}` : selRef.slice(selRef.lastIndexOf("!") + 1);
+  const inRange = (r: number, c: number) => r >= range.r0 && r <= range.r1 && c >= range.c0 && c <= range.c1;
+  const eachInRange = (fn: (r: number, c: number) => void) => {
+    for (let r = range.r0; r <= range.r1; r++) for (let c = range.c0; c <= range.c1; c++) fn(r, c);
+  };
   const widths = Array.from({ length: cols }, (_, c) => sheet.colWidths[c] ?? DEFAULT_COL);
   const tableWidth = ROW_HEAD + widths.reduce((a, b) => a + b, 0);
 
@@ -49,9 +111,52 @@ export default function Spreadsheet({ book, constants, focus, onEdit, toolbarEnd
 
   useEffect(() => {
     gridRef.current
-      ?.querySelector(`[data-cell="${sel.r}:${sel.c}"]`)
+      ?.querySelector(`[data-cell="${ext.r}:${ext.c}"]`)
       ?.scrollIntoView({ block: "nearest", inline: "nearest" });
-  }, [sel, sheetIx]);
+  }, [ext, sheetIx]);
+
+  // While the mouse is held, track it anywhere on the page and scroll the grid when it leaves the edge.
+  useEffect(() => {
+    if (!drag) return;
+    const grid = gridRef.current!;
+    let pointer = pointerRef.current; // where the press happened
+    const track = () => {
+      const el = document.elementFromPoint(pointer.x, pointer.y)?.closest<HTMLElement>("[data-cell], [data-row], [data-col]");
+      if (!el || !grid.contains(el)) return;
+      const r = el.dataset.cell ? Number(el.dataset.cell.split(":")[0]) : el.dataset.row != null ? Number(el.dataset.row) : null;
+      const c = el.dataset.cell ? Number(el.dataset.cell.split(":")[1]) : el.dataset.col != null ? Number(el.dataset.col) : null;
+      setExt((e) => ({
+        r: drag === "col" ? e.r : (r ?? e.r),
+        c: drag === "row" ? e.c : (c ?? e.c),
+      }));
+    };
+    const onMove = (e: MouseEvent) => {
+      pointer = { x: e.clientX, y: e.clientY };
+      track();
+    };
+    const timer = setInterval(() => {
+      const b = grid.getBoundingClientRect();
+      const dx = pointer.x < b.left + ROW_HEAD ? -1 : pointer.x > b.right - 12 ? 1 : 0;
+      const dy = pointer.y < b.top + 22 ? -1 : pointer.y > b.bottom - 12 ? 1 : 0;
+      if (!dx && !dy) return;
+      grid.scrollBy(drag === "row" ? 0 : dx * 24, drag === "col" ? 0 : dy * 24);
+      // pin the pointer inside the grid so the cell under the edge is picked up
+      const x = clamp(pointer.x, b.left + ROW_HEAD + 2, b.right - 14);
+      const y = clamp(pointer.y, b.top + 24, b.bottom - 14);
+      const saved = pointer;
+      pointer = { x, y };
+      track();
+      pointer = saved;
+    }, 50);
+    const stop = () => setDrag(null);
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", stop);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", stop);
+    };
+  }, [drag]);
 
   useEffect(() => {
     if (!focus) return;
@@ -60,22 +165,198 @@ export default function Spreadsheet({ book, constants, focus, onEdit, toolbarEnd
     if (ix < 0) return;
     setEdit(null);
     setSheetIx(ix);
-    setSel({ r: row, c: col });
+    select({ r: row, c: col });
     gridRef.current?.focus();
   }, [focus, book]);
 
   const focusGrid = () => gridRef.current?.focus();
-
-  const writeCell = (r: number, c: number, text: string) => {
-    const before = raw(book, sheet, r, c);
-    if (before === text) return;
-    write(book, sheet, r, c, text);
-    setVersion((v) => v + 1);
-    onEdit?.(ref(sheet.name, r, c), before, raw(book, sheet, r, c));
+  const select = (p: Pos, extend = false) => {
+    if (!extend) setSel(p);
+    setExt(p);
   };
 
-  const move = (dr: number, dc: number) =>
-    setSel((s) => ({ r: clamp(s.r + dr, 0, rows - 1), c: clamp(s.c + dc, 0, cols - 1) }));
+  /** Write several cells as one undo step and one reported change. */
+  const writeCells = (cells: { r: number; c: number; text: string }[]) => {
+    const todo = cells.filter(({ r, c, text }) => raw(book, sheet, r, c) !== text);
+    if (!todo.length) return;
+    const before = todo.map(({ r, c }) => raw(book, sheet, r, c));
+    book.hf.batch(() => todo.forEach(({ r, c, text }) => write(book, sheet, r, c, text)));
+    grow(todo);
+    setVersion((v) => v + 1);
+    setClip(null);
+    onEdit?.(todo.map(({ r, c }, i) => ({ ref: ref(sheet.name, r, c), before: before[i], after: raw(book, sheet, r, c) })));
+  };
+  const writeCell = (r: number, c: number, text: string) => writeCells([{ r, c, text }]);
+  /** A paste can land outside the used range; widen it so the new cells count. */
+  const grow = (cells: { r: number; c: number; text?: string }[]) => {
+    for (const { r, c, text } of cells) {
+      if (text === "") continue;
+      sheet.rows = Math.max(sheet.rows, r + 1);
+      sheet.cols = Math.max(sheet.cols, c + 1);
+    }
+  };
+
+  const move = (dr: number, dc: number, extend = false) => {
+    const from = extend ? ext : sel;
+    select({ r: clamp(from.r + dr, 0, rows - 1), c: clamp(from.c + dc, 0, cols - 1) }, extend);
+  };
+
+  /** Cmd/Ctrl+arrow: jump to the edge of the current block of data, like Excel. */
+  const jump = (dr: number, dc: number, extend: boolean) => {
+    const from = extend ? ext : sel;
+    const filled = (r: number, c: number) => raw(book, sheet, r, c) !== "";
+    const inside = (r: number, c: number) => r >= 0 && r < rows && c >= 0 && c < cols;
+    let { r, c } = from;
+    const next = () => ({ r: r + dr, c: c + dc });
+    if (filled(r, c) && inside(next().r, next().c) && filled(next().r, next().c)) {
+      while (inside(next().r, next().c) && filled(next().r, next().c)) ({ r, c } = next());
+    } else {
+      ({ r, c } = next());
+      while (inside(r, c) && !filled(r, c) && inside(next().r, next().c)) ({ r, c } = next());
+    }
+    select({ r: clamp(r, 0, rows - 1), c: clamp(c, 0, cols - 1) }, extend);
+  };
+
+  /** Mouse down on a cell or header. Shift extends from the active cell. */
+  const press = (e: ReactMouseEvent, p: Pos, kind: Drag) => {
+    if (e.button !== 0) return;
+    e.preventDefault(); // no text selection while dragging
+    pointerRef.current = { x: e.clientX, y: e.clientY };
+    if (edit) commit();
+    if (e.shiftKey) {
+      setExt(kind === "col" ? { r: rows - 1, c: p.c } : kind === "row" ? { r: p.r, c: cols - 1 } : p);
+    } else if (kind === "col") {
+      setSel({ r: 0, c: p.c });
+      setExt({ r: rows - 1, c: p.c });
+    } else if (kind === "row") {
+      setSel({ r: p.r, c: 0 });
+      setExt({ r: p.r, c: cols - 1 });
+    } else select(p);
+    setDrag(kind);
+    focusGrid();
+  };
+
+  /** Copy or cut: shown values go to the system clipboard; formulas stay here for pasting back in. */
+  const copy = (e: ClipboardEvent, cut: boolean) => {
+    // whole rows/columns copy only the part with data
+    const r1 = Math.max(range.r0, Math.min(range.r1, sheet.rows - 1));
+    const c1 = Math.max(range.c0, Math.min(range.c1, sheet.cols - 1));
+    const src = { ...range, r1, c1 };
+    const shown: string[][] = [];
+    for (let r = src.r0; r <= src.r1; r++) {
+      const row: string[] = [];
+      for (let c = src.c0; c <= src.c1; c++) row.push(view(book, sheet, r, c).text);
+      shown.push(row);
+    }
+    const tsv = toTsv(shown);
+    e.clipboardData?.setData("text/plain", tsv);
+    e.clipboardData?.setData("text/html", toHtml(shown));
+    e.preventDefault();
+    setClip({ sheetId: sheet.id, range: src, cut, tsv });
+  };
+
+  const paste = (e: ClipboardEvent) => {
+    const text = e.clipboardData?.getData("text/plain") ?? "";
+    if (!text) return;
+    e.preventDefault();
+    const ours = clip && text.replace(/\r\n/g, "\n").replace(/\n$/, "") === clip.tsv ? clip : null;
+    const from = ours && book.sheets.find((s) => s.id === ours.sheetId);
+    if (ours && from && ours.cut) return pasteCut(ours, from);
+
+    // the block to paste: formulas from our own copy, else the clipboard's text
+    let block: string[][];
+    if (ours && from) {
+      block = [];
+      for (let r = ours.range.r0; r <= ours.range.r1; r++) {
+        const row: string[] = [];
+        for (let c = ours.range.c0; c <= ours.range.c1; c++) row.push(raw(book, from, r, c));
+        block.push(row);
+      }
+    } else block = fromTsv(text);
+    const h = block.length;
+    const w = Math.max(...block.map((r) => r.length));
+
+    // like Excel: a block that fits the selection a whole number of times fills it
+    const selH = range.r1 - range.r0 + 1;
+    const selW = range.c1 - range.c0 + 1;
+    const tile = multi && selH % h === 0 && selW % w === 0;
+    const outH = tile ? selH : h;
+    const outW = tile ? selW : w;
+    const top = range.r0;
+    const left = range.c0;
+
+    const cells: { r: number; c: number; text: string }[] = [];
+    for (let i = 0; i < outH; i++)
+      for (let j = 0; j < outW; j++) {
+        const r = top + i;
+        const c = left + j;
+        let t = block[i % h][j % w] ?? "";
+        if (ours) t = shiftFormula(t, r - (ours.range.r0 + (i % h)), c - (ours.range.c0 + (j % w)));
+        cells.push({ r, c, text: t });
+        if (ours && from) {
+          const fmt = book.formats.get(ref(from.name, ours.range.r0 + (i % h), ours.range.c0 + (j % w)));
+          if (fmt) book.formats.set(ref(sheet.name, r, c), fmt);
+        }
+      }
+    const keep = clip; // a copy stays live for more pastes, as in Excel
+    writeCells(cells);
+    if (ours) setClip(keep);
+    setSel({ r: top, c: left });
+    setExt({ r: top + outH - 1, c: left + outW - 1 });
+  };
+
+  /** Cut + paste moves the cells; formulas that pointed at them follow. */
+  const pasteCut = (cut: Clip, from: typeof sheet) => {
+    const h = cut.range.r1 - cut.range.r0 + 1;
+    const w = cut.range.c1 - cut.range.c0 + 1;
+    const dest = { r: range.r0, c: range.c0 };
+    const touched = new Map<string, { s: typeof sheet; r: number; c: number }>();
+    for (let i = 0; i < h; i++)
+      for (let j = 0; j < w; j++) {
+        touched.set(ref(from.name, cut.range.r0 + i, cut.range.c0 + j), { s: from, r: cut.range.r0 + i, c: cut.range.c0 + j });
+        touched.set(ref(sheet.name, dest.r + i, dest.c + j), { s: sheet, r: dest.r + i, c: dest.c + j });
+      }
+    const before = new Map([...touched].map(([k, t]) => [k, raw(book, t.s, t.r, t.c)]));
+    const formats = [...touched.keys()].map((k) => book.formats.get(k));
+    book.hf.cut({ start: { sheet: from.id, row: cut.range.r0, col: cut.range.c0 }, end: { sheet: from.id, row: cut.range.r1, col: cut.range.c1 } });
+    book.hf.paste({ sheet: sheet.id, row: dest.r, col: dest.c });
+    // formats travel with the cells
+    const keys = [...touched.keys()];
+    for (let i = 0; i < h; i++)
+      for (let j = 0; j < w; j++) {
+        const src = ref(from.name, cut.range.r0 + i, cut.range.c0 + j);
+        const fmt = formats[keys.indexOf(src)];
+        book.formats.delete(src);
+        if (fmt) book.formats.set(ref(sheet.name, dest.r + i, dest.c + j), fmt);
+      }
+    grow([dest, { r: dest.r + h - 1, c: dest.c + w - 1 }]);
+    setVersion((v) => v + 1);
+    setClip(null);
+    setSel(dest);
+    setExt({ r: dest.r + h - 1, c: dest.c + w - 1 });
+    const changes = [...touched]
+      .map(([k, t]) => ({ ref: k, before: before.get(k)!, after: raw(book, t.s, t.r, t.c) }))
+      .filter((ch) => ch.before !== ch.after);
+    if (changes.length) onEdit?.(changes, h * w);
+  };
+
+  // copy/cut/paste events land on the document, since the grid isn't an editable element
+  const clipboardRef = useRef({ copy, paste, edit });
+  clipboardRef.current = { copy, paste, edit };
+  useEffect(() => {
+    const ours = () => document.activeElement === gridRef.current && !clipboardRef.current.edit;
+    const onCopy = (e: ClipboardEvent) => ours() && clipboardRef.current.copy(e, false);
+    const onCut = (e: ClipboardEvent) => ours() && clipboardRef.current.copy(e, true);
+    const onPaste = (e: ClipboardEvent) => ours() && clipboardRef.current.paste(e);
+    document.addEventListener("copy", onCopy);
+    document.addEventListener("cut", onCut);
+    document.addEventListener("paste", onPaste);
+    return () => {
+      document.removeEventListener("copy", onCopy);
+      document.removeEventListener("cut", onCut);
+      document.removeEventListener("paste", onPaste);
+    };
+  }, []);
 
   const commit = (dr = 0, dc = 0) => {
     if (edit) writeCell(sel.r, sel.c, edit.text);
@@ -92,6 +373,7 @@ export default function Spreadsheet({ book, constants, focus, onEdit, toolbarEnd
   const history = (redo: boolean) => {
     if (redo ? book.hf.isThereSomethingToRedo() : book.hf.isThereSomethingToUndo()) {
       redo ? book.hf.redo() : book.hf.undo();
+      syncSheets(book);
       setVersion((v) => v + 1);
     }
   };
@@ -101,7 +383,11 @@ export default function Spreadsheet({ book, constants, focus, onEdit, toolbarEnd
     const mod = e.metaKey || e.ctrlKey;
     if (mod && e.key.toLowerCase() === "z") return e.preventDefault(), history(e.shiftKey);
     if (mod && e.key.toLowerCase() === "y") return e.preventDefault(), history(true);
-    if (mod) return;
+    if (mod && e.key.toLowerCase() === "a") {
+      e.preventDefault();
+      setSel({ r: 0, c: 0 });
+      return setExt({ r: rows - 1, c: cols - 1 });
+    }
 
     const arrows: Record<string, [number, number]> = {
       ArrowUp: [-1, 0],
@@ -109,7 +395,12 @@ export default function Spreadsheet({ book, constants, focus, onEdit, toolbarEnd
       ArrowLeft: [0, -1],
       ArrowRight: [0, 1],
     };
-    if (arrows[e.key]) return e.preventDefault(), move(...arrows[e.key]);
+    if (arrows[e.key]) {
+      e.preventDefault();
+      return mod ? jump(...arrows[e.key], e.shiftKey) : move(...arrows[e.key], e.shiftKey);
+    }
+    if (mod) return;
+    if (e.key === "Escape") return setExt(sel), setClip(null);
     if (e.key === "Tab") return e.preventDefault(), move(0, e.shiftKey ? -1 : 1);
     if (e.key === "Enter" || e.key === "F2") {
       e.preventDefault();
@@ -117,7 +408,10 @@ export default function Spreadsheet({ book, constants, focus, onEdit, toolbarEnd
     }
     if (e.key === "Backspace" || e.key === "Delete") {
       e.preventDefault();
-      return writeCell(sel.r, sel.c, "");
+      // whole rows/columns only need the used part cleared
+      const cells: { r: number; c: number; text: string }[] = [];
+      eachInRange((r, c) => r < sheet.rows && c < sheet.cols && cells.push({ r, c, text: "" }));
+      return writeCells(cells);
     }
     if (e.key.length === 1 && !e.altKey) {
       e.preventDefault();
@@ -134,8 +428,22 @@ export default function Spreadsheet({ book, constants, focus, onEdit, toolbarEnd
   const switchSheet = (ix: number) => {
     setEdit(null);
     setSheetIx(ix);
-    setSel({ r: 0, c: 0 });
+    select({ r: 0, c: 0 });
     focusGrid();
+  };
+
+  const newSheet = () => switchSheet(addSheet(book));
+  const commitRename = () => {
+    if (renaming) renameSheet(book, renaming.ix, renaming.text);
+    setRenaming(null);
+    setVersion((v) => v + 1);
+  };
+  const deleteSheet = (ix: number) => {
+    const name = book.sheets[ix].name;
+    if (!confirm(`Delete "${name}"? Formulas that point at it will show #REF!.`)) return;
+    removeSheet(book, ix);
+    switchSheet(Math.max(0, Math.min(ix, book.sheets.length - 1)));
+    setVersion((v) => v + 1);
   };
 
   // version is read so the grid re-renders after edits recalc the workbook
@@ -144,14 +452,27 @@ export default function Spreadsheet({ book, constants, focus, onEdit, toolbarEnd
   const fmt = getFormat(book, sheet, sel.r, sel.c);
   const fmtLabel = FORMATS.find((f) => f.fmt === fmt)?.label ?? "Custom";
   const applyFormat = (next: string) => {
-    setFormat(book, sheet, sel.r, sel.c, next);
+    eachInRange((r, c) => setFormat(book, sheet, r, c, next));
     setVersion((v) => v + 1);
     focusGrid();
   };
-  const selected = constants.get(selRef);
+  useEffect(() => onSelectCell?.(selRef), [selRef]);
+
+  // hovering a checked constant shows its card beside the cell
+  const [tip, setTip] = useState<{ ref: string; left: number; top: number; bottom: number } | null>(null);
+  const hover = (e: ReactMouseEvent) => {
+    const td = (e.target as HTMLElement).closest<HTMLElement>("td[data-cell]");
+    const [r, c] = td?.dataset.cell?.split(":").map(Number) ?? [];
+    const key = td ? ref(sheet.name, r, c) : null;
+    if (!td || drag || !key || !constants.has(key)) return setTip(null);
+    if (tip?.ref === key) return;
+    const b = td.getBoundingClientRect();
+    setTip({ ref: key, left: b.left, top: b.top, bottom: b.bottom });
+  };
+  const tipConstant = tip && !(edit?.from === "cell" && tip.ref === selRef) ? constants.get(tip.ref) : undefined;
 
   return (
-    <div className="sheet">
+    <div className="sheet" ref={rootRef}>
       <div className="toolbar" role="toolbar" aria-label="Sheet tools">
         <div className="tb-group">
           <button className="tb-btn" onClick={() => history(false)} aria-label="Undo" title="Undo">
@@ -186,7 +507,7 @@ export default function Spreadsheet({ book, constants, focus, onEdit, toolbarEnd
         {toolbarEnd}
       </div>
       <div className="formula-bar">
-        <span className="name-box mono">{selRef}</span>
+        <span className="name-box mono">{rangeLabel}</span>
         <input
           className="formula-input mono"
           value={barText}
@@ -198,9 +519,26 @@ export default function Spreadsheet({ book, constants, focus, onEdit, toolbarEnd
           onBlur={() => edit?.from === "bar" && commit()}
         />
       </div>
-      {selected && <ConstantStrip constant={selected} />}
+      {tip && tipConstant && (
+        <ConstantStrip
+          constant={tipConstant}
+          style={{
+            left: Math.min(tip.left, window.innerWidth - 300),
+            ...(tip.bottom + 140 > window.innerHeight ? { bottom: window.innerHeight - tip.top + 6 } : { top: tip.bottom + 6 }),
+          }}
+        />
+      )}
 
-      <div className="grid" ref={gridRef} tabIndex={0} onKeyDown={onGridKey} aria-label={`${sheet.name} grid`}>
+      <div
+        className={`grid${drag ? " dragging" : ""}`}
+        ref={gridRef}
+        tabIndex={0}
+        onKeyDown={onGridKey}
+        onMouseOver={hover}
+        onMouseLeave={() => setTip(null)}
+        onScroll={() => setTip(null)}
+        aria-label={`${sheet.name} grid`}
+      >
         <table style={{ width: tableWidth }}>
           <colgroup>
             <col style={{ width: ROW_HEAD }} />
@@ -210,9 +548,22 @@ export default function Spreadsheet({ book, constants, focus, onEdit, toolbarEnd
           </colgroup>
           <thead>
             <tr>
-              <th className="corner" />
+              <th
+                className="corner"
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  setSel({ r: 0, c: 0 });
+                  setExt({ r: rows - 1, c: cols - 1 });
+                  focusGrid();
+                }}
+              />
               {Array.from({ length: cols }, (_, c) => (
-                <th key={c} className={c === sel.c ? "on" : undefined}>
+                <th
+                  key={c}
+                  data-col={c}
+                  className={c >= range.c0 && c <= range.c1 ? (range.r0 === 0 && range.r1 === rows - 1 ? "on full" : "on") : undefined}
+                  onMouseDown={(e) => press(e, { r: 0, c }, "col")}
+                >
                   {colName(c)}
                 </th>
               ))}
@@ -221,9 +572,16 @@ export default function Spreadsheet({ book, constants, focus, onEdit, toolbarEnd
           <tbody>
             {Array.from({ length: rows }, (_, r) => (
               <tr key={r}>
-                <th className={r === sel.r ? "on" : undefined}>{r + 1}</th>
+                <th
+                  data-row={r}
+                  className={r >= range.r0 && r <= range.r1 ? (range.c0 === 0 && range.c1 === cols - 1 ? "on full" : "on") : undefined}
+                  onMouseDown={(e) => press(e, { r, c: 0 }, "row")}
+                >
+                  {r + 1}
+                </th>
                 {Array.from({ length: cols }, (_, c) => {
                   const isSel = r === sel.r && c === sel.c;
+                  const hit = multi && inRange(r, c);
                   const v = view(book, sheet, r, c);
                   const constant = constants.get(ref(sheet.name, r, c));
                   const cls = [
@@ -231,6 +589,12 @@ export default function Spreadsheet({ book, constants, focus, onEdit, toolbarEnd
                     v.input && "input",
                     constant?.check?.status === "stale" && "stale",
                     isSel && "selected",
+                    clip?.sheetId === sheet.id && clipEdges(clip.range, r, c),
+                    hit && !isSel && "in-range",
+                    hit && r === range.r0 && "rt",
+                    hit && r === range.r1 && "rb",
+                    hit && c === range.c0 && "rl",
+                    hit && c === range.c1 && "rr",
                   ]
                     .filter(Boolean)
                     .join(" ");
@@ -240,9 +604,9 @@ export default function Spreadsheet({ book, constants, focus, onEdit, toolbarEnd
                       data-cell={`${r}:${c}`}
                       className={cls}
                       title={v.text.length > 14 ? v.text : undefined}
-                      onMouseDown={() => {
-                        if (edit) commit();
-                        setSel({ r, c });
+                      onMouseDown={(e) => {
+                        if (isSel && edit?.from === "cell") return; // clicks inside the editor
+                        press(e, { r, c }, "cell");
                       }}
                       onDoubleClick={() => setEdit({ text: raw(book, sheet, r, c), from: "cell" })}
                     >
@@ -271,16 +635,96 @@ export default function Spreadsheet({ book, constants, focus, onEdit, toolbarEnd
       <nav className="tabs" aria-label="Sheets">
         {book.sheets.map((s, ix) => {
           const stale = staleBySheet.get(s.name);
+          const on = s === sheet;
+          if (renaming?.ix === ix)
+            return (
+              <input
+                key={s.id}
+                className="tab-rename"
+                value={renaming.text}
+                autoFocus
+                size={Math.max(renaming.text.length, 4)}
+                aria-label="Sheet name"
+                onFocus={(e) => e.target.select()}
+                onChange={(e) => setRenaming({ ix, text: e.target.value })}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") commitRename();
+                  if (e.key === "Escape") setRenaming(null);
+                }}
+                onBlur={commitRename}
+              />
+            );
           return (
-            <button key={s.id} className={ix === sheetIx ? "on" : undefined} onClick={() => switchSheet(ix)}>
-              {s.name}
-              {stale ? <span className="tab-stale mono">{stale}</span> : null}
-            </button>
+            <div key={s.id} className={`tab ${on ? "on" : ""}`}>
+              <button
+                onClick={() => switchSheet(ix)}
+                onDoubleClick={() => setRenaming({ ix, text: s.name })}
+                title="Double-click to rename"
+              >
+                {s.name}
+                {stale ? <span className="tab-stale mono">{stale}</span> : null}
+              </button>
+              {on && (
+                <button
+                  className="tab-more"
+                  aria-label={`${s.name} options`}
+                  aria-haspopup="menu"
+                  aria-expanded={tabMenu?.ix === ix}
+                  onClick={(e) => {
+                    const tab = e.currentTarget.parentElement!.getBoundingClientRect();
+                    const root = rootRef.current!.getBoundingClientRect();
+                    setTabMenu(tabMenu ? null : { ix, left: tab.left - root.left });
+                  }}
+                >
+                  <Chevron />
+                </button>
+              )}
+            </div>
           );
         })}
+        <button className="tab-add" onClick={newSheet} aria-label="Add sheet" title="Add sheet">
+          +
+        </button>
       </nav>
+      {tabMenu && (
+        <div className="menu-pop tab-pop" role="menu" style={{ left: tabMenu.left }}>
+          <button
+            role="menuitem"
+            onClick={() => {
+              setRenaming({ ix: tabMenu.ix, text: book.sheets[tabMenu.ix].name });
+              setTabMenu(null);
+            }}
+          >
+            Rename
+          </button>
+          <button
+            role="menuitem"
+            disabled={book.sheets.length < 2}
+            onClick={() => {
+              setTabMenu(null);
+              deleteSheet(tabMenu.ix);
+            }}
+          >
+            Delete
+          </button>
+        </div>
+      )}
     </div>
   );
 }
 
 const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n));
+
+/** Classes for the dashed "copied" outline on the edge cells of the clipboard range. */
+function clipEdges(r: Range, row: number, col: number) {
+  if (row < r.r0 || row > r.r1 || col < r.c0 || col > r.c1) return false;
+  return [
+    "clip",
+    row === r.r0 && "ct",
+    row === r.r1 && "cb",
+    col === r.c0 && "cl",
+    col === r.c1 && "cr",
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
