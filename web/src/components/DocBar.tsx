@@ -1,8 +1,9 @@
-import { useRef, useState } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { Account } from "./AuthGate";
-import { Share, Star } from "./icons";
+import { Download, Share, Star } from "./icons";
 import { Monogram } from "./Wordmark";
 import Menu from "./Menu";
+import RenameInput from "./RenameInput";
 
 type Props = {
   filename: string;
@@ -14,7 +15,11 @@ type Props = {
   onUndo: () => void;
   onRedo: () => void;
   onImport: (file: File) => void;
+  onDownload: () => void;
   onHome: () => void;
+  onRename: (name: string) => void;
+  onShare: () => void;
+  presence?: ReactNode; // avatars of who else has it open
 };
 
 const mod = navigator.platform.includes("Mac") ? "⌘" : "Ctrl+";
@@ -22,13 +27,9 @@ const mod = navigator.platform.includes("Mac") ? "⌘" : "Ctrl+";
 /** Document header: mark, title, status and the menu bar. */
 export default function DocBar(p: Props) {
   const [starred, setStarred] = useState(false);
-  const [copied, setCopied] = useState(false);
-  const share = () =>
-    navigator.clipboard.writeText(location.href).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    });
   const file = useRef<HTMLInputElement>(null);
+  const [renaming, setRenaming] = useState(false);
+  const name = p.filename.replace(/\.(xlsx|xlsm|xls)$/i, "");
 
   return (
     <header className="docbar">
@@ -38,7 +39,22 @@ export default function DocBar(p: Props) {
 
       <div className="docbar-main">
         <div className="docbar-title">
-          <h1>{p.filename.replace(/\.(xlsx|xlsm|xls)$/i, "")}</h1>
+          {renaming ? (
+            <RenameInput
+              className="docbar-rename"
+              value={name}
+              onDone={(next) => {
+                setRenaming(false);
+                if (next) p.onRename(next);
+              }}
+            />
+          ) : (
+            <h1>
+              <button className="docbar-name" onClick={() => setRenaming(true)} title="Rename">
+                {name}
+              </button>
+            </h1>
+          )}
           <button
             className={`star ${starred ? "on" : ""}`}
             aria-pressed={starred}
@@ -59,6 +75,8 @@ export default function DocBar(p: Props) {
               label="File"
               items={[
                 { label: "Import .xlsx…", onSelect: () => file.current?.click() },
+                { label: "Rename", onSelect: () => setRenaming(true) },
+                { label: "Download .xlsx", hint: `${mod}S`, onSelect: p.onDownload },
                 "divider",
                 { label: "All models", onSelect: p.onHome },
               ]}
@@ -86,9 +104,13 @@ export default function DocBar(p: Props) {
       </div>
 
       <div className="docbar-end">
-        <button className="share" onClick={share} aria-live="polite">
+        {p.presence}
+        <button className="download" onClick={p.onDownload} aria-label="Download .xlsx" title={`Download .xlsx (${mod}S)`}>
+          <Download />
+        </button>
+        <button className="share" onClick={p.onShare}>
           <Share />
-          {copied ? "Link copied" : "Share"}
+          Share
         </button>
         <Account />
       </div>

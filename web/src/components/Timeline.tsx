@@ -14,7 +14,13 @@ const MARK: Record<TimelineEvent["status"], string> = {
   watching: "Watching",
   current: "Current",
   edited: "Edited",
+  updated: "Updated",
+  kept: "Kept",
+  gone: "Removed",
 };
+
+/** A stale assumption that's been dealt with: it moves to the Resolved group. */
+const resolved = (e: TimelineEvent) => e.status === "updated" || e.status === "kept" || e.status === "gone";
 
 /** Everything a search can match: title, cells, driver, values, sources and dates. */
 function haystack(e: TimelineEvent): string {
@@ -31,6 +37,7 @@ function haystack(e: TimelineEvent): string {
     e.state?.live != null ? value(e.state.live, e.state.unit) : null,
     e.edit?.before,
     e.edit?.after,
+    e.resolution?.note,
     ...e.sources.flatMap((s) => [s.publisher, s.title, s.value, s.via]),
     ...e.impact.map((i) => i.label),
   ]
@@ -44,6 +51,7 @@ export default function Timeline({ events, selectedId, onSelect }: Props) {
   const [staleOnly, setStaleOnly] = useState(false);
   const staleCount = events.filter((e) => e.status === "stale").length;
   const search = useRef<HTMLInputElement>(null);
+  const [showResolved, setShowResolved] = useState(false);
 
   // date phrases ("oct 8", "last week", "after:sep 15") filter by when; the rest is text
   const parsed = useMemo(() => parseQuery(query), [query]);
@@ -57,6 +65,10 @@ export default function Timeline({ events, selectedId, onSelect }: Props) {
       ),
     [events, parsed, staleOnly],
   );
+  // what still needs action first; resolved stale assumptions collapse at the bottom
+  const open = shown.filter((e) => !resolved(e));
+  const done = shown.filter(resolved);
+  const doneOpen = showResolved || done.some((e) => e.id === selectedId);
 
   // one highlight that glides to the selected change instead of jumping
   const list = useRef<HTMLDivElement>(null);
@@ -70,7 +82,7 @@ export default function Timeline({ events, selectedId, onSelect }: Props) {
     const ro = new ResizeObserver(place);
     ro.observe(on);
     return () => ro.disconnect();
-  }, [selectedId, shown]);
+  }, [selectedId, shown, doneOpen]);
 
   // "/" jumps to search, like most review tools
   useEffect(() => {
@@ -84,6 +96,33 @@ export default function Timeline({ events, selectedId, onSelect }: Props) {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
+
+  const item = (e: TimelineEvent) => (
+    <li key={e.id}>
+      <button
+        className={`tl-item ${e.status} ${e.id === selectedId ? "on" : ""}`}
+        onClick={() => onSelect(e.id)}
+        aria-current={e.id === selectedId ? "true" : undefined}
+      >
+        <span className="tl-row">
+          <span className="tl-title">{e.title}</span>
+          <span className={`tl-badge ${e.status}`}>{MARK[e.status]}</span>
+        </span>
+        <Delta e={e} />
+        {e.resolution && (
+          <span className={`tl-resolution ${e.status}`}>
+            {e.status === "updated" && "✓ "}
+            {e.resolution.note}
+            {e.resolution.at && ` · ${e.resolution.by === "You" ? "you" : e.resolution.by} ${clock(e.resolution.at)}`}
+          </span>
+        )}
+        <span className="tl-foot">
+          <When e={e} />
+          {!resolved(e) && <Effect e={e} />}
+        </span>
+      </button>
+    </li>
+  );
 
   return (
     <aside className="timeline" aria-label="Changes to this model's assumptions">
@@ -140,27 +179,18 @@ export default function Timeline({ events, selectedId, onSelect }: Props) {
               style={{ transform: `translateY(${marker.top}px)`, height: marker.height }}
             />
           )}
-          <ol className="timeline-list">
-            {shown.map((e) => (
-              <li key={e.id}>
-                <button
-                  className={`tl-item ${e.status} ${e.id === selectedId ? "on" : ""}`}
-                  onClick={() => onSelect(e.id)}
-                  aria-current={e.id === selectedId ? "true" : undefined}
-                >
-                  <span className="tl-row">
-                    <span className="tl-title">{e.title}</span>
-                    <span className={`tl-badge ${e.status}`}>{MARK[e.status]}</span>
-                  </span>
-                  <Delta e={e} />
-                  <span className="tl-foot">
-                    <When e={e} />
-                    <Effect e={e} />
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ol>
+          <ol className="timeline-list">{open.map(item)}</ol>
+          {done.length > 0 && (
+            <>
+              <button className="tl-group" aria-expanded={doneOpen} onClick={() => setShowResolved((v) => !v)}>
+                <span className="tl-group-caret" aria-hidden>
+                  {doneOpen ? "▾" : "▸"}
+                </span>
+                Resolved <span className="mono">{done.length}</span>
+              </button>
+              {doneOpen && <ol className="timeline-list resolved">{done.map(item)}</ol>}
+            </>
+          )}
         </div>
       )}
     </aside>

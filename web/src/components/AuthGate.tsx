@@ -1,5 +1,6 @@
-import { ClerkProvider, SignIn, UserButton, useAuth } from "@clerk/react";
+import { ClerkProvider, SignIn, UserButton, useAuth, useUser } from "@clerk/react";
 import type { ReactNode } from "react";
+import { setClerkIdentity } from "../lib/collab";
 import Wordmark from "./Wordmark";
 
 const KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY as string | undefined;
@@ -37,8 +38,12 @@ export default function AuthGate({ children }: { children: ReactNode }) {
 }
 
 function Gate({ children }: { children: ReactNode }) {
-  const { isLoaded, isSignedIn } = useAuth();
+  const { isLoaded, isSignedIn, getToken } = useAuth();
+  const { user } = useUser();
   if (!isLoaded) return null;
+  // sharing and presence call the engine as this user
+  const email = user?.primaryEmailAddress?.emailAddress;
+  if (email) setClerkIdentity({ email: email.toLowerCase(), name: user.fullName || email }, () => getToken());
   if (!isSignedIn)
     return (
       <div className="signin">

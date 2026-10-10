@@ -9,17 +9,19 @@ type Props = {
   event: TimelineEvent;
   book: Book;
   rev: number;
-  applied: boolean;
   onShowCell: (ref: string) => void;
   onApply: (event: TimelineEvent, updates: CellUpdate[]) => void;
+  onKeep: (event: TimelineEvent, keep: boolean) => void;
   onClose: () => void;
 };
 
+const RESOLVED: Partial<Record<TimelineEvent["status"], string>> = { updated: "Updated", kept: "Kept as is", gone: "No longer in model" };
+
 /** Inspector for one change, docked beside the sheet: the numbers, what updating does, and why. */
-export default function EventDetail({ event: e, book, rev, applied, onShowCell, onApply, onClose }: Props) {
+export default function EventDetail({ event: e, book, rev, onShowCell, onApply, onKeep, onClose }: Props) {
   const s = e.state;
   const cell = e.cells[0];
-  const stale = e.status === "stale" && !applied;
+  const stale = e.status === "stale";
 
   // the writes that bring the cell up to date, and the outputs recomputed with them
   const updates = useMemo(
@@ -43,8 +45,25 @@ export default function EventDetail({ event: e, book, rev, applied, onShowCell, 
 
       <div className="ins-head">
         <div className="ins-status">
-          {applied ? <span className="ins-done">Updated</span> : e.status === "stale" ? <Stamp status="stale" /> : <span className="muted">{e.status}</span>}
+          {RESOLVED[e.status] ? (
+            <span className={`ins-done ${e.status}`}>{RESOLVED[e.status]}</span>
+          ) : stale ? (
+            <Stamp status="stale" />
+          ) : (
+            <span className="muted">{e.status}</span>
+          )}
         </div>
+        {e.resolution && (
+          <p className={`ins-resolution ${e.status}`}>
+            {e.resolution.note}
+            {e.resolution.at && (
+              <span className="muted">
+                {" "}
+                · {e.resolution.by === "You" ? "you" : e.resolution.by} · {new Date(e.resolution.at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
+              </span>
+            )}
+          </p>
+        )}
         <h2 className="ins-label">{s?.label ?? e.title}</h2>
         <div className="ins-cells">
           {e.cells.map((c) => (
@@ -117,8 +136,18 @@ export default function EventDetail({ event: e, book, rev, applied, onShowCell, 
       )}
 
       {updates.length > 0 && s?.live != null && (
-        <button className="btn ins-apply" onClick={() => onApply(e, updates)}>
-          Update {target} to {value(s.live, s.unit)}
+        <div className="ins-actions">
+          <button className="btn ins-apply" onClick={() => onApply(e, updates)}>
+            Update {target} to {value(s.live, s.unit)}
+          </button>
+          <button className="ins-keep" onClick={() => onKeep(e, true)} title="Keep the model's number on purpose and stop flagging it">
+            Keep as is
+          </button>
+        </div>
+      )}
+      {e.status === "kept" && (
+        <button className="ins-keep" onClick={() => onKeep(e, false)}>
+          Undo keep
         </button>
       )}
 

@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
+import collab
 import pipeline
 
 load_dotenv(Path(__file__).parent.parent / ".env")
@@ -16,6 +17,7 @@ FIXTURE = ROOT.parent / "schema" / "fixtures" / "case_study.json"
 
 app = FastAPI(title="Since engine")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+app.include_router(collab.router)
 
 # model_id -> report (in memory for the hackathon)
 REPORTS: dict[str, dict] = {"case-study": json.loads(FIXTURE.read_text())}

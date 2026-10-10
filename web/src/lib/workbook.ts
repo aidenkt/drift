@@ -309,3 +309,56 @@ export function syncSheets(book: Book) {
   });
   book.sheets.splice(0, book.sheets.length, ...next);
 }
+
+/* ---------- export ---------- */
+
+/** The workbook as it stands (edits, updates and added sheets included) as .xlsx bytes.
+ *  Formulas keep their current values so Excel shows numbers before recalculating. */
+export function xlsxBytes(book: Book): ArrayBuffer {
+  const wb = XLSX.utils.book_new();
+  for (const sheet of book.sheets) {
+    const data = book.hf.getSheetSerialized(sheet.id);
+    const ws: XLSX.WorkSheet = {};
+    let maxR = 0;
+    let maxC = 0;
+    data.forEach((row, r) =>
+      row.forEach((content, c) => {
+        if (content === null || content === undefined || content === "") return;
+        const addr = { sheet: sheet.id, row: r, col: c };
+        const value = book.hf.getCellValue(addr);
+        const cell: XLSX.CellObject = { t: "z" };
+        if (typeof content === "string" && content.startsWith("=")) cell.f = content.slice(1);
+        if (typeof value === "number") Object.assign(cell, { t: "n", v: value });
+        else if (typeof value === "boolean") Object.assign(cell, { t: "b", v: value });
+        else if (value instanceof DetailedCellError) Object.assign(cell, { t: "e", v: 0x17, w: value.value });
+        else if (value !== null && value !== "") Object.assign(cell, { t: "s", v: String(value) });
+        const fmt = book.formats.get(ref(sheet.name, r, c));
+        if (fmt) cell.z = fmt;
+        ws[XLSX.utils.encode_cell({ r, c })] = cell;
+        maxR = Math.max(maxR, r);
+        maxC = Math.max(maxC, c);
+      }),
+    );
+    ws["!ref"] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: maxR, c: maxC } });
+    // back from px to Excel character widths (inverse of readXlsx)
+    ws["!cols"] = sheet.colWidths.map((px) => (px ? { wch: Math.max(1, Math.round((px - 12) / 7.5)) } : {}));
+    XLSX.utils.book_append_sheet(wb, ws, sheet.name);
+  }
+  return XLSX.write(wb, { type: "array", bookType: "xlsx" });
+}
+
+export const xlsxName = (filename: string) =>
+  /\.xlsx$/i.test(filename) ? filename : `${filename.replace(/\.(xlsm|xls)$/i, "")}.xlsx`;
+
+export function downloadXlsx(book: Book, filename: string) {
+  const url = URL.createObjectURL(new Blob([xlsxBytes(book)]));
+  const a = Object.assign(document.createElement("a"), { href: url, download: xlsxName(filename) });
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+/** A new, empty workbook with one sheet. */
+export function blankBook(): Book {
+  const hf = HyperFormula.buildFromSheets({ Sheet1: [] }, { licenseKey: "gpl-v3" });
+  return { hf, sheets: [{ id: hf.getSheetId("Sheet1")!, name: "Sheet1", rows: 0, cols: 0, colWidths: [] }], formats: new Map(), modified: null };
+}
