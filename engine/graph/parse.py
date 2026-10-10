@@ -70,6 +70,25 @@ class Graph:
         seen.discard(cell)
         return seen
 
+    def routes(self, starts: list[str], targets: set[str]) -> dict[str, list[str]]:
+        """Shortest dependency route from any start cell to each target it reaches, start cell first."""
+        parent: dict[str, str | None] = dict.fromkeys(starts)
+        queue = deque(starts)
+        found: dict[str, list[str]] = {}
+        while queue and len(found) < len(targets):
+            cell = queue.popleft()
+            if cell in targets and cell not in found:
+                route, node = [], cell
+                while node is not None:
+                    route.append(node)
+                    node = parent[node]
+                found[cell] = route[::-1]
+            for dependent in sorted(self.dependents.get(cell, ())):
+                if dependent not in parent:
+                    parent[dependent] = cell
+                    queue.append(dependent)
+        return found
+
 
 def load(path) -> Workbook:
     """openpyxl twice: formulas (data_only=False) and cached values (data_only=True)."""

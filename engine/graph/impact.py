@@ -1,4 +1,4 @@
-"""Recalculate outputs with constants set to their live values."""
+"""Recalculate outputs with constants set to their live values, or nudged to measure sensitivity."""
 
 import math
 from dataclasses import dataclass, field
@@ -8,6 +8,7 @@ from graph import recalc
 _REL_TOL = 1e-6  # cached values exported from Google Sheets are rounded to 10 significant digits
 _ABS_TOL = 1e-9
 _MAX_RATIO = 100  # a live value this many times larger or smaller than the constant is in other units
+_BUMP = 0.01  # sensitivity is measured for a 1% rise, or one point / one unit when the constant is 0
 
 
 @dataclass
@@ -51,6 +52,46 @@ def combined(wb, graph, constants, outputs) -> list[dict]:
         return [{"output": cell, "delta": after[cell] - baseline[cell]} for cell in cells if after[cell] is not None]
     except Exception:
         return []
+
+
+def sensitivity(wb, graph, constant, outputs=None) -> dict | None:
+    """What a small rise in the constant does to each output it reaches, measured by recalculating:
+    {"bump": {from, to, kind, size}, "effects": [{output, label, baseline, delta, pct, direction, path}]}.
+    delta is the total effect over every route; path is the shortest route, with each cell's formula and
+    its own change. The numbers are None when the workbook cannot be recalculated. None if nothing is reached."""
+    try:
+        if outputs is None:
+            from graph import constants
+
+            outputs = constants.find_outputs(wb, graph)
+        reach = set(constant.get("outputs") or ())
+        reached = [output for output in outputs if output["cell"] in reach]
+        if not reached:
+            return None
+        starts = _cells(constant) if constant.get("embedded") else [constant["cell"]]
+        routes = graph.routes(starts, {output["cell"] for output in reached})
+        steps = {cell for route in routes.values() for cell in route if cell in wb.formulas}
+
+        bump = _bump(wb, constant)
+        state = _state(wb, graph)
+        overrides = _set(state, constant, bump["to"]) if state is not None and bump else {}
+        before = after = trusted = {}
+        if overrides:
+            trusted = _trusted(wb, state, outputs)
+            before = _values(state, {}, sorted(steps))
+            after = _values(state, overrides, sorted(steps | set(trusted)))
+
+        effects = []
+        for output in reached:
+            cell = output["cell"]
+            effect = {"output": cell, "label": output["label"], "baseline": None, "delta": None, "pct": None, "direction": None}
+            if cell in trusted and after.get(cell) is not None:
+                effect.update(_change(trusted[cell], after[cell]))
+            effect["path"] = [_step(wb, step, before, after) for step in routes.get(cell, []) if step in steps]
+            effects.append(effect)
+        return {"bump": bump if overrides else None, "effects": effects}
+    except Exception:
+        return None
 
 
 def fill_outputs(wb, graph, outputs) -> None:
@@ -104,10 +145,55 @@ def _overrides(state: _State | None, constant: dict) -> dict[str, float]:
     live = _live(constant)
     if state is None or live is None:
         return {}
+    return _set(state, constant, live)
+
+
+def _set(state: _State, constant: dict, value: float) -> dict[str, float]:
+    """Cell -> value that puts the constant at value. {} when one of its literals could not be hoisted."""
     if not constant.get("embedded"):
-        return {constant["cell"]: live}
+        return {constant["cell"]: value}
     scratch = [state.model.scratch.get((cell, constant.get("literal_index"))) for cell in _cells(constant)]
-    return {} if None in scratch else dict.fromkeys(scratch, live)
+    return {} if None in scratch else dict.fromkeys(scratch, value)
+
+
+def _bump(wb, constant: dict) -> dict | None:
+    """A small rise in the constant: 1%, or for a zero one percentage point if it is formatted as a percent, else 1."""
+    value = constant.get("value")
+    if not _is_number(value):
+        return None
+    if value:
+        return {"from": value, "to": _short(value + abs(value) * _BUMP), "kind": "relative", "size": _BUMP}
+    size = _BUMP if "%" in wb.formats.get(constant["cell"], "") else 1.0
+    return {"from": value, "to": size, "kind": "absolute", "size": size}
+
+
+def _change(before: float, after: float) -> dict:
+    delta = after - before
+    flat = math.isclose(before, after, rel_tol=1e-12, abs_tol=1e-12)
+    return {
+        "baseline": _short(before),
+        "delta": 0.0 if flat else _short(delta),
+        "pct": None if not before else 0.0 if flat else _short(delta / abs(before) * 100),
+        "direction": "unchanged" if flat else "rises" if delta > 0 else "falls",
+    }
+
+
+def _short(value: float) -> float:
+    """Six significant digits: these numbers are read by a person or an LLM, not fed back into the model."""
+    return float(f"{value:.6g}")
+
+
+def _step(wb, cell: str, before: dict, after: dict) -> dict:
+    """One formula cell on a route: what it is, how it is calculated, and how it moved."""
+    try:
+        context = wb.context(cell)
+    except Exception:
+        context = {}
+    step = {"cell": cell, "label": context.get("row_label"), "col_header": context.get("col_header"), "formula": wb.formulas[cell]}
+    step.update({"baseline": None, "delta": None, "pct": None, "direction": None})
+    if before.get(cell) is not None and after.get(cell) is not None:
+        step.update(_change(before[cell], after[cell]))
+    return step
 
 
 def _live(constant: dict) -> float | None:
