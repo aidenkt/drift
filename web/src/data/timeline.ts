@@ -42,6 +42,8 @@ export type TimelineEvent = {
   sources: Source[];
   impact: { output: string; label: string; delta: number }[];
   edit?: { before: string; after: string }; // kind "edit" only
+  at?: string; // ISO time the change was made, for edits made in Since
+  by?: string; // who made it
 };
 
 const EBITDA = { output: "P&L!C27", label: "EBITDA" };
