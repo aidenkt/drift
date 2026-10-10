@@ -196,3 +196,43 @@ def test_sensitivity_figures_and_scaled_impact_are_allowed():
                 prediction="A 1% rise lowers EBITDA by 0.5; at 1.56 EBITDA falls about 15 and EV about 180.")
     c = build_check({"cell": "X!A1", "value": 1.2, "sensitivity": SENS}, f, PAGES, "2023-12-04")
     assert c["prediction"].startswith("A 1% rise lowers EBITDA by 0.5")
+
+
+def _fx_page(text):
+    return [{"id": 1, "url": "https://fred.stlouisfed.org/series/X", "text": text}]
+
+
+def test_two_percent_fx_move_is_stale():
+    text = "Value on 2026-10-02: 1.1259."
+    c = build_check({"cell": "Assumptions!B21", "value": 1.1519, "label": "EUR/USD ($ per EUR)"},
+                    finding(kind="level", number=1.1259, transform="as_is", quotes=[text], page=1),
+                    _fx_page(text), "2026-10-10")
+    assert c["drift_pct"] == -2.3
+    assert c["status"] == "stale"
+
+
+def test_rate_is_judged_in_points():
+    text = "Value on 2026-10-08: 3.87%."
+    c = build_check({"cell": "P&L!C35:G35", "value": 0.0366, "label": "Term loan base rate (SOFR, annual %)"},
+                    finding(kind="level", number=3.87, transform="percent_to_decimal", quotes=[text], page=1),
+                    _fx_page(text), "2026-10-10")
+    assert c["status"] == "stale"  # +0.21pp
+
+
+def test_rounded_estimate_from_the_sensitivity_survives():
+    text = "Value on 2026-10-02: 1.1259."
+    sens = {"bump": {"from": 1.1519, "to": 1.163419, "kind": "relative", "size": 0.01},
+            "effects": [{"output": "P&L!C27", "label": "EBITDA", "baseline": 105.98, "delta": -0.852,
+                         "pct": -0.8, "direction": "falls", "path": []}]}
+    c = build_check({"cell": "Assumptions!B21", "value": 1.1519, "label": "EUR/USD", "sensitivity": sens},
+                    finding(kind="level", number=1.1259, transform="as_is", quotes=[text], page=1,
+                            prediction="A weaker euro raises EBITDA by about 2.0."),  # exact is 1.92
+                    _fx_page(text), "2026-10-10")
+    assert c["prediction"] == "A weaker euro raises EBITDA by about 2.0."
+
+
+def test_dropped_suggestion_logs_why(caplog):
+    caplog.set_level("INFO", logger="checks.verify")
+    run(1.2, finding(kind="level", number=60, transform="percent_more_to_ratio",
+                     quotes=["EV repairs cost 60% more than gas cars"], page=1))
+    assert "quote not on page 1" in caplog.text

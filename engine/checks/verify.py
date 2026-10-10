@@ -3,9 +3,14 @@
 No network, no LLM: every rule here is plain code so it can't be talked out of.
 """
 
+import logging
 import re
 
-STALE_REL = 0.05  # |drift| at or above 5% is stale. Tune against Driver_Map column L.
+log = logging.getLogger(__name__)
+
+STALE_REL = 0.02  # prices, FX, ratios: a move of 2% or more is stale (EUR/USD moved 2.3% in the case study)
+STALE_ABS_RATE = 0.001  # rates and percentages: a move of 0.10pp or more is stale (SOFR moved 0.21pp)
+APPROX = 0.15  # an estimate scaled from the sensitivity may be rounded by up to 15%
 P_STALE_HIGH = 0.7
 P_STALE_LOW = 0.3
 MAX_RATIO = 5.0  # a suggestion more than 5x away from the model's value is a units mistake
@@ -20,14 +25,26 @@ def build_check(constant: dict, finding: dict, pages: list[dict], as_of: str) ->
     backed = page is not None and quotes and all(quote_in_text(q, page["text"]) for q in quotes)
 
     live = None
-    if backed and numbers_in_quotes(finding, quotes):
+    cell = constant.get("cell")
+    if finding.get("kind") in (None, "none"):
+        log.info("%s: no figure found in the sources", cell)
+    elif page is None:
+        log.info("%s: suggestion dropped, page %s does not exist", cell, finding.get("page"))
+    elif not backed:
+        log.info("%s: suggestion dropped, quote not on page %s: %r", cell, finding.get("page"), quotes[:1])
+    elif not numbers_in_quotes(finding, quotes):
+        log.info("%s: suggestion dropped, number %s not in quote %r", cell, finding.get("number"), quotes[:1])
+    else:
         live = suggested_value(value, finding)
         if live is not None and not plausible(value, live, finding):
+            log.info("%s: suggestion dropped, %s is implausible next to %s (units?)", cell, live, value)
             live = None
 
     p_stale = _clamp(finding.get("p_stale"))
     drift_pct = round((live - value) / value * 100, 1) if live is not None and value else None
-    if drift_pct is not None:
+    if live is not None and is_rate(constant):
+        status = "stale" if abs(live - value) >= STALE_ABS_RATE else "current"
+    elif drift_pct is not None:
         status = "stale" if abs(drift_pct) >= STALE_REL * 100 else "current"
     elif live is not None:  # model value is 0, so no percent drift
         status = "stale" if abs(live) >= STALE_ABS_FROM_ZERO else "current"
@@ -50,8 +67,9 @@ def build_check(constant: dict, finding: dict, pages: list[dict], as_of: str) ->
 
     events = verified_events(finding, pages)
     sens = constant.get("sensitivity")
-    allowed = allowed_numbers(value, live, drift_pct, pages) + sensitivity_numbers(sens, live)
-    steps = [step for step in finding.get("next_steps") or [] if uses_only(step, allowed)][:3]
+    exact, scaled = sensitivity_numbers(sens, live)
+    allowed = allowed_numbers(value, live, drift_pct, pages) + exact
+    steps = [step for step in finding.get("next_steps") or [] if uses_only(step, allowed, scaled, cell)][:3]
 
     return {
         "kind": "news",
@@ -66,27 +84,34 @@ def build_check(constant: dict, finding: dict, pages: list[dict], as_of: str) ->
         # additive: the comparison of graph's sensitivity and sources (steps 3 and 4)
         "events": events,
         "effects": effects_from_sensitivity(sens, value, live),
-        "assumption": _sentence(finding.get("assumption"), allowed),
-        "prediction": _sentence(finding.get("prediction"), allowed),
+        "assumption": _sentence(finding.get("assumption"), allowed, scaled, cell),
+        "prediction": _sentence(finding.get("prediction"), allowed, scaled, cell),
         "next_steps": steps,
     }
 
 
-def sensitivity_numbers(sens: dict | None, live: float | None) -> list[float]:
-    """Figures from graph's sensitivity (bump, and each output's and path step's baseline, delta and pct),
-    plus the deltas scaled to the verified live value."""
+def sensitivity_numbers(sens: dict | None, live: float | None) -> tuple[list[float], list[float]]:
+    """(exact, scaled): figures from graph's sensitivity (bump, and each output's and path step's baseline,
+    delta and pct), and the deltas scaled to the verified live value, which an estimate may round."""
     bump = (sens or {}).get("bump")
     if not bump:
-        return []
-    nums = [bump["from"], bump["to"], bump["size"] * 100]
+        return [], []
+    exact = [bump["from"], bump["to"], bump["size"] * 100]
+    scaled = []
     step = bump["to"] - bump["from"]
     scale = (live - bump["from"]) / step if live is not None and step else None
     for effect in sens.get("effects") or []:
         for item in [effect, *(effect.get("path") or [])]:
-            nums += [n for n in (item.get("baseline"), item.get("delta"), item.get("pct")) if n is not None]
+            exact += [n for n in (item.get("baseline"), item.get("delta"), item.get("pct")) if n is not None]
             if scale is not None:
-                nums += [item[k] * scale for k in ("delta", "pct") if item.get(k) is not None]
-    return nums
+                scaled += [item[k] * scale for k in ("delta", "pct") if item.get(k) is not None]
+    return exact, scaled
+
+
+def is_rate(constant: dict) -> bool:
+    """A rate or percentage held as a decimal (0.0475 for 4.75%): staleness is judged in points, not percent."""
+    value = abs(float(constant.get("value") or 0))
+    return value < 1 and bool(re.search(r"%|rate|yield|spread|margin|premium|tariff|duty|tax", constant.get("label") or "", re.I))
 
 
 def effects_from_sensitivity(sens: dict | None, value: float, live: float | None) -> list[dict]:
@@ -136,19 +161,24 @@ def allowed_numbers(value: float, live: float | None, drift_pct: float | None, p
     return nums
 
 
-def uses_only(text: str, allowed: list[float]) -> bool:
-    """True if every number in the text (ignoring cell references like B20) matches an allowed number to 1%."""
+def uses_only(text: str, allowed: list[float], scaled: list[float] = (), cell: str | None = None) -> bool:
+    """True if every number in the text (ignoring cell references like B20) matches an allowed number to 1%,
+    or an estimate scaled from the sensitivity to APPROX."""
     text = re.sub(r"(?:[A-Za-z_&']+!)?\$?[A-Z]{1,3}\$?\d+(?::\$?[A-Z]{1,3}\$?\d+)?", " ", text or "")
-    return all(any(_close(n, a) for a in allowed) for n in numbers_in(text))
+    for n in numbers_in(text):
+        if not any(_close(n, a) for a in allowed) and not any(_close(n, a, APPROX) for a in scaled):
+            log.info("%s: sentence dropped, %g is not in any source or the sensitivity", cell, n)
+            return False
+    return True
 
 
-def _sentence(text: str | None, allowed: list[float]) -> str | None:
+def _sentence(text: str | None, allowed: list[float], scaled: list[float] = (), cell: str | None = None) -> str | None:
     text = (text or "").strip()
-    return text if text and uses_only(text, allowed) else None
+    return text if text and uses_only(text, allowed, scaled, cell) else None
 
 
-def _close(a: float, b: float) -> bool:
-    return abs(a - abs(b)) <= 0.01 * max(abs(a), abs(b)) + 1e-9
+def _close(a: float, b: float, tol: float = 0.01) -> bool:
+    return abs(a - abs(b)) <= tol * max(abs(a), abs(b)) + 1e-9
 
 
 def unknown_check(as_of: str) -> dict:

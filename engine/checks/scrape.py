@@ -5,6 +5,7 @@ FRED adds an official series when the label maps to one. Everything is cached on
 """
 
 import hashlib
+from concurrent.futures import ThreadPoolExecutor
 import json
 import os
 import re
@@ -21,6 +22,7 @@ BRIGHTDATA_URL = "https://api.brightdata.com/request"
 FRED_URL = "https://api.stlouisfed.org/fred/series/observations"
 CACHE = Path(__file__).parents[1] / ".cache"
 MAX_PER_QUERY = 3
+WORKERS = 8  # Bright Data requests in flight at once
 EXCERPT_CHARS = 4000
 
 
@@ -31,20 +33,20 @@ def gather(label: str, search: list[str], built_on: str, as_of: str, events: lis
     fred = _fred_page(" ".join([label, *search]), built_on, as_of)
     if fred:
         pages.append({**fred, "kind": "data"})
-    seen = set()
     queries = [("figure", q) for q in search[:3]] + [("event", q) for q in list(events)[:3]]
-    for kind, query in queries:
-        taken = 0
-        for hit in _search(query, built_on, as_of):
-            if hit["url"] in seen or taken >= MAX_PER_QUERY:
-                continue
-            seen.add(hit["url"])
-            taken += 1
-            hit["kind"] = kind
-            snippet = hit.pop("snippet", "")
-            text = _excerpt(_fetch_text(hit["url"]), label, query) or snippet
-            if text:
-                pages.append({**hit, "text": text})
+    with ThreadPoolExecutor(WORKERS) as pool:
+        results = list(pool.map(lambda kq: _search(kq[1], built_on, as_of), queries))
+        hits, seen = [], set()
+        for (kind, query), found in zip(queries, results):
+            for hit in [h for h in found if h["url"] not in seen][:MAX_PER_QUERY]:
+                seen.add(hit["url"])
+                hits.append((kind, query, hit))
+        texts = list(pool.map(lambda h: _fetch_text(h[2]["url"]), hits))
+    for (kind, query, hit), html_text in zip(hits, texts):
+        snippet = hit.pop("snippet", "")
+        text = _excerpt(html_text, label, query) or snippet
+        if text:
+            pages.append({**hit, "kind": kind, "text": text})
     for i, page in enumerate(pages, 1):
         page["id"] = i
     return pages

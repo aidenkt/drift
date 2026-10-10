@@ -108,3 +108,30 @@ def test_brightdata_empty_body_is_retried_and_not_cached(monkeypatch, tmp_path):
     assert scrape._brightdata("serp", "https://www.google.com/search?q=x") == ""
     assert len(calls) == 2
     assert list(tmp_path.iterdir()) == []
+
+
+def test_pages_are_fetched_in_parallel(monkeypatch, tmp_path):
+    import threading
+    import time
+
+    monkeypatch.setattr(scrape, "CACHE", tmp_path)
+    monkeypatch.setattr(scrape, "_fred_page", lambda *a: None)
+    hits = [{"url": f"https://example.com/{i}", "publisher": "x", "date": None, "title": "", "snippet": "EV prices 5%"}
+            for i in range(6)]
+    monkeypatch.setattr(scrape, "_search", lambda *a: hits)
+    active, peak = [0], [0]
+    lock = threading.Lock()
+
+    def slow_fetch(url):
+        with lock:
+            active[0] += 1
+            peak[0] = max(peak[0], active[0])
+        time.sleep(0.05)
+        with lock:
+            active[0] -= 1
+        return ""
+
+    monkeypatch.setattr(scrape, "_fetch_text", slow_fetch)
+    pages = scrape.gather("EV prices", ["EV prices"], "2026-08-01", "2026-10-10", ["EV tariffs"])
+    assert peak[0] > 1
+    assert len(pages) == 6  # 3 per query, no URL twice
