@@ -4,7 +4,7 @@ Workbook: `case_study_airline.xlsx` (assumptions set 2025-05-01, market inputs a
 
 Company: Northstar Airways, Inc. (fictional US network airline with a domestic hub network and transpacific routes to Japan; Japan tickets sold in JPY; 70% of fuel hedged with swaps). Tabs: `Cover`, `Assumptions`, `P&L`, `DCF`. As built, FY2025E EBITDA is $1,158.4M and enterprise value (NPV) is $9,193.1M.
 
-List every constant we planted and what the pipeline should conclude. `engine/tests/test_case_study.py` checks against this.
+List every constant we planted and what the pipeline should conclude. `engine/tests/test_case_study.py` is meant to check the pipeline against this, but it is skipped until the pipeline is implemented, so these results are not checked yet.
 
 ## Planted market drivers
 

@@ -4,7 +4,7 @@ Workbook: `case_study_homebuilder.xlsx` (assumptions set 2025-11-01, market inpu
 
 Company: Ridgeline Homes, Inc. (fictional US homebuilder that uses mortgage-rate buydowns as its main sales incentive). Tabs: `Cover`, `Assumptions`, `P&L`, `DCF`. As built, FY2025E EBITDA is $572.4M and enterprise value (NPV) is $5,958.5M.
 
-List every constant we planted and what the pipeline should conclude. `engine/tests/test_case_study.py` checks against this.
+List every constant we planted and what the pipeline should conclude. `engine/tests/test_case_study.py` is meant to check the pipeline against this, but it is skipped until the pipeline is implemented, so these results are not checked yet.
 
 ## Planted market drivers
 

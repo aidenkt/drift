@@ -4,7 +4,7 @@ Workbook: `case_study_coffee.xlsx` (assumptions set 2026-05-01, market inputs at
 
 Company: Bluestem Coffee Roasters, Inc. (fictional US coffee roaster; buys green arabica priced off the arabica benchmark, about half from its own sourcing and dry-mill operation in Brazil; runs its own diesel delivery fleet). Tabs: `Cover`, `Assumptions`, `P&L`, `DCF`. As built, FY2026E EBITDA is $97.9M and enterprise value (NPV) is $1,436.8M.
 
-List every constant we planted and what the pipeline should conclude. `engine/tests/test_case_study.py` checks against this.
+List every constant we planted and what the pipeline should conclude. `engine/tests/test_case_study.py` is meant to check the pipeline against this, but it is skipped until the pipeline is implemented, so these results are not checked yet.
 
 ## Planted market drivers
 

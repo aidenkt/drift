@@ -6,7 +6,7 @@ Company: Keystone Freight Lines, Inc. (fictional US truckload carrier with cross
 
 This case buries three of its five drivers inside formulas, including the risk-free rate in the cost of equity.
 
-List every constant we planted and what the pipeline should conclude. `engine/tests/test_case_study.py` checks against this.
+List every constant we planted and what the pipeline should conclude. `engine/tests/test_case_study.py` is meant to check the pipeline against this, but it is skipped until the pipeline is implemented, so these results are not checked yet.
 
 ## Planted market drivers
 
