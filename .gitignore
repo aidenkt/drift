@@ -24,3 +24,6 @@ engine/uploads/
 # build artifacts
 *.egg-info/
 *.tsbuildinfo
+
+# base44: per-checkout app link
+.app.jsonc

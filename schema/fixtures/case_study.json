@@ -5,8 +5,8 @@
   "built_on": "2026-08-01",
   "checked_on": "2026-10-10",
   "outputs": [
-    { "cell": "P&L!F40", "label": "EBITDA", "value": 12400000 },
-    { "cell": "DCF!C22", "label": "NPV", "value": 48100000 }
+    { "cell": "P&L!C12", "label": "EBITDA", "value": 12400000 },
+    { "cell": "DCF!C12", "label": "NPV", "value": 48100000 }
   ],
   "constants": [
     {
@@ -19,7 +19,7 @@
       "label_source": "header",
       "confirmed": true,
       "feeds": 214,
-      "outputs": ["P&L!F40", "DCF!C22"],
+      "outputs": ["P&L!C12", "DCF!C12"],
       "check": {
         "kind": "series",
         "status": "stale",
@@ -32,21 +32,21 @@
         "evidence": []
       },
       "impact": [
-        { "output": "P&L!F40", "delta": -400000 },
-        { "output": "DCF!C22", "delta": -1100000 }
+        { "output": "P&L!C12", "delta": -400000 },
+        { "output": "DCF!C12", "delta": -1100000 }
       ]
     },
     {
-      "cell": "COGS!D9",
+      "cell": "COGS!C9",
       "value": 2400,
       "embedded": true,
-      "formula": "=D8*2400",
+      "formula": "=C8*2400",
       "label": "Container freight $/FEU",
       "driver": "freight_feu",
       "label_source": "llm",
       "confirmed": true,
       "feeds": 131,
-      "outputs": ["P&L!F40", "DCF!C22"],
+      "outputs": ["P&L!C12", "DCF!C12"],
       "check": {
         "kind": "news",
         "status": "stale",
@@ -61,8 +61,8 @@
         ]
       },
       "impact": [
-        { "output": "P&L!F40", "delta": -800000 },
-        { "output": "DCF!C22", "delta": -2300000 }
+        { "output": "P&L!C12", "delta": -800000 },
+        { "output": "DCF!C12", "delta": -2300000 }
       ]
     },
     {
@@ -75,7 +75,7 @@
       "label_source": "header",
       "confirmed": true,
       "feeds": 58,
-      "outputs": ["DCF!C22"],
+      "outputs": ["DCF!C12"],
       "check": {
         "kind": "series",
         "status": "current",
@@ -87,7 +87,7 @@
         "source_url": "https://fred.stlouisfed.org/series/SOFR",
         "evidence": []
       },
-      "impact": [{ "output": "DCF!C22", "delta": 30000 }]
+      "impact": [{ "output": "DCF!C12", "delta": 30000 }]
     },
     {
       "cell": "Assumptions!C21",
@@ -99,7 +99,7 @@
       "label_source": "header",
       "confirmed": false,
       "feeds": 302,
-      "outputs": ["P&L!F40", "DCF!C22"],
+      "outputs": ["P&L!C12", "DCF!C12"],
       "check": null,
       "impact": []
     }
