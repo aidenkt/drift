@@ -1,27 +1,59 @@
-"""Part 3, LLM call: OpenAI reads the scraped pages and says whether the constant is out of date.
+"""Steps 3 and 4: OpenAI compares what the constant drives (graph summary) with what the world says
+(scraped figures and events), then states an updated assumption, a predicted outcome and next steps.
 
-The model only reports what a page says (a number and the exact sentence). verify.py turns that
-into the suggested value; the model never writes the suggested value itself.
+The model reports what pages say, with exact quotes. verify.py checks every quote, computes the
+suggested value itself, and drops any sentence that uses a number no source gave.
 """
 
 import json
 
 from checks.openai_client import chat_json
 
-SYSTEM = """You check whether a hardcoded assumption in a financial model was still accurate on a given date.
-You get the assumption (label, value, unit), the date it was set (built_on), the date to check (as_of), and numbered source pages.
-Use ONLY the pages. Never use your own knowledge for numbers.
+SYSTEM = """You review one hardcoded assumption in a financial model against recent sources.
 
-Report one finding, the best-supported one, as one of:
-- "level": a page states the quantity itself as of a date near as_of (e.g. "EV repairs cost about 56% more than gas cars" for a ratio of EV to gas repair cost). Give the number exactly as written and how to turn it into the model's units:
-    as_is (1.56 -> 1.56), percent_to_decimal (5.63% -> 0.0563), percent_more_to_ratio (56% more -> 1.56), percent_less_to_ratio (30% less -> 0.70).
-- "change": a page states how much this quantity, or the closest published measure of it, changed between built_on and as_of, in percent (e.g. "used EV prices fell 30.6% year over year" -> -30.6).
-- "ratio_of_levels": a page states the closest published measure at two dates, one near built_on and one near as_of (e.g. "$91 per unit vs $55 a year earlier" -> then 55, now 91).
-- "none": no page supports a number.
+You get:
+- assumption: its label, value and cell, set on built_on.
+- graph: how the value flows through the model (paths from the assumption to each output it reaches) and the inputs it is combined with.
+- pages: numbered sources. kind "data" is an official series, "figure" is a published value of this quantity, "event" is news that could move it.
 
-quotes: one or two sentences copied EXACTLY, character for character, from a single page, containing every number you report.
-page: that page's id.
-p_stale: your probability (0 to 1) that the model's value was materially wrong on as_of, given the pages. Use 0.5 when the pages say nothing useful."""
+Use ONLY the pages for facts and numbers. Never use your own knowledge for numbers.
+
+1. finding: the best-supported figure for this quantity as of as_of, as one of:
+   - "level": a page states the quantity itself, e.g. "the WCI stood at $7,624 per 40ft container". Give the number as written and how to convert it to the model's units:
+     as_is (1.56 -> 1.56), percent_to_decimal (5.63% -> 0.0563), percent_more_to_ratio (56% more -> 1.56), percent_less_to_ratio (30% less -> 0.70).
+   - "change": a page states the percent change of this quantity (or its closest published measure) between built_on and as_of.
+   - "ratio_of_levels": a page states the measure at two dates, near built_on (then) and near as_of (now).
+   - "none": no page supports a number.
+   quotes: one or two sentences copied EXACTLY from that one page, containing every number reported. page: its id.
+2. events: up to 3 events from the pages that move this quantity, each with a short factual summary, the direction it pushes the quantity (raises / lowers / unclear), the page id and an exact quote.
+3. effects: for each output in the graph paths, the direction the outputs move if the assumption is updated to the finding (up / down / unclear), following the path.
+4. assumption: one sentence stating what the assumption should be now and why, citing the finding or events.
+5. prediction: one sentence on what happens to the model's outputs, following the graph paths.
+6. next_steps: 1 to 3 short imperative actions for the analyst (e.g. "Update Assumptions!B20 to $125.44/bbl", "Rerun the DCF").
+In assumption, prediction and next_steps use only numbers that appear in the pages or in the assumption itself.
+p_stale: probability (0 to 1) that the value was materially wrong on as_of. Use 0.5 when the pages say nothing useful."""
+
+_EVENT = {
+    "type": "object",
+    "properties": {
+        "summary": {"type": "string"},
+        "direction": {"type": "string", "enum": ["raises", "lowers", "unclear"]},
+        "page": {"type": "integer"},
+        "quote": {"type": "string"},
+    },
+    "required": ["summary", "direction", "page", "quote"],
+    "additionalProperties": False,
+}
+
+_EFFECT = {
+    "type": "object",
+    "properties": {
+        "output": {"type": "string"},
+        "direction": {"type": "string", "enum": ["up", "down", "unclear"]},
+    },
+    "required": ["output", "direction"],
+    "additionalProperties": False,
+}
 
 SCHEMA = {
     "type": "object",
@@ -37,16 +69,26 @@ SCHEMA = {
         "now": {"type": ["number", "null"]},
         "quotes": {"type": "array", "items": {"type": "string"}},
         "page": {"type": ["integer", "null"]},
+        "events": {"type": "array", "items": _EVENT},
+        "effects": {"type": "array", "items": _EFFECT},
+        "assumption": {"type": "string"},
+        "prediction": {"type": "string"},
+        "next_steps": {"type": "array", "items": {"type": "string"}},
     },
-    "required": ["p_stale", "kind", "number", "transform", "then", "now", "quotes", "page"],
+    "required": ["p_stale", "kind", "number", "transform", "then", "now", "quotes", "page",
+                 "events", "effects", "assumption", "prediction", "next_steps"],
     "additionalProperties": False,
 }
+
+EMPTY = {"p_stale": 0.5, "kind": "none", "number": None, "transform": None, "then": None, "now": None,
+         "quotes": [], "page": None, "events": [], "effects": [], "assumption": "", "prediction": "", "next_steps": []}
 
 
 def assess(constant: dict, pages: list[dict], built_on: str, as_of: str) -> dict:
     """The model's raw finding. Raises LLMUnavailable if OpenAI can't be reached."""
     if not pages:
-        return {"p_stale": 0.5, "kind": "none", "number": None, "transform": None, "then": None, "now": None, "quotes": [], "page": None}
+        return dict(EMPTY)
+    summary = constant.get("graph_summary") or {}
     user = json.dumps(
         {
             "assumption": {
@@ -55,9 +97,14 @@ def assess(constant: dict, pages: list[dict], built_on: str, as_of: str) -> dict
                 "cell": constant["cell"],
                 "formula": constant.get("formula"),
             },
+            "graph": {
+                "paths_to_outputs": summary.get("paths", []),
+                "combined_with": summary.get("combined_with", []),
+                "feeds_cells": constant.get("feeds"),
+            },
             "built_on": built_on,
             "as_of": as_of,
-            "pages": [{k: p.get(k) for k in ("id", "publisher", "date", "title", "text")} for p in pages],
+            "pages": [{k: p.get(k) for k in ("id", "kind", "publisher", "date", "title", "text")} for p in pages],
         },
         indent=1,
     )

@@ -1,4 +1,5 @@
-"""Check one labeled constant: scrape (part 2) → OpenAI (part 3) → verify. Entry point for pipeline.py."""
+"""Check one labeled constant: scrape figures and events → OpenAI compares them with the graph summary → verify.
+Entry point for pipeline.py."""
 
 import logging
 import os
@@ -19,7 +20,8 @@ def check(constant: dict, built_on: str, as_of: str | None = None) -> dict:
     try:
         key = (constant.get("driver"), built_on, as_of)
         if key not in _pages:
-            _pages[key] = scrape.gather(constant["label"], constant.get("search") or [constant["label"]], built_on, as_of)
+            _pages[key] = scrape.gather(constant["label"], constant.get("search") or [constant["label"]], built_on, as_of,
+                                        constant.get("events") or [])
         pages = _pages[key]
         finding = assess.assess(constant, pages, built_on, as_of)
         return verify.build_check(constant, finding, pages, as_of)

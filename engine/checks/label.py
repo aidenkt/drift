@@ -1,7 +1,7 @@
 """Part 1, semantic labeling: what does this number stand for, and should it be checked?
 
-Reads the cell's own context, the text to its right in the row (unit, note), its formula, and the
-labels of its neighbours in the dependency graph. Cheap rules first, OpenAI for the rest.
+Reads the cell's own context, the text to its right in the row (unit, note), its formula, the inputs it
+is combined with, and its routes through the dependency graph to the outputs. Cheap rules first, OpenAI for the rest.
 """
 
 import json
@@ -10,6 +10,7 @@ import re
 from openpyxl.utils import column_index_from_string, get_column_letter
 from openpyxl.utils.cell import coordinate_from_string
 
+from checks import graph_summary
 from checks.openai_client import LLMUnavailable, chat_json
 
 ROLES = ("market", "lever", "internal", "unit")
@@ -25,6 +26,8 @@ Decide what real-world quantity it stands for and its role:
 - unit: a unit conversion or scaling factor (days per year, months per year, thousands, millions).
 label: a short, specific noun phrase naming the quantity and its unit basis, e.g. "Residual value of an EV at disposal (% of cost)".
 search: for market and lever only, 2 or 3 web search queries that would find published figures for this quantity; otherwise an empty list.
+events: for market only, 2 or 3 web search queries for recent events that would move this quantity (policy decisions, tariffs, supply shocks, price cuts, central bank moves); otherwise an empty list.
+paths_to_outputs shows how the number flows through the model to its outputs; use it to understand what the number is.
 Use only the text given. Do not guess a value."""
 
 SCHEMA = {
@@ -34,8 +37,9 @@ SCHEMA = {
         "role": {"type": "string", "enum": list(ROLES)},
         "unit": {"type": "string"},
         "search": {"type": "array", "items": {"type": "string"}},
+        "events": {"type": "array", "items": {"type": "string"}},
     },
-    "required": ["label", "role", "unit", "search"],
+    "required": ["label", "role", "unit", "search", "events"],
     "additionalProperties": False,
 }
 
@@ -43,12 +47,15 @@ _cache: dict[str, dict] = {}
 
 
 def apply(constant: dict, wb, graph=None) -> None:
-    """Sets label, driver, label_source, confirmed, plus additive role and search."""
+    """Sets label, driver, label_source, confirmed, plus additive role, search, events and graph_summary."""
+    graph = graph if graph is not None else _graph(wb)
     clues = describe(constant, wb, graph)
     result = _rule(constant) or _ask(clues) or _fallback(clues)
     constant["label"] = result["label"]
     constant["role"] = result["role"]
     constant["search"] = result.get("search", []) if result["role"] in ("market", "lever") else []
+    constant["events"] = result.get("events", []) if result["role"] == "market" else []
+    constant["graph_summary"] = {"paths": clues.get("paths_to_outputs", []), "combined_with": clues.get("combined_with", [])}
     constant["driver"] = slug(result["label"]) if result["role"] == "market" else None
     constant["label_source"] = result["source"]
     constant["confirmed"] = False
@@ -75,6 +82,7 @@ BATCH_SCHEMA = {
 
 def apply_all(constants: list[dict], wb, graph=None) -> None:
     """Same as apply on every constant, with up to BATCH constants labeled per OpenAI call."""
+    graph = graph if graph is not None else _graph(wb)
     todo = {}
     for c in constants:
         clues = describe(c, wb, graph)
@@ -101,7 +109,8 @@ def apply_all(constants: list[dict], wb, graph=None) -> None:
 def describe(constant: dict, wb, graph=None) -> dict:
     """Everything the labeler sees about one constant. Raw text only."""
     cell = constant["cell"]
-    ctx = _context(wb, cell)
+    anchor = (constant.get("cells") or [cell])[0]  # a literal copied across a row comes as "P&L!C18:G18"
+    ctx = _context(wb, anchor)
     clues = {
         "cell": cell,
         "value": constant["value"],
@@ -111,18 +120,20 @@ def describe(constant: dict, wb, graph=None) -> dict:
         "col_header": ctx.get("col_header"),
         "number_format": ctx.get("number_format"),
         "comment": ctx.get("comment"),
-        "row_text_right": _text_right(wb, cell),
+        "row_text_right": _text_right(wb, anchor),
     }
     if graph is not None:
-        precedents = getattr(graph, "precedents", {})
-        dependents = getattr(graph, "dependents", {})
-        if clues["embedded"]:
-            # the other cells in the same formula say what the literal is multiplied with
-            clues["formula_uses"] = _labels(wb, precedents.get(cell, ()))
-        step1 = set(dependents.get(cell, ()))
-        step2 = {d for s in step1 for d in dependents.get(s, ())} - step1
-        clues["feeds_into"] = _labels(wb, step1) + _labels(wb, step2)
+        summary = graph_summary.summarize(constant, wb, graph)
+        clues["combined_with"] = summary["combined_with"]
+        clues["paths_to_outputs"] = graph_summary.describe_paths(summary)
     return clues
+
+
+def _graph(wb):
+    try:
+        return graph_summary.graph_for(wb)
+    except Exception:
+        return None
 
 
 def slug(label: str) -> str:
@@ -168,17 +179,6 @@ def _context(wb, cell: str) -> dict:
         return wb.context(cell) or {}
     except Exception:
         return {}
-
-
-def _labels(wb, cells) -> list[str]:
-    """Row label (with column header) of each cell, deduplicated, in sheet order."""
-    out = []
-    for c in sorted(cells):
-        ctx = _context(wb, c)
-        text = " / ".join(t for t in (ctx.get("row_label"), ctx.get("col_header")) if t)
-        if text and text not in out:
-            out.append(text)
-    return out[:8]
 
 
 def _text_right(wb, cell: str) -> list[str]:

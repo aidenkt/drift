@@ -53,6 +53,7 @@ class Graph:
         "Inputs!B11": {"Fleet_Model!B8", "Fleet_Model!B13"},
         "Fleet_Model!B11": {"Fleet_Model!B14"},
         "Fleet_Model!B14": {"Fleet_Model!D14"},
+        "Fleet_Model!D14": {"Fleet_Model!D16"},
     }
 
 

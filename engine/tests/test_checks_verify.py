@@ -109,3 +109,38 @@ def test_suggested_value(f, expected):
 
 def test_numbers_in_handles_money_and_commas():
     assert numbers_in("$4.2B for 100,000 Teslas, down 29.5%") == [4.2, 100000.0, 29.5]
+
+
+def test_events_need_a_real_quote():
+    f = finding(events=[
+        {"summary": "CCC report", "direction": "raises", "page": 1,
+         "quote": "collision repair on EVs cost about 56% more than on gas cars"},
+        {"summary": "made up", "direction": "raises", "page": 1, "quote": "Repair costs doubled overnight."},
+    ])
+    c = run(1.2, f)
+    assert [e["summary"] for e in c["events"]] == ["CCC report"]
+    assert c["events"][0]["url"] == AXIOS["url"]
+
+
+def test_sentences_with_unsourced_numbers_are_dropped():
+    f = finding(kind="level", number=56, transform="percent_more_to_ratio",
+                quotes=["collision repair on EVs cost about 56% more than on gas cars"], page=1,
+                assumption="EV repair cost uplift should be 1.56x, not 1.2x, per CCC.",
+                prediction="EBITDA falls by about $21M.",
+                next_steps=["Update X!A1 to 1.56", "Cut the estimate by 40%", "Rerun the model"])
+    c = run(1.2, f)
+    assert c["assumption"].startswith("EV repair cost uplift should be 1.56x")
+    assert c["prediction"] is None  # $21M appears in no source
+    assert c["next_steps"] == ["Update X!A1 to 1.56", "Rerun the model"]
+
+
+def test_zero_value_tariff_goes_stale():
+    page = {"id": 1, "url": "https://cbp.gov/x", "text": "A 50% duty on Canada-origin furniture is in force from August 22."}
+    c = build_check({"cell": "Assumptions!B23", "value": 0.0},
+                    finding(kind="level", number=50, transform="percent_to_decimal",
+                            quotes=["A 50% duty on Canada-origin furniture is in force from August 22."], page=1),
+                    [page], "2026-10-10")
+    assert c["live"] == pytest.approx(0.5)
+    assert c["drift_pct"] is None
+    assert c["status"] == "stale"
+    jsonschema.validate(c, CHECK_SCHEMA)

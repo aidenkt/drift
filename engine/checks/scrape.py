@@ -20,22 +20,27 @@ from checks.drivers import fred_series_for
 BRIGHTDATA_URL = "https://api.brightdata.com/request"
 FRED_URL = "https://api.stlouisfed.org/fred/series/observations"
 CACHE = Path(__file__).parents[1] / ".cache"
-MAX_RESULTS = 6
+MAX_PER_QUERY = 3
 EXCERPT_CHARS = 4000
 
 
-def gather(label: str, search: list[str], built_on: str, as_of: str) -> list[dict]:
-    """Pages for the LLM: [{id, url, publisher, date, title, text}]. Never raises."""
+def gather(label: str, search: list[str], built_on: str, as_of: str, events: list[str] = ()) -> list[dict]:
+    """Pages for the LLM: [{id, kind, url, publisher, date, title, text}]. kind is "data" (FRED),
+    "figure" (published values of the quantity) or "event" (news that could move it). Never raises."""
     pages: list[dict] = []
     fred = _fred_page(" ".join([label, *search]), built_on, as_of)
     if fred:
-        pages.append(fred)
+        pages.append({**fred, "kind": "data"})
     seen = set()
-    for query in search[:3]:
+    queries = [("figure", q) for q in search[:3]] + [("event", q) for q in list(events)[:3]]
+    for kind, query in queries:
+        taken = 0
         for hit in _search(query, built_on, as_of):
-            if hit["url"] in seen or len(seen) >= MAX_RESULTS:
+            if hit["url"] in seen or taken >= MAX_PER_QUERY:
                 continue
             seen.add(hit["url"])
+            taken += 1
+            hit["kind"] = kind
             snippet = hit.pop("snippet", "")
             text = _excerpt(_fetch_text(hit["url"]), label, query) or snippet
             if text:

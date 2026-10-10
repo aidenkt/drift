@@ -37,14 +37,22 @@ def test_unit_constants_skip_the_llm(monkeypatch):
     assert calls == []
 
 
-def test_buried_constant_sees_its_formula_neighbours():
+def test_buried_constant_sees_its_formula_neighbours_and_path():
     c = constant("Fleet_Model!B11", 1.2, embedded=True, formula="=B6*Inputs!$B$17*1.2/1000000")
+    c["outputs"] = ["Fleet_Model!D16"]
     clues = label.describe(c, Workbook(), Graph())
     assert clues["row_label"] == "Collision and damage ($M)"
     assert clues["col_header"] == "EV"
-    assert "ICE collision and damage cost per rental day / Value" in clues["formula_uses"]
-    assert any(t.startswith("Rental days") for t in clues["formula_uses"])
-    assert any(t.startswith("Segment contribution") for t in clues["feeds_into"])
+    assert clues["combined_with"] == ["Rental days", "ICE collision and damage cost per rental day"]
+    assert clues["paths_to_outputs"] == [
+        "Collision and damage ($M) → Segment contribution ($M) → Adjusted Corporate EBITDA ($M)"]
+
+
+def test_literal_copied_across_a_row_uses_its_first_cell():
+    c = constant("Fleet_Model!B11:C11", 1.2, embedded=True, formula="=B6*Inputs!$B$17*1.2/1000000")
+    c["cells"] = ["Fleet_Model!B11", "Fleet_Model!C11"]
+    clues = label.describe(c, Workbook(), Graph())
+    assert clues["row_label"] == "Collision and damage ($M)"
 
 
 def test_input_cell_sees_unit_and_note():
@@ -58,6 +66,7 @@ def test_market_answer_sets_driver(monkeypatch):
     llm_returns(monkeypatch, {
         "label": "Residual value of an EV at disposal (% of cost)", "role": "market", "unit": "% of cost",
         "search": ["used EV prices 2023", "used Tesla Model 3 value decline"],
+        "events": ["Tesla price cuts 2023"],
     })
     c = constant("Inputs!B11", 0.72)
     label.apply(c, Workbook(), Graph())
@@ -65,6 +74,8 @@ def test_market_answer_sets_driver(monkeypatch):
     assert c["label_source"] == "llm"
     assert c["confirmed"] is False
     assert c["search"] == ["used EV prices 2023", "used Tesla Model 3 value decline"]
+    assert c["events"] == ["Tesla price cuts 2023"]
+    assert "graph_summary" in c
 
 
 def test_lever_is_labeled_but_not_checked(monkeypatch):

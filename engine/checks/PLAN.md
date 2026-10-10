@@ -203,3 +203,14 @@ Real-data runs won't match the synthetic `Market_Data` numbers exactly, so value
 
 - Bright Data request format for the SERP API and Web Unlocker zones on this account, and whether the date-range parameter goes through.
 - Which OpenAI model supports strict structured output at the speed we need for ~20 parallel calls.
+
+## Update: graph summary, events, and assumption + prediction
+
+Added after the graph half landed (`build_graph` on `main`). For each market constant:
+
+1. **Graph summary** (`graph_summary.py`). Shortest route from the constant to every output it reaches, as row labels (`Brent crude → Oil-linked cost → COGS → Gross margin → EBITDA`), plus the inputs it is combined with in formulas. The graph is a DAG, so routes are found breadth-first from every cell a copied literal sits in. Built once per workbook from `graph.parse.build_graph`, since `pipeline.py` doesn't pass the graph to checks.
+2. **Events** (`label.py`, `scrape.py`). The labeler returns event queries ("Fed rate decision September 2026") as well as figure queries. Pages are tagged `data` (FRED), `figure` or `event`.
+3. **Comparison** (`assess.py`). OpenAI gets the graph summary and the tagged pages, and returns the finding as before plus `events` (with direction and exact quote), `effects` (direction per output along the path), `assumption`, `prediction` and `next_steps`.
+4. **Verification** (`verify.py`). Event quotes must be on the cited page. A sentence in `assumption`, `prediction` or `next_steps` is dropped if it uses a number that is not the model's value, the verified suggestion or drift, or a number on a source page. A model value of 0 (a 0% tariff) goes stale when a stated rate moves 0.25pp or more.
+
+New fields are additive: `role`, `search`, `events`, `graph_summary` on the constant; `events`, `effects`, `assumption`, `prediction`, `next_steps` on `check`. The README rule "no generated prose on screen" conflicts with `assumption`/`prediction`/`next_steps`; agree with the team before the web app shows them.
