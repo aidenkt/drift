@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type CSSProperties, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
 import type { Constant } from "../types";
 import {
   addSheet,
   colName,
   FORMATS,
   getFormat,
+  normalizeRef,
   parseRef,
   raw,
   ref,
@@ -48,9 +49,13 @@ type Props = {
   /** Bumped by the page after undo/redo from the menu bar, to re-render. */
   rev?: number;
   toolbarEnd?: ReactNode;
+  /** Other people's active cells, outlined in their colour. */
+  peers?: { cell: string; color: string; name: string }[];
+  /** After undo or redo from the keyboard, so the page can re-read the cells. */
+  onHistory?: () => void;
 };
 
-export default function Spreadsheet({ book, constants, focus, onEdit, onSelectCell, toolbarEnd }: Props) {
+export default function Spreadsheet({ book, constants, focus, onEdit, onSelectCell, toolbarEnd, peers, onHistory }: Props) {
   const [sheetIx, setSheetIx] = useState(0);
   // sel is the active cell; ext is the other corner of the highlighted range
   const [sel, setSel] = useState<Pos>({ r: 0, c: 0 });
@@ -98,6 +103,8 @@ export default function Spreadsheet({ book, constants, focus, onEdit, onSelectCe
   };
   const widths = Array.from({ length: cols }, (_, c) => sheet.colWidths[c] ?? DEFAULT_COL);
   const tableWidth = ROW_HEAD + widths.reduce((a, b) => a + b, 0);
+
+  const peerAt = useMemo(() => new Map((peers ?? []).map((p) => [normalizeRef(p.cell), p])), [peers]);
 
   const staleBySheet = useMemo(() => {
     const counts = new Map<string, number>();
@@ -361,7 +368,9 @@ export default function Spreadsheet({ book, constants, focus, onEdit, onSelectCe
   const commit = (dr = 0, dc = 0) => {
     if (edit) writeCell(sel.r, sel.c, edit.text);
     setEdit(null);
-    move(dr, dc);
+    // Enter/Tab commit, then the editor's blur commits again with the old selection: only
+    // an actual move may select, or the blur would snap the cursor back
+    if (dr || dc) move(dr, dc);
     focusGrid();
   };
 
@@ -375,6 +384,7 @@ export default function Spreadsheet({ book, constants, focus, onEdit, onSelectCe
       redo ? book.hf.redo() : book.hf.undo();
       syncSheets(book);
       setVersion((v) => v + 1);
+      onHistory?.();
     }
   };
 
@@ -581,6 +591,7 @@ export default function Spreadsheet({ book, constants, focus, onEdit, onSelectCe
                 </th>
                 {Array.from({ length: cols }, (_, c) => {
                   const isSel = r === sel.r && c === sel.c;
+                  const peer = peerAt.get(ref(sheet.name, r, c));
                   const hit = multi && inRange(r, c);
                   const v = view(book, sheet, r, c);
                   const constant = constants.get(ref(sheet.name, r, c));
@@ -595,6 +606,7 @@ export default function Spreadsheet({ book, constants, focus, onEdit, onSelectCe
                     hit && r === range.r1 && "rb",
                     hit && c === range.c0 && "rl",
                     hit && c === range.c1 && "rr",
+                    peer && "peer",
                   ]
                     .filter(Boolean)
                     .join(" ");
@@ -603,7 +615,9 @@ export default function Spreadsheet({ book, constants, focus, onEdit, onSelectCe
                       key={c}
                       data-cell={`${r}:${c}`}
                       className={cls}
-                      title={v.text.length > 14 ? v.text : undefined}
+                      title={peer ? peer.name : v.text.length > 14 ? v.text : undefined}
+                      style={peer ? ({ "--peer": peer.color } as CSSProperties) : undefined}
+                      data-peer={peer?.name.split(" ")[0]}
                       onMouseDown={(e) => {
                         if (isSel && edit?.from === "cell") return; // clicks inside the editor
                         press(e, { r, c }, "cell");
@@ -659,7 +673,13 @@ export default function Spreadsheet({ book, constants, focus, onEdit, onSelectCe
               <button
                 onClick={() => switchSheet(ix)}
                 onDoubleClick={() => setRenaming({ ix, text: s.name })}
-                title="Double-click to rename"
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  if (!on) switchSheet(ix);
+                  const tab = e.currentTarget.parentElement!.getBoundingClientRect();
+                  setTabMenu({ ix, left: tab.left - rootRef.current!.getBoundingClientRect().left });
+                }}
+                title="Double-click or right-click to rename"
               >
                 {s.name}
                 {stale ? <span className="tab-stale mono">{stale}</span> : null}

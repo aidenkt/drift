@@ -33,6 +33,10 @@ export const DecLess = () => (
   </svg>
 );
 
+export const Download = () => (
+  <svg {...base} aria-hidden><path d="M8 2v8" /><path d="M5 7.2 8 10.2l3-3" /><path d="M2.5 11v1.5A1.5 1.5 0 0 0 4 14h8a1.5 1.5 0 0 0 1.5-1.5V11" /></svg>
+);
+
 export const Share = () => (
   <svg {...base} aria-hidden><path d="M8 10V2" /><path d="M5 4.8 8 1.8l3 3" /><path d="M5.5 7H4a1.5 1.5 0 0 0-1.5 1.5v4A1.5 1.5 0 0 0 4 14h8a1.5 1.5 0 0 0 1.5-1.5v-4A1.5 1.5 0 0 0 12 7h-1.5" /></svg>
 );

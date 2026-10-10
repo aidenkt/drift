@@ -1,12 +1,62 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { getModel, listModels } from "./api";
+import { fetchSharedFile, listShared, type SharedDoc } from "./lib/collab";
 import { listFiles, removeFile, saveFile } from "./lib/library";
-import { readXlsx } from "./lib/workbook";
+import { place } from "./lib/folders";
+import { blankBook, downloadXlsx, readXlsx, xlsxBytes } from "./lib/workbook";
 import caseStudyUrl from "../../data/case_study_aug2026.xlsx?url";
 import ModelList, { type Entry } from "./pages/ModelList";
 import WorkbookPage, { type OpenModel } from "./pages/WorkbookPage";
 
 const ACCEPT = /\.(xlsx|xlsm|xls)$/i;
+
+// renamed models, by entry key, so a new name survives a reload
+const NAMES = "since.names";
+const names = (): Record<string, string> => {
+  try {
+    return JSON.parse(localStorage.getItem(NAMES) ?? "{}");
+  } catch {
+    return {};
+  }
+};
+const saveName = (key: string, filename: string | null) => {
+  const all = names();
+  if (filename) all[key] = filename;
+  else delete all[key];
+  localStorage.setItem(NAMES, JSON.stringify(all));
+};
+
+// local models that were shared, by entry key -> engine doc id, so they don't show up twice
+const LINKS = "since.links";
+const links = (): Record<string, string> => {
+  try {
+    return JSON.parse(localStorage.getItem(LINKS) ?? "{}");
+  } catch {
+    return {};
+  }
+};
+
+/** Workbooks shared with or by you on the engine: matched to local models, or loaded as new cards. */
+async function sharedEntries(local: Entry[]): Promise<Entry[]> {
+  const docs = await listShared().catch(() => [] as SharedDoc[]);
+  const byDoc = Object.fromEntries(Object.entries(links()).map(([key, id]) => [id, key]));
+  const extra: Entry[] = [];
+  for (const doc of docs) {
+    const mine = local.find((e) => e.key === byDoc[doc.doc_id]);
+    if (mine) {
+      mine.doc = doc;
+      continue;
+    }
+    try {
+      const book = readXlsx(await fetchSharedFile(doc.doc_id));
+      const edited = new Date(doc.updated * 1000).toISOString();
+      extra.push({ key: `doc:${doc.doc_id}`, filename: doc.filename, builtOn: null, added: edited, edited, book, report: null, doc });
+    } catch {
+      // unreadable or gone: leave it off the home page
+    }
+  }
+  return extra;
+}
 
 export default function App() {
   const [open, setOpen] = useState<(OpenModel & { key: string }) | null>(null);
@@ -38,14 +88,16 @@ export default function App() {
         .sort((a, b) => b.added.localeCompare(a.added))
         .flatMap((f): Entry[] => {
           try {
-            return [{ key: f.key, filename: f.filename, builtOn: null, added: f.added, edited: null, book: readXlsx(f.buf), report: null }];
+            return [{ key: f.key, filename: f.filename, builtOn: null, added: f.added, edited: null, book: readXlsx(f.buf), report: null, blank: f.blank }];
           } catch {
             return [];
           }
         });
       // last edited starts as when the file itself was saved (or imported, if it doesn't say)
-      const entries = [...checked, ...imported].map((e) => ({ ...e, edited: e.book.modified ?? e.added }));
-      if (live) setLibrary(entries);
+      const renamed = names();
+      const entries = [...checked, ...imported].map((e) => ({ ...e, filename: renamed[e.key] ?? e.filename, edited: e.book.modified ?? e.added }));
+      const shared = await sharedEntries(entries);
+      if (live) setLibrary([...entries, ...shared]);
     })();
     return () => {
       live = false;
@@ -53,7 +105,7 @@ export default function App() {
   }, []);
 
   const openEntry = (e: Entry, startEvent?: string) => {
-    setOpen({ id: Date.now(), key: e.key, filename: e.filename, builtOn: e.builtOn, book: e.book, report: e.report, startEvent });
+    setOpen({ id: Date.now(), key: e.key, filename: e.filename, builtOn: e.builtOn, book: e.book, report: e.report, startEvent, doc: e.doc });
     setError(null);
   };
 
@@ -80,7 +132,38 @@ export default function App() {
     }
   }, []);
 
+  /** New name without the extension; the original extension stays. */
+  const renameEntry = (key: string, name: string) => {
+    const rename = (filename: string) => name + (filename.match(ACCEPT)?.[0] ?? ".xlsx");
+    const entry = library?.find((x) => x.key === key);
+    if (entry) saveName(key, rename(entry.filename));
+    setLibrary((prev) => prev?.map((x) => (x.key === key ? { ...x, filename: rename(x.filename) } : x)) ?? null);
+    setOpen((o) => (o && o.key === key ? { ...o, filename: rename(o.filename) } : o));
+  };
+
+  /** A new empty spreadsheet, saved in this browser and opened straight away. */
+  const createBlank = (folder: string | null) => {
+    const added = new Date().toISOString();
+    const entry: Entry = { key: `file:${Date.now()}`, filename: "Untitled spreadsheet.xlsx", builtOn: null, added, edited: added, book: blankBook(), report: null, blank: true };
+    void saveFile({ key: entry.key, filename: entry.filename, added, buf: xlsxBytes(entry.book), blank: true }).catch(() => {});
+    if (folder) place(entry.key, folder);
+    setLibrary((prev) => [entry, ...(prev ?? [])]);
+    openEntry(entry);
+  };
+
+  // files in this browser keep their edits: write the workbook back a moment after each change
+  const pending = useRef<number | undefined>(undefined);
+  const persist = (key: string, book: Entry["book"], filename: string, added: string | null, blank?: boolean) => {
+    if (!key.startsWith("file:")) return;
+    clearTimeout(pending.current);
+    pending.current = window.setTimeout(() => {
+      void saveFile({ key, filename, added: added ?? new Date().toISOString(), buf: xlsxBytes(book), blank }).catch(() => {});
+    }, 800);
+  };
+
   const removeEntry = (e: Entry) => {
+    place(e.key, null);
+    saveName(e.key, null);
     void removeFile(e.key).catch(() => {});
     setLibrary((prev) => prev?.filter((x) => x.key !== e.key) ?? null);
   };
@@ -116,13 +199,29 @@ export default function App() {
           model={open}
           onImport={importFile}
           onBack={() => setOpen(null)}
+          onRename={(name) => renameEntry(open.key, name)}
+          onShared={(doc) => {
+            if (!open.key.startsWith("doc:")) localStorage.setItem(LINKS, JSON.stringify({ ...links(), [open.key]: doc.doc_id }));
+            setLibrary((prev) => prev?.map((x) => (x.key === open.key ? { ...x, doc } : x)) ?? null);
+            setOpen((o) => (o ? { ...o, doc } : o));
+          }}
           onEdited={() => {
             const now = new Date().toISOString();
+            const entry = library?.find((x) => x.key === open.key);
+            persist(open.key, open.book, open.filename, entry?.added ?? null, entry?.blank);
             setLibrary((prev) => prev?.map((x) => (x.key === open.key ? { ...x, edited: now } : x)) ?? null);
           }}
         />
       ) : (
-        <ModelList entries={library} onOpen={openEntry} onImport={importFile} onRemove={removeEntry} />
+        <ModelList
+          entries={library}
+          onOpen={openEntry}
+          onImport={importFile}
+          onRemove={removeEntry}
+          onRename={(e, name) => renameEntry(e.key, name)}
+          onDownload={(e) => downloadXlsx(e.book, e.filename)}
+          onNewBlank={createBlank}
+        />
       )}
       {error && (
         <div className="toast" role="alert">

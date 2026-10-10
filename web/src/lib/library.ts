@@ -1,6 +1,6 @@
 /** Imported workbooks kept in the browser (IndexedDB) so they stay on the home page across reloads. */
 
-export type StoredFile = { key: string; filename: string; added: string; buf: ArrayBuffer };
+export type StoredFile = { key: string; filename: string; added: string; buf: ArrayBuffer; blank?: boolean };
 
 const DB = "since";
 const STORE = "files";
