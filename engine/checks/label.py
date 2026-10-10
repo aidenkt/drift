@@ -6,7 +6,6 @@ labels of its neighbours in the dependency graph. Cheap rules first, OpenAI for 
 
 import json
 import re
-from concurrent.futures import ThreadPoolExecutor
 
 from openpyxl.utils import column_index_from_string, get_column_letter
 from openpyxl.utils.cell import coordinate_from_string
@@ -55,10 +54,48 @@ def apply(constant: dict, wb, graph=None) -> None:
     constant["confirmed"] = False
 
 
-def apply_all(constants: list[dict], wb, graph=None, workers: int = 8) -> None:
-    """Same as apply on every constant, with the LLM calls run in parallel."""
-    with ThreadPoolExecutor(workers) as pool:
-        list(pool.map(lambda c: apply(c, wb, graph), constants))
+BATCH = 20
+BATCH_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "items": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {"index": {"type": "integer"}, **SCHEMA["properties"]},
+                "required": ["index", *SCHEMA["required"]],
+                "additionalProperties": False,
+            },
+        }
+    },
+    "required": ["items"],
+    "additionalProperties": False,
+}
+
+
+def apply_all(constants: list[dict], wb, graph=None) -> None:
+    """Same as apply on every constant, with up to BATCH constants labeled per OpenAI call."""
+    todo = {}
+    for c in constants:
+        clues = describe(c, wb, graph)
+        key = _key(clues)
+        if not _rule(c) and key not in _cache:
+            todo[key] = clues
+    items = list(todo.items())
+    for start in range(0, len(items), BATCH):
+        chunk = items[start:start + BATCH]
+        user = "Numbers to label. Return one item per index.\n" + json.dumps(
+            [{"index": i, **_compact(clues)} for i, (_, clues) in enumerate(chunk)], indent=1, default=str)
+        try:
+            answer = chat_json(SYSTEM, user, BATCH_SCHEMA, "labels")
+        except LLMUnavailable:
+            continue
+        for item in answer.get("items", []):
+            i = item.pop("index", None)
+            if isinstance(i, int) and 0 <= i < len(chunk):
+                _cache[chunk[i][0]] = item
+    for c in constants:
+        apply(c, wb, graph)  # cached answers, or a single call / fallback for anything the batch missed
 
 
 def describe(constant: dict, wb, graph=None) -> dict:
@@ -99,10 +136,18 @@ def _rule(constant: dict) -> dict | None:
     return None
 
 
+def _key(clues: dict) -> str:
+    return json.dumps(clues, sort_keys=True, default=str)
+
+
+def _compact(clues: dict) -> dict:
+    return {k: v for k, v in clues.items() if v not in (None, [], "")}
+
+
 def _ask(clues: dict) -> dict | None:
-    key = json.dumps(clues, sort_keys=True, default=str)
+    key = _key(clues)
     if key not in _cache:
-        user = "Number to label:\n" + json.dumps({k: v for k, v in clues.items() if v not in (None, [], "")}, indent=2, default=str)
+        user = "Number to label:\n" + json.dumps(_compact(clues), indent=2, default=str)
         try:
             _cache[key] = chat_json(SYSTEM, user, SCHEMA, "label")
         except LLMUnavailable:

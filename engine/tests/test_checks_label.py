@@ -97,3 +97,20 @@ def test_same_clues_call_the_llm_once(monkeypatch):
     for _ in range(3):
         label.apply(constant("Inputs!B17", 3.4), Workbook(), Graph())
     assert len(calls) == 1
+
+
+def test_apply_all_labels_in_one_call(monkeypatch):
+    calls = []
+
+    def fake(system, user, schema, name):
+        calls.append(name)
+        n = user.count('"index"')
+        return {"items": [{"index": i, "label": f"thing {i}", "role": "internal", "unit": "", "search": []} for i in range(n)]}
+
+    monkeypatch.setattr(label, "chat_json", fake)
+    consts = [constant("Inputs!B8", 61), constant("Inputs!B11", 0.72), constant("Inputs!B17", 3.4),
+              constant("Fleet_Model!B6", 365, embedded=True, formula="=B5*365*Inputs!$B$7")]
+    label.apply_all(consts, Workbook(), Graph())
+    assert calls == ["labels"]  # one batch call; 365 handled by the rule
+    assert [c["label_source"] for c in consts] == ["llm", "llm", "llm", "header"]
+    assert consts[3]["role"] == "unit"
