@@ -59,6 +59,33 @@ The only thing that passes between the two halves is the constant dict from the 
 
 **The report has a top-level `combined` list** of `{output, delta}`: every live value applied at once. `cells`, `literal_index` and `combined` are extra fields the schema allows but does not list yet.
 
+**`sensitivity` tells the LLM which way and how far the outputs move.** The dependency graph only says that one cell feeds another; it has no signs or sizes. So the graph half measures them by recalculating the model with the constant raised by 1% (or by one percentage point or one unit when the constant is 0). The pipeline sets it on every constant that has a driver, after labeling and before the check, so `news.check` can read `constant["sensitivity"]`. To get it anywhere else, call `impact.sensitivity(wb, graph, constant)`.
+
+```python
+{
+  "bump": {"from": 96.95, "to": 97.9195, "kind": "relative", "size": 0.01},   # kind "absolute" when the constant is 0
+  "effects": [                                   # one per output the constant reaches
+    {
+      "output": "P&L!C27", "label": "EBITDA",
+      "baseline": 105.977, "delta": -0.40719, "pct": -0.384225,
+      "direction": "falls",                      # "rises" | "falls" | "unchanged", for a RISE in the constant
+      "path": [                                  # shortest route to the output, formula cells only
+        {"cell": "P&L!C20", "label": "Oil-linked materials and fuel", "col_header": "FY2026E",
+         "formula": "=C19*'Assumptions'!$B$20/1000",
+         "baseline": 40.719, "delta": 0.40719, "pct": 1.0, "direction": "rises"},
+        {"cell": "P&L!C22", "label": "Gross profit", "col_header": "FY2026E",
+         "formula": "=C6-C21", "baseline": 321.319, "delta": -0.40719, "pct": -0.126724, "direction": "falls"}
+      ]
+    }
+  ]
+}
+```
+
+- `delta` and `pct` on an effect are the total over every route, not only the one shown in `path`.
+- It is a local measure. A large move can cross an `IF` or a cap that a 1% move does not; the exact effect of the real live value is still `impact`.
+- When the workbook cannot be recalculated (circular references, more than 5,000 formulas), `bump` and the numbers are `None`, and `path` still carries the labels and formulas.
+- It is `None` for a constant that reaches no output.
+
 **`wb.context(cell)`** returns what the labeler needs to read the cell:
 
 ```python

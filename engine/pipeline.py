@@ -15,7 +15,7 @@ def run(path: Path, *, model_id: str, filename: str, built_on: str) -> dict:
     impact.fill_outputs(wb, graph, outputs)
 
     for c in found:
-        c["check"] = _check(c, wb, built_on)
+        c["check"] = _check(c, wb, graph, outputs, built_on)
         c["impact"] = impact.deltas(wb, graph, c, outputs)
 
     found.sort(key=lambda c: sum(abs(d["delta"]) for d in c["impact"]), reverse=True)
@@ -30,12 +30,14 @@ def run(path: Path, *, model_id: str, filename: str, built_on: str) -> dict:
     }
 
 
-def _check(c: dict, wb, built_on: str) -> dict | None:
+def _check(c: dict, wb, graph, outputs: list[dict], built_on: str) -> dict | None:
     """Label one constant and check it. A stage that fails leaves the constant unchecked, not the report broken."""
     try:
         label.apply(c, wb)
         if not c["driver"]:
             return None
+        # measured before the check so it can reason from which way, and how far, the outputs move
+        c["sensitivity"] = impact.sensitivity(wb, graph, c, outputs)
         if series.handles(c["driver"]):
             return series.check(c, built_on)
         return news.check(c, built_on)
