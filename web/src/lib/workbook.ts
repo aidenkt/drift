@@ -13,6 +13,7 @@ export type Book = {
   hf: HyperFormula;
   sheets: SheetMeta[];
   formats: Map<string, string>; // "Sheet!A1" -> Excel number format
+  modified: string | null; // ISO time the file was last saved, from its document properties
 };
 
 export type CellView = {
@@ -77,7 +78,9 @@ export function readXlsx(buf: ArrayBuffer): Book {
 
   const hf = HyperFormula.buildFromSheets(data, { licenseKey: "gpl-v3" });
   const sheets = pre.map((s) => ({ ...s, id: hf.getSheetId(s.name)! }));
-  return { hf, sheets, formats };
+  const saved = wb.Props?.ModifiedDate;
+  const modified = saved instanceof Date && !isNaN(saved.getTime()) ? saved.toISOString() : null;
+  return { hf, sheets, formats, modified };
 }
 
 function toRaw(cell: XLSX.CellObject): RawCellContent {
@@ -177,4 +180,132 @@ export function shiftDecimals(fmt: string, delta: 1 | -1): string {
       }),
     )
     .join(";");
+}
+
+/* ---------- updating a constant to its live value ---------- */
+
+const sheetOf = (book: Book, name: string) => book.sheets.find((s) => s.name === name);
+
+export type CellUpdate = { cell: string; text: string };
+
+/** The writes that move `model` to `live`: the new number for an input cell, or, for a
+ *  number buried in a formula, the literal swapped in that cell and in the neighbours on
+ *  its row that repeat it (the same formula copied across the years). */
+export function liveUpdates(book: Book, cell: string, model: number, live: number): CellUpdate[] {
+  const { sheet: name, row, col } = parseRef(cell);
+  const sheet = sheetOf(book, name);
+  if (!sheet) return [];
+  const here = raw(book, sheet, row, col);
+  if (!here.startsWith("=")) return [{ cell, text: String(live) }];
+
+  const literal = new RegExp(`(?<![\\w.])${String(model).replace(".", "\\.")}(?![\\d.])`);
+  const swap = (c: number) => {
+    const f = raw(book, sheet, row, c);
+    return f.startsWith("=") && literal.test(f) ? { cell: ref(name, row, c), text: f.replace(literal, String(live)) } : null;
+  };
+  const out: CellUpdate[] = [];
+  for (let c = col; c >= 0; c--) {
+    const u = swap(c);
+    if (!u) break;
+    out.unshift(u);
+  }
+  for (let c = col + 1; c < sheet.cols; c++) {
+    const u = swap(c);
+    if (!u) break;
+    out.push(u);
+  }
+  return out;
+}
+
+export function writeRef(book: Book, cell: string, text: string) {
+  const { sheet: name, row, col } = parseRef(cell);
+  const sheet = sheetOf(book, name);
+  if (sheet) write(book, sheet, row, col, text);
+}
+
+export function numberAt(hf: HyperFormula, cell: string): number | null {
+  const { sheet: name, row, col } = parseRef(cell);
+  const id = hf.getSheetId(name);
+  if (id === undefined) return null;
+  const v = hf.getCellValue({ sheet: id, row, col });
+  return typeof v === "number" ? v : null;
+}
+
+/** Outputs before and after the updates, computed on a throwaway copy of the book. */
+export function whatIf(book: Book, updates: CellUpdate[], outputs: string[]) {
+  const copy = HyperFormula.buildFromSheets(book.hf.getAllSheetsSerialized(), { licenseKey: "gpl-v3" });
+  try {
+    const before = outputs.map((o) => numberAt(copy, o));
+    for (const u of updates) {
+      const { sheet: name, row, col } = parseRef(u.cell);
+      const id = copy.getSheetId(name);
+      if (id !== undefined) copy.setCellContents({ sheet: id, row, col }, [[parseInput(u.text).value]]);
+    }
+    return outputs.map((o, i) => ({ output: o, before: before[i], after: numberAt(copy, o) }));
+  } finally {
+    copy.destroy();
+  }
+}
+
+export function rawRef(book: Book, cell: string): string {
+  const { sheet: name, row, col } = parseRef(cell);
+  const sheet = sheetOf(book, name);
+  return sheet ? raw(book, sheet, row, col) : "";
+}
+
+/* ---------- sheets ---------- */
+
+/** Move format keys from one sheet name to another (or drop them when `to` is null). */
+function rekeyFormats(book: Book, from: string, to: string | null) {
+  for (const key of [...book.formats.keys()]) {
+    if (!key.startsWith(`${from}!`)) continue;
+    const fmt = book.formats.get(key)!;
+    book.formats.delete(key);
+    if (to !== null) book.formats.set(`${to}!${key.slice(from.length + 1)}`, fmt);
+  }
+}
+
+/** Adds a blank "Sheet N" at the end and returns its index. */
+export function addSheet(book: Book): number {
+  let n = book.sheets.length + 1;
+  while (!book.hf.isItPossibleToAddSheet(`Sheet${n}`)) n++;
+  const name = book.hf.addSheet(`Sheet${n}`);
+  book.sheets.push({ id: book.hf.getSheetId(name)!, name, rows: 0, cols: 0, colWidths: [] });
+  return book.sheets.length - 1;
+}
+
+/** Renames a sheet; formulas that point at it follow. Returns false if the name is taken or invalid. */
+export function renameSheet(book: Book, ix: number, name: string): boolean {
+  const sheet = book.sheets[ix];
+  const next = name.trim();
+  if (!sheet || !next || next === sheet.name) return false;
+  if (!book.hf.isItPossibleToRenameSheet(sheet.id, next)) return false;
+  book.hf.renameSheet(sheet.id, next);
+  rekeyFormats(book, sheet.name, next);
+  sheet.name = next;
+  return true;
+}
+
+export function removeSheet(book: Book, ix: number) {
+  const sheet = book.sheets[ix];
+  if (!sheet || book.sheets.length < 2) return;
+  book.hf.removeSheet(sheet.id);
+  rekeyFormats(book, sheet.name, null);
+  book.sheets.splice(ix, 1);
+}
+
+/** After undo/redo, which can add, remove or rename sheets, match `book.sheets` to the engine. */
+export function syncSheets(book: Book) {
+  const byId = new Map(book.sheets.map((s) => [s.id, s]));
+  const next = book.hf.getSheetNames().map((name) => {
+    const id = book.hf.getSheetId(name)!;
+    const meta = byId.get(id);
+    if (!meta) return { id, name, rows: 0, cols: 0, colWidths: [] };
+    if (meta.name !== name) {
+      rekeyFormats(book, meta.name, name);
+      meta.name = name;
+    }
+    return meta;
+  });
+  book.sheets.splice(0, book.sheets.length, ...next);
 }

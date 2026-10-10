@@ -12,6 +12,7 @@ export type Source = {
   via: "FRED" | "Bright Data" | "Workbook";
   quote?: string;
   value?: string; // the number this source gives, in the cell's units
+  image?: string; // the article's preview image, saved under public/sources
 };
 
 /** One thing we watch for before calling an assumption changed. */
@@ -42,6 +43,8 @@ export type TimelineEvent = {
   sources: Source[];
   impact: { output: string; label: string; delta: number }[];
   edit?: { before: string; after: string }; // kind "edit" only
+  at?: string; // ISO time the change was made, for edits made in Since
+  by?: string; // who made it
 };
 
 const EBITDA = { output: "P&L!C27", label: "EBITDA" };
@@ -52,7 +55,7 @@ export const SAMPLE_TIMELINE: TimelineEvent[] = [
   {
     id: "freight-2026-10-08",
     date: "2026-10-08",
-    title: "Shanghai–LA freight jumps a third past the model's $5,739",
+    title: "Shanghai–LA container rates surge",
     kind: "drift",
     status: "stale",
     cells: ["P&L!C18"],
@@ -78,6 +81,7 @@ export const SAMPLE_TIMELINE: TimelineEvent[] = [
         publisher: "Daily Cargo News",
         title: "World Container Index, 8 October 2026",
         url: "https://thedcn.com.au/news/world-container-index-8-october-2026",
+        image: "/sources/dcn-wci.jpg",
         date: "2026-10-08",
         via: "Bright Data",
         value: "$7,624",
@@ -86,6 +90,7 @@ export const SAMPLE_TIMELINE: TimelineEvent[] = [
         publisher: "Shipping Telegraph",
         title: "Drewry World Container Index, week 31 2026",
         url: "https://shippingtelegraph.com/freight-news/drewry-the-world-container-index-decreased-3-this-week-31-2026/",
+        image: "/sources/shippingtelegraph-wci.jpg",
         date: "2026-07-30",
         via: "Bright Data",
         value: "$5,739 (in model)",
@@ -99,7 +104,7 @@ export const SAMPLE_TIMELINE: TimelineEvent[] = [
   {
     id: "ust10y-2026-10-08",
     date: "2026-10-08",
-    title: "The ten-year climbs 47 bp under the DCF",
+    title: "10-year Treasury yield climbs",
     kind: "drift",
     status: "stale",
     cells: ["DCF!B6"],
@@ -134,7 +139,7 @@ export const SAMPLE_TIMELINE: TimelineEvent[] = [
   {
     id: "brent-2026-10-06",
     date: "2026-10-06",
-    title: "Brent spikes 29% past the model's $96.95",
+    title: "Brent crude spikes",
     kind: "drift",
     status: "stale",
     cells: ["Assumptions!B20"],
@@ -181,7 +186,7 @@ export const SAMPLE_TIMELINE: TimelineEvent[] = [
   {
     id: "eurusd-2026-10-02",
     date: "2026-10-02",
-    title: "The euro slips below the model's 1.1519",
+    title: "Euro weakens against the dollar",
     kind: "drift",
     status: "stale",
     cells: ["Assumptions!B21"],
@@ -229,7 +234,7 @@ export const SAMPLE_TIMELINE: TimelineEvent[] = [
   {
     id: "sofr-2026-09-16",
     date: "2026-09-16",
-    title: "A Fed hike lifts SOFR past the loan's buried 3.66%",
+    title: "Fed raises rates 25 bp",
     kind: "drift",
     status: "stale",
     cells: ["P&L!C35"],
@@ -278,7 +283,7 @@ export const SAMPLE_TIMELINE: TimelineEvent[] = [
   {
     id: "canada-tariff-2026-09-15",
     date: "2026-09-15",
-    title: "Furniture lands on the 50% Canada tariff list",
+    title: "CBP adds furniture to the 50% Canada tariff",
     kind: "news",
     status: "stale",
     cells: ["Assumptions!B23"],
@@ -321,7 +326,7 @@ export const SAMPLE_TIMELINE: TimelineEvent[] = [
   {
     id: "vietnam-tariff-check",
     date: "2026-09-30",
-    title: "The Vietnam tariff holds at 12.5%",
+    title: "Section 301 probe brings no new Vietnam tariff",
     kind: "check",
     status: "current",
     cells: ["Assumptions!B22"],
@@ -351,6 +356,7 @@ export const SAMPLE_TIMELINE: TimelineEvent[] = [
         publisher: "DFDL",
         title: "US Section 301 tariffs: ASEAN implications",
         url: "https://www.dfdl.com/insights/legal-and-tax-updates/us-section-301-tariffs-asean-implications/",
+        image: "/sources/dfdl-301.jpg",
         date: "2026-09-30",
         via: "Bright Data",
       },
@@ -360,7 +366,7 @@ export const SAMPLE_TIMELINE: TimelineEvent[] = [
   {
     id: "tax-rate-check",
     date: "2026-09-30",
-    title: "The 21% corporate tax rate is unchanged",
+    title: "No change to the corporate tax code",
     kind: "check",
     status: "current",
     cells: ["Assumptions!B24"],

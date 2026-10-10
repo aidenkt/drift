@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { Account } from "./AuthGate";
-import { Mark, Star } from "./icons";
+import { Share, Star } from "./icons";
+import { Monogram } from "./Wordmark";
 import Menu from "./Menu";
 
 type Props = {
@@ -21,13 +22,18 @@ const mod = navigator.platform.includes("Mac") ? "⌘" : "Ctrl+";
 /** Document header: mark, title, status and the menu bar. */
 export default function DocBar(p: Props) {
   const [starred, setStarred] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const share = () =>
+    navigator.clipboard.writeText(location.href).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
   const file = useRef<HTMLInputElement>(null);
 
   return (
     <header className="docbar">
       <button className="docbar-brand" onClick={p.onHome} aria-label="Since: all models">
-        <Mark />
-        <span className="brand-name">Since</span>
+        <Monogram />
       </button>
 
       <div className="docbar-main">
@@ -72,7 +78,7 @@ export default function DocBar(p: Props) {
               label="Help"
               items={[
                 { label: "Blue numbers are hardcoded inputs", onSelect: () => {}, disabled: true },
-                { label: "Orange corner: stale assumption", onSelect: () => {}, disabled: true },
+                { label: "Magenta corner: stale assumption", onSelect: () => {}, disabled: true },
               ]}
             />
           </nav>
@@ -80,6 +86,10 @@ export default function DocBar(p: Props) {
       </div>
 
       <div className="docbar-end">
+        <button className="share" onClick={share} aria-live="polite">
+          <Share />
+          {copied ? "Link copied" : "Share"}
+        </button>
         <Account />
       </div>
 
