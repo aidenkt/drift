@@ -8,7 +8,7 @@ import hashlib
 import json
 import os
 import re
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from html.parser import HTMLParser
 from pathlib import Path
 from urllib.parse import quote_plus, urlparse
@@ -36,7 +36,8 @@ def gather(label: str, search: list[str], built_on: str, as_of: str) -> list[dic
             if hit["url"] in seen or len(seen) >= MAX_RESULTS:
                 continue
             seen.add(hit["url"])
-            text = _excerpt(_fetch_text(hit["url"]), label, query)
+            snippet = hit.pop("snippet", "")
+            text = _excerpt(_fetch_text(hit["url"]), label, query) or snippet
             if text:
                 pages.append({**hit, "text": text})
     for i, page in enumerate(pages, 1):
@@ -48,26 +49,31 @@ def gather(label: str, search: list[str], built_on: str, as_of: str) -> list[dic
 
 
 def _search(query: str, built_on: str, as_of: str) -> list[dict]:
+    """Google results via the SERP API. Google answers date-range searches (tbs=cdr) from
+    Bright Data with a captcha, so the window goes into the query text as a year instead."""
     zone = os.environ.get("BRIGHTDATA_SERP_ZONE")
     if not zone:
         return []
-    window = f"cdr:1,cd_min:{_us_date(built_on)},cd_max:{_us_date(as_of)}"
-    url = f"https://www.google.com/search?q={quote_plus(query)}&tbs={quote_plus(window)}&hl=en&gl=us&brd_json=1"
-    raw = _brightdata(zone, url)
+    if not re.search(r"\b(19|20)\d{2}\b", query):
+        query = f"{query} {as_of[:4]}"
+    url = f"https://www.google.com/search?q={quote_plus(query)}&hl=en&gl=us"
+    raw = _brightdata(zone, url, data_format="parsed")
     try:
         data = json.loads(raw) if raw else {}
     except json.JSONDecodeError:
         return []
     hits = []
-    for item in (data.get("organic") or []) + (data.get("news") or []):
-        link = item.get("link") or item.get("url")
+    for item in data.get("organic") or []:
+        link = item.get("link")
         if not link:
             continue
+        extensions = item.get("extensions") or []
         hits.append({
             "url": link,
             "publisher": item.get("source") or urlparse(link).netloc.removeprefix("www."),
-            "date": _iso_date(item.get("date")),
+            "date": next((d for d in (_iso_date(e.get("text")) for e in extensions) if d), None),
             "title": item.get("title") or "",
+            "snippet": item.get("description") or "",
         })
     return hits
 
@@ -79,22 +85,29 @@ def _fetch_text(url: str) -> str:
     return html_to_text(_brightdata(zone, url))
 
 
-def _brightdata(zone: str, url: str) -> str:
+class BrightDataError(httpx.HTTPError):
+    pass
+
+
+def _brightdata(zone: str, url: str, data_format: str | None = None) -> str:
     key = os.environ.get("BRIGHTDATA_API_KEY")
     if not key:
         return ""
+    body = {"zone": zone, "url": url, "format": "raw"}
+    if data_format:
+        body["data_format"] = data_format
 
     def fetch():
-        r = httpx.post(
-            BRIGHTDATA_URL,
-            json={"zone": zone, "url": url, "format": "raw"},
-            headers={"Authorization": f"Bearer {key}"},
-            timeout=60,
-        )
-        r.raise_for_status()
-        return r.text
+        # Bright Data reports most failures as HTTP 200 with an empty body and an x-brd-error header.
+        for attempt in range(2):
+            r = httpx.post(BRIGHTDATA_URL, json=body, headers={"Authorization": f"Bearer {key}"}, timeout=90)
+            r.raise_for_status()
+            if r.text and not r.headers.get("x-brd-error"):
+                return r.text
+            error = r.headers.get("x-brd-error", "empty response")
+        raise BrightDataError(error)
 
-    return _cached(("brightdata", zone, url), fetch)
+    return _cached(("brightdata", zone, url, data_format), fetch)
 
 
 # --- FRED ----------------------------------------------------------------------
@@ -229,13 +242,17 @@ def _cached(key: tuple, fetch) -> str:
     return body
 
 
-def _us_date(iso: str) -> str:
-    d = date.fromisoformat(iso)
-    return f"{d.month}/{d.day}/{d.year}"
-
-
 def _iso_date(value) -> str | None:
     if not value:
         return None
-    m = re.search(r"\d{4}-\d{2}-\d{2}", str(value))
-    return m.group(0) if m else None
+    text = str(value)
+    m = re.search(r"\d{4}-\d{2}-\d{2}", text)
+    if m:
+        return m.group(0)
+    m = re.search(r"([A-Z][a-z]{2}) (\d{1,2}), (\d{4})", text)
+    if m:
+        try:
+            return datetime.strptime(" ".join(m.groups()), "%b %d %Y").date().isoformat()
+        except ValueError:
+            return None
+    return None
