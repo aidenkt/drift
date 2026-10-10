@@ -1,4 +1,3 @@
-import { History } from "lucide-react";
 
 // 16px stroke icons, drawn to match the toolbar's weight.
 const base = { width: 16, height: 16, viewBox: "0 0 16 16", fill: "none", stroke: "currentColor", strokeWidth: 1.4, strokeLinecap: "round", strokeLinejoin: "round" } as const;
@@ -20,6 +19,9 @@ export const Star = ({ filled }: { filled: boolean }) => (
 export const Panel = () => (
   <svg {...base} aria-hidden><rect x="1.5" y="2.5" width="13" height="11" rx="1.5" /><path d="M10 2.5v11" /></svg>
 );
+export const Close = () => (
+  <svg {...base} aria-hidden><path d="M4 4l8 8M12 4l-8 8" /></svg>
+);
 export const DecMore = () => (
   <svg width="22" height="16" viewBox="0 0 22 16" aria-hidden fill="currentColor" fontFamily="ui-monospace, monospace" fontSize="9">
     <text x="0" y="11">.00</text><path d="M16 12h5M19 10l2 2-2 2" stroke="currentColor" fill="none" strokeWidth="1.2" />
@@ -31,9 +33,6 @@ export const DecLess = () => (
   </svg>
 );
 
-/** Temporary logo: shadcn's sidebar-block pattern, a lucide icon on a dark rounded square. */
-export const Mark = () => (
-  <span className="logo-mark" aria-hidden>
-    <History size={16} strokeWidth={2} />
-  </span>
+export const Share = () => (
+  <svg {...base} aria-hidden><path d="M8 10V2" /><path d="M5 4.8 8 1.8l3 3" /><path d="M5.5 7H4a1.5 1.5 0 0 0-1.5 1.5v4A1.5 1.5 0 0 0 4 14h8a1.5 1.5 0 0 0 1.5-1.5v-4A1.5 1.5 0 0 0 12 7h-1.5" /></svg>
 );

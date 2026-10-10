@@ -1,46 +1,53 @@
+import type { CSSProperties } from "react";
 import type { Constant } from "../types";
-import Stamp from "./Stamp";
 
 const RATE_DRIVERS = new Set(["sofr", "ust10y", "fed_funds", "cpi"]);
 const PP_DRIVERS = new Set(["tariff", "tax"]);
+const LABEL = { stale: "Stale", current: "Current", unknown: "Unknown" } as const;
 
-/** Data about the selected constant. Numbers, refs and sources only: no prose. */
-export default function ConstantStrip({ constant: c }: { constant: Constant }) {
+/** Hover card for a checked constant. Numbers, refs and sources only: no prose. */
+export default function ConstantStrip({ constant: c, style }: { constant: Constant; style?: CSSProperties }) {
   const k = c.check;
   const rate = c.driver ? RATE_DRIVERS.has(c.driver) : false;
+  const status = k?.status ?? "unchecked";
 
   return (
-    <div className={`strip ${k?.status ?? "unchecked"}`}>
-      <span className="strip-status">{k ? <Stamp status={k.status} /> : <span className="muted">not checked</span>}</span>
-      <span className="strip-label">{c.label}</span>
+    <div className={`cell-tip ${status}`} role="tooltip" style={style}>
+      <div className="tip-head">
+        <span className="tip-label">{c.label}</span>
+        <span className={`tl-badge ${status}`}>{k ? LABEL[k.status] : "Not checked"}</span>
+      </div>
 
-      <span className="strip-values mono">
-        <span className="input">{c.value}</span>
+      <div className="tip-values mono">
+        <span>
+          <span className="input">{c.value}</span>
+          {k?.live != null && (
+            <>
+              <span className="tl-arrow"> → </span>
+              {k.live}
+            </>
+          )}
+        </span>
         {k?.live != null && (
-          <>
-            <span className="muted"> → </span>
-            {k.live}
-            <span className="strip-drift">
-              {rate
-                ? bps(k.live - c.value)
-                : c.driver && PP_DRIVERS.has(c.driver)
-                  ? signed((k.live - c.value) * 100, " pp")
-                  : k.drift_pct != null
-                    ? signed(k.drift_pct, "%")
-                    : ""}
-            </span>
-          </>
+          <span className={`tl-change ${status}`}>
+            {rate
+              ? bps(k.live - c.value)
+              : c.driver && PP_DRIVERS.has(c.driver)
+                ? signed((k.live - c.value) * 100, " pp")
+                : k.drift_pct != null
+                  ? signed(k.drift_pct, "%")
+                  : ""}
+          </span>
         )}
-        {k?.p_stale != null && <span className="strip-drift">p {k.p_stale.toFixed(2)}</span>}
-      </span>
+      </div>
 
-      {k?.source_url && (
-        <a className="strip-source mono" href={k.source_url} target="_blank" rel="noreferrer">
-          {k.source_name ?? new URL(k.source_url).hostname}
-        </a>
+      {(k?.source_url || k?.as_of || c.feeds > 0) && (
+        <div className="tip-foot mono">
+          {k?.source_url && <span>{k.source_name ?? new URL(k.source_url).hostname}</span>}
+          {k?.as_of && <span>{k.as_of}</span>}
+          {c.feeds > 0 && <span>feeds {c.feeds}</span>}
+        </div>
       )}
-      {k?.as_of && <span className="strip-date mono muted">{k.as_of}</span>}
-      {c.feeds > 0 && <span className="strip-feeds mono muted">feeds {c.feeds}</span>}
     </div>
   );
 }

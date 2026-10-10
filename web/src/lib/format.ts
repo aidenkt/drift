@@ -39,6 +39,17 @@ export function ago(iso: string, now = new Date()): string {
   return `${Math.round(days / 30)} months ago`;
 }
 
+/** For "last edited" columns: "Today, 4:15 PM", "Yesterday, 9:02 AM", "Aug 1", "Aug 1, 2025". */
+export function editedAt(iso: string, now = new Date()): string {
+  const d = new Date(iso);
+  const day = ago(localDay(d), now);
+  if (day === "Today" || day === "Yesterday") return `${day}, ${clock(iso)}`;
+  const sameYear = d.getFullYear() === now.getFullYear();
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", ...(sameYear ? {} : { year: "numeric" }) });
+}
+const localDay = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
 export function clock(iso: string): string {
   return new Date(iso).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
 }

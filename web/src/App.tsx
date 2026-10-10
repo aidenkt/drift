@@ -1,32 +1,88 @@
 import { useCallback, useEffect, useState } from "react";
-import { getModel } from "./api";
+import { getModel, listModels } from "./api";
+import { listFiles, removeFile, saveFile } from "./lib/library";
 import { readXlsx } from "./lib/workbook";
 import caseStudyUrl from "../../data/case_study_aug2026.xlsx?url";
-import ModelList from "./pages/ModelList";
+import ModelList, { type Entry } from "./pages/ModelList";
 import WorkbookPage, { type OpenModel } from "./pages/WorkbookPage";
 
 const ACCEPT = /\.(xlsx|xlsm|xls)$/i;
 
 export default function App() {
-  const [open, setOpen] = useState<OpenModel | null>(null);
+  const [open, setOpen] = useState<(OpenModel & { key: string }) | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
+  // checked models plus every workbook imported in this browser; null while loading
+  const [library, setLibrary] = useState<Entry[] | null>(null);
+
+  useEffect(() => {
+    let live = true;
+    (async () => {
+      // Until the engine returns uploaded workbooks, each report opens the case-study workbook.
+      const [summaries, stored, buf] = await Promise.all([
+        listModels(),
+        listFiles().catch(() => []),
+        fetch(caseStudyUrl).then((r) => r.arrayBuffer()),
+      ]);
+      const reports = await Promise.all(summaries.map((m) => getModel(m.model_id)));
+      const checked: Entry[] = reports.map((r) => ({
+        key: `model:${r.model_id}`,
+        filename: r.filename,
+        builtOn: r.built_on,
+        added: null,
+        edited: null,
+        book: readXlsx(buf),
+        report: r,
+      }));
+      const imported = stored
+        .sort((a, b) => b.added.localeCompare(a.added))
+        .flatMap((f): Entry[] => {
+          try {
+            return [{ key: f.key, filename: f.filename, builtOn: null, added: f.added, edited: null, book: readXlsx(f.buf), report: null }];
+          } catch {
+            return [];
+          }
+        });
+      // last edited starts as when the file itself was saved (or imported, if it doesn't say)
+      const entries = [...checked, ...imported].map((e) => ({ ...e, edited: e.book.modified ?? e.added }));
+      if (live) setLibrary(entries);
+    })();
+    return () => {
+      live = false;
+    };
+  }, []);
+
+  const openEntry = (e: Entry, startEvent?: string) => {
+    setOpen({ id: Date.now(), key: e.key, filename: e.filename, builtOn: e.builtOn, book: e.book, report: e.report, startEvent });
+    setError(null);
+  };
 
   const importFile = useCallback(async (file: File) => {
     if (!ACCEPT.test(file.name)) return setError(`${file.name} isn't a spreadsheet. Since opens .xlsx, .xlsm and .xls files.`);
     try {
-      setOpen({ id: Date.now(), filename: file.name, builtOn: null, book: readXlsx(await file.arrayBuffer()), report: null });
+      const buf = await file.arrayBuffer();
+      const entry: Entry = {
+        key: `file:${Date.now()}`,
+        filename: file.name,
+        builtOn: null,
+        added: new Date().toISOString(),
+        edited: null,
+        book: readXlsx(buf.slice(0)),
+        report: null,
+      };
+      entry.edited = entry.book.modified ?? entry.added;
+      void saveFile({ key: entry.key, filename: entry.filename, added: entry.added!, buf }).catch(() => {});
+      setLibrary((prev) => [entry, ...(prev ?? [])]);
+      setOpen({ id: Date.now(), key: entry.key, filename: entry.filename, builtOn: null, book: entry.book, report: null });
       setError(null);
     } catch {
       setError(`Couldn't read ${file.name}. Re-save it from Excel as .xlsx and import it again.`);
     }
   }, []);
 
-  const openModel = async (id: string) => {
-    // Until the engine returns uploaded workbooks, the report opens the case-study workbook.
-    const [report, buf] = await Promise.all([getModel(id), fetch(caseStudyUrl).then((r) => r.arrayBuffer())]);
-    setOpen({ id: Date.now(), filename: report.filename, builtOn: report.built_on, book: readXlsx(buf), report });
-    setError(null);
+  const removeEntry = (e: Entry) => {
+    void removeFile(e.key).catch(() => {});
+    setLibrary((prev) => prev?.filter((x) => x.key !== e.key) ?? null);
   };
 
   useEffect(() => {
@@ -55,9 +111,18 @@ export default function App() {
   return (
     <>
       {open ? (
-        <WorkbookPage key={open.id} model={open} onImport={importFile} onBack={() => setOpen(null)} />
+        <WorkbookPage
+          key={open.id}
+          model={open}
+          onImport={importFile}
+          onBack={() => setOpen(null)}
+          onEdited={() => {
+            const now = new Date().toISOString();
+            setLibrary((prev) => prev?.map((x) => (x.key === open.key ? { ...x, edited: now } : x)) ?? null);
+          }}
+        />
       ) : (
-        <ModelList onOpen={openModel} onImport={importFile} />
+        <ModelList entries={library} onOpen={openEntry} onImport={importFile} onRemove={removeEntry} />
       )}
       {error && (
         <div className="toast" role="alert">

@@ -1,12 +1,12 @@
-import { useMemo, useRef, useState, useEffect } from "react";
+import { useLayoutEffect, useMemo, useRef, useState, useEffect } from "react";
 import type { TimelineEvent } from "../data/timeline";
+import { inRange, parseQuery } from "../lib/dates";
 import { ago, clock, deltaMoney, shortDate, value } from "../lib/format";
 
 type Props = {
   events: TimelineEvent[];
   selectedId: string | null;
   onSelect: (id: string) => void;
-  sample: boolean;
 };
 
 const MARK: Record<TimelineEvent["status"], string> = {
@@ -16,10 +16,13 @@ const MARK: Record<TimelineEvent["status"], string> = {
   edited: "Edited",
 };
 
-/** Everything a search can match: title, cells, driver, values and sources. */
+/** Everything a search can match: title, cells, driver, values, sources and dates. */
 function haystack(e: TimelineEvent): string {
   return [
     e.title,
+    e.date,
+    shortDate(e.date),
+    ago(e.date),
     MARK[e.status],
     e.driver,
     ...e.cells,
@@ -36,14 +39,38 @@ function haystack(e: TimelineEvent): string {
     .toLowerCase();
 }
 
-export default function Timeline({ events, selectedId, onSelect, sample }: Props) {
+export default function Timeline({ events, selectedId, onSelect }: Props) {
   const [query, setQuery] = useState("");
+  const [staleOnly, setStaleOnly] = useState(false);
+  const staleCount = events.filter((e) => e.status === "stale").length;
   const search = useRef<HTMLInputElement>(null);
 
-  const shown = useMemo(() => {
-    const terms = query.toLowerCase().split(/\s+/).filter(Boolean);
-    return terms.length ? events.filter((e) => terms.every((t) => haystack(e).includes(t))) : events;
-  }, [events, query]);
+  // date phrases ("oct 8", "last week", "after:sep 15") filter by when; the rest is text
+  const parsed = useMemo(() => parseQuery(query), [query]);
+  const shown = useMemo(
+    () =>
+      events.filter(
+        (e) =>
+          (!staleOnly || e.status === "stale") &&
+          parsed.ranges.every((r) => inRange(e.date, r)) &&
+          parsed.terms.every((t) => haystack(e).includes(t)),
+      ),
+    [events, parsed, staleOnly],
+  );
+
+  // one highlight that glides to the selected change instead of jumping
+  const list = useRef<HTMLDivElement>(null);
+  const [marker, setMarker] = useState<{ top: number; height: number; moved: boolean } | null>(null);
+  useLayoutEffect(() => {
+    const on = list.current?.querySelector<HTMLElement>(".tl-item.on");
+    if (!on) return setMarker(null);
+    on.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    const place = () => setMarker((m) => ({ top: on.offsetTop, height: on.offsetHeight, moved: m != null }));
+    place();
+    const ro = new ResizeObserver(place);
+    ro.observe(on);
+    return () => ro.disconnect();
+  }, [selectedId, shown]);
 
   // "/" jumps to search, like most review tools
   useEffect(() => {
@@ -62,7 +89,16 @@ export default function Timeline({ events, selectedId, onSelect, sample }: Props
     <aside className="timeline" aria-label="Changes to this model's assumptions">
       <header className="timeline-head">
         <h2>Changes</h2>
-        {sample && <span className="sample-tag">case study</span>}
+        {staleCount > 0 && (
+          <button
+            className={`tl-filter ${staleOnly ? "on" : ""}`}
+            aria-pressed={staleOnly}
+            onClick={() => setStaleOnly((v) => !v)}
+          >
+            <span className="tl-filter-dot" aria-hidden />
+            Stale <span className="mono">{staleCount}</span>
+          </button>
+        )}
       </header>
 
       <div className="timeline-search">
@@ -70,44 +106,62 @@ export default function Timeline({ events, selectedId, onSelect, sample }: Props
           ref={search}
           type="search"
           value={query}
-          placeholder="Search changes, cells, sources"
+          placeholder="Search changes, cells, sources, dates"
           aria-label="Search changes"
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={(e) => e.key === "Escape" && setQuery("")}
         />
-        {query && (
+        {(query || staleOnly) && (
           <span className="search-count mono" aria-live="polite">
             {shown.length} of {events.length}
           </span>
+        )}
+        {parsed.ranges.length > 0 && (
+          <p className="search-dates">
+            Dated {parsed.ranges.map((r) => r.label).join(", ")}
+          </p>
         )}
       </div>
 
       {events.length === 0 ? (
         <p className="timeline-empty">Edits and checks on this model show up here.</p>
       ) : shown.length === 0 ? (
-        <p className="timeline-empty">No changes match "{query}". Try a cell like B21, a driver like freight, or a source like FRED.</p>
+        <p className="timeline-empty">
+          {query
+            ? `No ${staleOnly ? "stale " : ""}changes match "${query}". Try a cell like B21, a source like FRED, or a date like "last week" or "after:sep 15".`
+            : "Nothing is stale. Every assumption matches its source."}
+        </p>
       ) : (
-        <ol className="timeline-list">
-          {shown.map((e) => (
-            <li key={e.id}>
-              <button
-                className={`tl-item ${e.status} ${e.id === selectedId ? "on" : ""}`}
-                onClick={() => onSelect(e.id)}
-                aria-current={e.id === selectedId ? "true" : undefined}
-              >
-                <span className="tl-dot" aria-hidden />
-                <When e={e} />
-                <span className="tl-title">{e.title}</span>
-                <span className="sr-only">{MARK[e.status]}.</span>
-                <Delta e={e} />
-                <span className="tl-foot">
-                  <Effect e={e} />
-                  <span className="mono">{e.cells.length === 1 ? e.cells[0] : `${e.cells.length} assumptions`}</span>
-                </span>
-              </button>
-            </li>
-          ))}
-        </ol>
+        <div className="timeline-scroll" ref={list}>
+          {marker && (
+            <span
+              className={`tl-marker ${marker.moved ? "glide" : ""}`}
+              aria-hidden
+              style={{ transform: `translateY(${marker.top}px)`, height: marker.height }}
+            />
+          )}
+          <ol className="timeline-list">
+            {shown.map((e) => (
+              <li key={e.id}>
+                <button
+                  className={`tl-item ${e.status} ${e.id === selectedId ? "on" : ""}`}
+                  onClick={() => onSelect(e.id)}
+                  aria-current={e.id === selectedId ? "true" : undefined}
+                >
+                  <span className="tl-row">
+                    <span className="tl-title">{e.title}</span>
+                    <span className={`tl-badge ${e.status}`}>{MARK[e.status]}</span>
+                  </span>
+                  <Delta e={e} />
+                  <span className="tl-foot">
+                    <When e={e} />
+                    <Effect e={e} />
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ol>
+        </div>
       )}
     </aside>
   );
@@ -127,27 +181,35 @@ function When({ e }: { e: TimelineEvent }) {
   );
 }
 
-/** Model value → today's value, and how far it moved. */
+/** Cell, model value → today's value, and how far it moved. */
 function Delta({ e }: { e: TimelineEvent }) {
+  const cell = <span className="tl-cell">{e.cells.length === 1 ? e.cells[0] : `${e.cells.length} cells`}</span>;
   if (e.edit)
     return (
-      <span className="tl-delta mono">
-        {e.edit.before || "empty"} <span className="tl-arrow">→</span> {e.edit.after || "empty"}
+      <span className="tl-row tl-delta mono">
+        <span className="tl-values">
+          {cell}
+          <span>{e.edit.before || "empty"}</span>
+          <span className="tl-arrow">→</span>
+          <span>{e.edit.after || "empty"}</span>
+        </span>
       </span>
     );
   const s = e.state;
-  if (!s) return null;
-  const unchanged = s.live === s.model;
+  const unchanged = s ? s.live === s.model : true;
   return (
-    <span className="tl-delta mono">
-      <span className="input">{value(s.model, s.unit)}</span>
-      {!unchanged && s.live != null && (
-        <>
-          {" "}
-          <span className="tl-arrow">→</span> {value(s.live, s.unit)}
-        </>
-      )}
-      <span className={`tl-change ${e.status === "stale" ? "adverse" : ""}`}>{unchanged ? "unchanged" : s.change}</span>
+    <span className="tl-row tl-delta mono">
+      <span className="tl-values">
+        {cell}
+        {s && <span className="input">{value(s.model, s.unit)}</span>}
+        {s && !unchanged && s.live != null && (
+          <>
+            <span className="tl-arrow">→</span>
+            <span>{value(s.live, s.unit)}</span>
+          </>
+        )}
+      </span>
+      {s && <span className={`tl-change ${e.status}`}>{unchanged ? "unchanged" : s.change}</span>}
     </span>
   );
 }
