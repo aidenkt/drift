@@ -14,7 +14,7 @@ ROOT = Path(__file__).parent
 UPLOADS = ROOT / "uploads"
 FIXTURE = ROOT.parent / "schema" / "fixtures" / "case_study.json"
 
-app = FastAPI(title="Drift engine")
+app = FastAPI(title="Since engine")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 # model_id -> report (in memory for the hackathon)

@@ -1,6 +1,8 @@
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import type { Constant } from "../types";
-import { colName, raw, ref, view, write, type Book } from "../lib/workbook";
+import { colName, FORMATS, getFormat, parseRef, raw, ref, setFormat, shiftDecimals, view, write, type Book } from "../lib/workbook";
+import { Chevron, DecLess, DecMore, Redo, Undo } from "./icons";
+import Menu from "./Menu";
 import ConstantStrip from "./ConstantStrip";
 
 const DEFAULT_COL = 96;
@@ -10,7 +12,18 @@ const PAD_COLS = 4;
 
 type Edit = { text: string; from: "cell" | "bar" };
 
-export default function Spreadsheet({ book, constants }: { book: Book; constants: Map<string, Constant> }) {
+type Props = {
+  book: Book;
+  constants: Map<string, Constant>;
+  /** Jump to a cell; nonce lets the same ref be focused twice. */
+  focus?: { ref: string; nonce: number } | null;
+  onEdit?: (ref: string, before: string, after: string) => void;
+  /** Bumped by the page after undo/redo from the menu bar, to re-render. */
+  rev?: number;
+  toolbarEnd?: ReactNode;
+};
+
+export default function Spreadsheet({ book, constants, focus, onEdit, toolbarEnd }: Props) {
   const [sheetIx, setSheetIx] = useState(0);
   const [sel, setSel] = useState({ r: 0, c: 0 });
   const [edit, setEdit] = useState<Edit | null>(null);
@@ -40,16 +53,32 @@ export default function Spreadsheet({ book, constants }: { book: Book; constants
       ?.scrollIntoView({ block: "nearest", inline: "nearest" });
   }, [sel, sheetIx]);
 
+  useEffect(() => {
+    if (!focus) return;
+    const { sheet: name, row, col } = parseRef(focus.ref);
+    const ix = book.sheets.findIndex((s) => s.name === name);
+    if (ix < 0) return;
+    setEdit(null);
+    setSheetIx(ix);
+    setSel({ r: row, c: col });
+    gridRef.current?.focus();
+  }, [focus, book]);
+
   const focusGrid = () => gridRef.current?.focus();
+
+  const writeCell = (r: number, c: number, text: string) => {
+    const before = raw(book, sheet, r, c);
+    if (before === text) return;
+    write(book, sheet, r, c, text);
+    setVersion((v) => v + 1);
+    onEdit?.(ref(sheet.name, r, c), before, raw(book, sheet, r, c));
+  };
 
   const move = (dr: number, dc: number) =>
     setSel((s) => ({ r: clamp(s.r + dr, 0, rows - 1), c: clamp(s.c + dc, 0, cols - 1) }));
 
   const commit = (dr = 0, dc = 0) => {
-    if (edit) {
-      write(book, sheet, sel.r, sel.c, edit.text);
-      setVersion((v) => v + 1);
-    }
+    if (edit) writeCell(sel.r, sel.c, edit.text);
     setEdit(null);
     move(dr, dc);
     focusGrid();
@@ -88,8 +117,7 @@ export default function Spreadsheet({ book, constants }: { book: Book; constants
     }
     if (e.key === "Backspace" || e.key === "Delete") {
       e.preventDefault();
-      write(book, sheet, sel.r, sel.c, "");
-      return setVersion((v) => v + 1);
+      return writeCell(sel.r, sel.c, "");
     }
     if (e.key.length === 1 && !e.altKey) {
       e.preventDefault();
@@ -113,10 +141,50 @@ export default function Spreadsheet({ book, constants }: { book: Book; constants
   // version is read so the grid re-renders after edits recalc the workbook
   void version;
   const barText = edit ? edit.text : raw(book, sheet, sel.r, sel.c);
+  const fmt = getFormat(book, sheet, sel.r, sel.c);
+  const fmtLabel = FORMATS.find((f) => f.fmt === fmt)?.label ?? "Custom";
+  const applyFormat = (next: string) => {
+    setFormat(book, sheet, sel.r, sel.c, next);
+    setVersion((v) => v + 1);
+    focusGrid();
+  };
   const selected = constants.get(selRef);
 
   return (
     <div className="sheet">
+      <div className="toolbar" role="toolbar" aria-label="Sheet tools">
+        <div className="tb-group">
+          <button className="tb-btn" onClick={() => history(false)} aria-label="Undo" title="Undo">
+            <Undo />
+          </button>
+          <button className="tb-btn" onClick={() => history(true)} aria-label="Redo" title="Redo">
+            <Redo />
+          </button>
+        </div>
+        <div className="tb-group">
+          <Menu
+            label="Number format"
+            className="tb-format"
+            trigger={
+              <>
+                <span>{fmtLabel}</span>
+                <Chevron />
+              </>
+            }
+            items={FORMATS.map((f) => ({ label: f.label, hint: f.example, onSelect: () => applyFormat(f.fmt) }))}
+          />
+        </div>
+        <div className="tb-group">
+          <button className="tb-btn" onClick={() => applyFormat(shiftDecimals(fmt, -1))} aria-label="Fewer decimal places" title="Fewer decimals">
+            <DecLess />
+          </button>
+          <button className="tb-btn" onClick={() => applyFormat(shiftDecimals(fmt, 1))} aria-label="More decimal places" title="More decimals">
+            <DecMore />
+          </button>
+        </div>
+        <div className="tb-spacer" />
+        {toolbarEnd}
+      </div>
       <div className="formula-bar">
         <span className="name-box mono">{selRef}</span>
         <input
