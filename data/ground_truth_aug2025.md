@@ -4,7 +4,7 @@ Workbook: `case_study_aug2025.xlsx` (assumptions set 2025-08-01, market inputs a
 
 Same company as `case_study_aug2026.xlsx` (Calder & Finch Home, Inc.), modeled a year earlier. Tabs: `Cover`, `Assumptions`, `P&L`, `DCF`. This version has no EU sourcing, so there is no EUR/USD input. As built, FY2025E EBITDA is $125.3M and enterprise value (NPV) is $1,160.0M.
 
-List every constant we planted and what the pipeline should conclude. `engine/tests/test_case_study.py` checks against this.
+List every constant we planted and what the pipeline should conclude. `engine/tests/test_case_study.py` is meant to check the pipeline against this, but it is skipped until the pipeline is implemented, so these results are not checked yet.
 
 ## Planted market drivers
 

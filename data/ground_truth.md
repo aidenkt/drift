@@ -4,7 +4,7 @@ Workbook: `case_study_aug2026.xlsx` (assumptions set 2026-08-01, market inputs a
 
 Company: Calder & Finch Home, Inc. (fictional US furniture wholesaler that sources from Vietnam, Canada and the EU). Tabs: `Cover`, `Assumptions`, `P&L`, `DCF`. As built, FY2026E EBITDA is $106.0M and enterprise value (NPV) is $905.5M.
 
-List every constant we planted and what the pipeline should conclude. `engine/tests/test_case_study.py` checks against this.
+List every constant we planted and what the pipeline should conclude. `engine/tests/test_graph_case_study.py` checks the graph half against this table: the planted cells and controls are found, and their EBITDA, net income and EV impacts match. It copies the values into the test rather than reading this file, so update both together. `engine/tests/test_case_study.py`, which is meant to check the stale flags, is skipped until the pipeline is implemented.
 
 ## Planted market drivers
 
