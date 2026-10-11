@@ -72,7 +72,7 @@ export default function WorkbookPage({ model, onImport, onBack, onRename, onNew,
   const checked = useMemo(() => (model.report ? eventsFromReport(model.report) : []), [model.report]);
   const [edits, setEdits] = useState<TimelineEvent[]>([]);
   // cells edited here that are on their way to the engine: they spin until it answers, then its stages take over
-  const engineChecked = !!model.report && !sample;
+  const engineChecked = !!model.report && model.report.model_id !== "case-study";
   const [sent, setSent] = useState<Set<string>>(new Set());
   useEffect(() => {
     if (!rechecking) setSent(new Set());

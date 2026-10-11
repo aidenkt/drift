@@ -1285,7 +1285,7 @@ h2 .crumb:not(:only-child) { color: inherit; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
 .tl-badge.checking { display: inline-flex; align-items: center; gap: 5px; border-color: var(--rule); color: var(--muted); }
-.tl-badge .spin { width: 8px; height: 8px; }
+.tl-badge .spin { width: 8px; height: 8px; margin-right: 5px; vertical-align: -1px; }
 
 .skel, .skel-block {
   display: block;
