@@ -45,6 +45,19 @@ export async function analyze(file: Blob, filename: string, builtOn?: string): P
   }
 }
 
+/** The workbook after an edit here. The engine keeps what it already knows about unchanged numbers and
+ *  labels and checks the rest in the background, filling in behind `getModel`. False when it can't. */
+export async function recheck(id: string, file: Blob, filename: string): Promise<boolean> {
+  if (USE_FIXTURE || id === "case-study") return false;
+  try {
+    const form = new FormData();
+    form.append("file", file, filename);
+    return (await fetch(`${ENGINE}/models/${id}/file`, { method: "PUT", body: form })).ok;
+  } catch {
+    return false;
+  }
+}
+
 /** The .xlsx as it was uploaded. */
 export async function getModelFile(id: string): Promise<ArrayBuffer> {
   const res = await fetch(`${ENGINE}/models/${id}/file`);

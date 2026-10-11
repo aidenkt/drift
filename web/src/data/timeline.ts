@@ -28,7 +28,9 @@ export type TimelineEvent = {
   title: string;
   kind: "drift" | "news" | "check" | "baseline" | "edit";
   // updated, kept and gone are a stale assumption that has since been dealt with
-  status: "stale" | "watching" | "current" | "edited" | "updated" | "kept" | "gone";
+  // checking: the engine has found or relabeled it and its check is still running
+  status: "stale" | "watching" | "current" | "edited" | "updated" | "kept" | "gone" | "checking";
+  busy?: boolean; // an edit whose cells the engine is still labeling or checking
   resolution?: { note: string; at?: string; by?: string }; // how, when and by whom
   cells: string[];
   driver: string | null;

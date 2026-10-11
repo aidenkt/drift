@@ -7,6 +7,7 @@ Each constant carries a stage, so a reader can show it as soon as it exists: "la
 still the row's own text), "checking" (labeled, a market input whose check is running) or "done"."""
 
 import contextlib
+import re
 import copy
 import logging
 import queue
@@ -139,12 +140,6 @@ def _finish(report: dict, lock) -> None:
         market = [c for c in fresh if c.get("driver")]
         report["progress"]["total"] = len(market)
 
-    # the rest of the model may have moved under a carried check: its effect on the outputs is measured again
-    for c in found:
-        if c.get("stage") == "done" and c.get("check"):
-            deltas = _calc(impact.deltas, wb, graph, c, outputs)
-            with lock:
-                c["impact"] = deltas
 
     # measured before the checks so they can reason from which way, and how far, the outputs move
     for c in market:
@@ -157,6 +152,15 @@ def _finish(report: dict, lock) -> None:
         with lock:
             c["check"], c["impact"], c["stage"] = check, deltas, "done"
             report["progress"]["checked"] += 1
+
+    # after the new checks, so they show first: the rest of the model may have moved under a carried
+    # check, so its effect on the outputs is measured again
+    checked_now = {id(c) for c in market}
+    for c in found:
+        if c.get("check") and id(c) not in checked_now:
+            deltas = _calc(impact.deltas, wb, graph, c, outputs)
+            with lock:
+                c["impact"] = deltas
 
     combined = _calc(impact.combined, wb, graph, found, outputs)
     with lock:
@@ -178,8 +182,15 @@ def _temporary_label(clues: dict) -> str:
 
 def _context_key(c: dict, clues: dict) -> str:
     """Same key, same constant: its place, number and the text around it. A renamed row is a new constant."""
-    parts = [c["cell"], c.get("literal_index"), c["value"], c.get("formula"), clues.get("row_label"), clues.get("col_header"), clues.get("row_text_right")]
+    parts = [c["cell"], c.get("literal_index"), c["value"], _same_formula(c.get("formula")), clues.get("row_label"), clues.get("col_header"), clues.get("row_text_right")]
     return repr(parts)
+
+
+def _same_formula(formula: str | None) -> str | None:
+    """A formula as written by any spreadsheet app: 'Assumptions'!$B$20 and Assumptions!$B$20 are one reference."""
+    if not formula:
+        return formula
+    return re.sub(r"\s+", "", re.sub(r"'([^'!]+)'!", r"\1!", formula)).upper()
 
 
 def _carry(old: list[dict], found: list[dict]) -> None:
