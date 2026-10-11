@@ -290,6 +290,13 @@ export default function App() {
     if (folder) place(entry.key, folder);
     setLibrary((prev) => [entry, ...(prev ?? [])]);
     openEntry(entry);
+    // with an engine there is no ready-made report: the example is checked like any import
+    if (!report)
+      void analyze(new Blob([buf]), entry.filename).then((id) => {
+        if (!id) return;
+        saveReport(entry.key, id);
+        void follow(entry.key, id);
+      });
   };
 
   /** A new empty spreadsheet, saved in this browser and opened straight away. */
