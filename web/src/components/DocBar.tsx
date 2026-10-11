@@ -19,6 +19,9 @@ type Props = {
   onHome: () => void;
   onRename: (name: string) => void;
   onShare: () => void;
+  onNew: () => void;
+  onCopy: () => void;
+  onTrash?: () => void;
   presence?: ReactNode; // avatars of who else has it open
 };
 
@@ -74,11 +77,18 @@ export default function DocBar(p: Props) {
             <Menu
               label="File"
               items={[
+                { label: "New spreadsheet", onSelect: p.onNew },
+                { label: "Open", hint: `${mod}O`, onSelect: p.onHome },
                 { label: "Import .xlsx…", onSelect: () => file.current?.click() },
-                { label: "Rename", onSelect: () => setRenaming(true) },
+                { label: "Make a copy", onSelect: p.onCopy },
+                "divider",
+                { label: "Share…", onSelect: p.onShare },
                 { label: "Download .xlsx", hint: `${mod}S`, onSelect: p.onDownload },
                 "divider",
-                { label: "All models", onSelect: p.onHome },
+                { label: "Rename", onSelect: () => setRenaming(true) },
+                { label: "Move to trash", onSelect: () => p.onTrash?.(), disabled: !p.onTrash },
+                "divider",
+                { label: "Version history", onSelect: () => !p.showChanges && p.onToggleChanges() },
               ]}
             />
             <Menu

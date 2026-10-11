@@ -294,6 +294,40 @@ export function removeSheet(book: Book, ix: number) {
   book.sheets.splice(ix, 1);
 }
 
+/**
+ * Insert (count > 0) or delete (count < 0) whole rows or columns at `at`. Formulas that
+ * point past them follow; formats and column widths move with their cells.
+ */
+export function shiftLines(book: Book, sheet: SheetMeta, axis: "row" | "col", at: number, count: number) {
+  const span: [number, number] = [at, Math.abs(count)];
+  const hf = book.hf;
+  if (axis === "row") {
+    if (count > 0 ? !hf.isItPossibleToAddRows(sheet.id, span) : !hf.isItPossibleToRemoveRows(sheet.id, span)) return false;
+    count > 0 ? hf.addRows(sheet.id, span) : hf.removeRows(sheet.id, span);
+  } else {
+    if (count > 0 ? !hf.isItPossibleToAddColumns(sheet.id, span) : !hf.isItPossibleToRemoveColumns(sheet.id, span)) return false;
+    count > 0 ? hf.addColumns(sheet.id, span) : hf.removeColumns(sheet.id, span);
+    if (count > 0) sheet.colWidths.splice(at, 0, ...Array(count).fill(undefined));
+    else sheet.colWidths.splice(at, -count);
+  }
+
+  const moved = new Map<string, string>();
+  for (const [key, fmt] of book.formats) {
+    if (!key.startsWith(`${sheet.name}!`)) continue;
+    book.formats.delete(key);
+    const { row, col } = parseRef(key);
+    const n = axis === "row" ? row : col;
+    if (count < 0 && n >= at && n < at - count) continue; // deleted
+    const shifted = n >= at ? n + count : n;
+    moved.set(axis === "row" ? ref(sheet.name, shifted, col) : ref(sheet.name, row, shifted), fmt);
+  }
+  for (const [key, fmt] of moved) book.formats.set(key, fmt);
+
+  const key = axis === "row" ? "rows" : "cols";
+  if (at < sheet[key]) sheet[key] = Math.max(at, sheet[key] + count);
+  return true;
+}
+
 /** After undo/redo, which can add, remove or rename sheets, match `book.sheets` to the engine. */
 export function syncSheets(book: Book) {
   const byId = new Map(book.sheets.map((s) => [s.id, s]));

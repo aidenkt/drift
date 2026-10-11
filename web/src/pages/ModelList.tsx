@@ -2,13 +2,14 @@ import { useCallback, useMemo, useRef, useState, type DragEvent, type MouseEvent
 import { Account } from "../components/AuthGate";
 import { ContextMenu, type MenuItem } from "../components/Menu";
 import RenameInput from "../components/RenameInput";
+import ShareDialog from "../components/ShareDialog";
 import SheetThumb from "../components/SheetThumb";
 import Wordmark from "../components/Wordmark";
 import { Folder as FolderIcon, Plus, Table } from "lucide-react";
 import { SAMPLE_TIMELINE } from "../data/timeline";
 import { deltaMoney, editedAt, shortDate, value } from "../lib/format";
-import type { Book } from "../lib/workbook";
-import { colorFor, initials, me, type SharedDoc } from "../lib/collab";
+import { xlsxBytes, xlsxName, type Book } from "../lib/workbook";
+import { colorFor, createShared, initials, me, type SharedDoc } from "../lib/collab";
 import { createFolder, deleteFolder, loadFolders, loadPlacement, moveFolder, pathTo, place, renameFolder, type Folder } from "../lib/folders";
 import type { Report } from "../types";
 
@@ -33,6 +34,8 @@ type Props = {
   onRename: (e: Entry, name: string) => void;
   onDownload: (e: Entry) => void;
   onNewBlank: (folder: string | null) => void;
+  /** Shared from the home page: uploaded for the first time, or its access changed. */
+  onShared: (e: Entry, doc: SharedDoc) => void;
 };
 
 const staleCount = (e: Entry) => e.report?.constants.filter((c) => c.check?.status === "stale").length ?? 0;
@@ -48,13 +51,16 @@ const title = (filename: string) => filename.replace(/\.(xlsx|xlsm|xls)$/i, "");
 const DRAG_KEY = "text/x-since-model";
 const DRAG_FOLDER = "text/x-since-folder";
 
-export default function ModelList({ entries, onOpen, onImport, onRemove, onRename, onDownload, onNewBlank }: Props) {
+export default function ModelList({ entries, onOpen, onImport, onRemove, onRename, onDownload, onNewBlank, onShared }: Props) {
   const [query, setQuery] = useState("");
   const [layout, setLayout] = useState<"grid" | "list">("grid");
   const file = useRef<HTMLInputElement>(null);
   const [menu, setMenu] = useState<{ x: number; y: number; entry: Entry } | null>(null);
   const closeMenu = useCallback(() => setMenu(null), []);
   const [renaming, setRenaming] = useState<string | null>(null); // entry key
+  const [sharingKey, setSharingKey] = useState<string | null>(null);
+  // looked up each render so the dialog sees the access list as it changes
+  const sharing = entries?.find((e) => e.key === sharingKey) ?? null;
 
   /* ---------- folders ---------- */
   const [folders, setFolders] = useState<Folder[]>(loadFolders);
@@ -131,6 +137,7 @@ export default function ModelList({ entries, onOpen, onImport, onRemove, onRenam
   const menuItems = (e: Entry): MenuItem[] => [
     { label: "Open", onSelect: () => onOpen(e) },
     { label: "Rename", onSelect: () => setRenaming(e.key) },
+    { label: "Share…", onSelect: () => setSharingKey(e.key) },
     { label: "Download .xlsx", onSelect: () => onDownload(e) },
     ...(folders.length || folderOf(e.key) ? ["divider" as const, ...moveItems(e)] : []),
     ...(e.report ? [] : ["divider" as const, { label: "Remove", onSelect: () => onRemove(e) }]),
@@ -459,6 +466,20 @@ export default function ModelList({ entries, onOpen, onImport, onRemove, onRenam
       </main>
 
       {menu && <ContextMenu x={menu.x} y={menu.y} items={menuItems(menu.entry)} onClose={closeMenu} />}
+      {sharing && (
+        <ShareDialog
+          filename={sharing.filename}
+          doc={sharing.doc ?? null}
+          ensureDoc={async () => {
+            if (sharing.doc) return sharing.doc;
+            const doc = await createShared(xlsxBytes(sharing.book), xlsxName(sharing.filename));
+            onShared(sharing, doc);
+            return doc;
+          }}
+          onChange={(doc) => onShared(sharing, doc)}
+          onClose={() => setSharingKey(null)}
+        />
+      )}
       {folderMenu && (
         <ContextMenu x={folderMenu.x} y={folderMenu.y} items={folderItems(folderMenu.folder)} onClose={() => setFolderMenu(null)} />
       )}
