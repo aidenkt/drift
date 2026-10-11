@@ -5,6 +5,7 @@ import re
 from collections import deque
 from collections.abc import Iterator
 from dataclasses import dataclass, field
+from datetime import date, datetime
 from pathlib import Path
 
 import openpyxl
@@ -19,6 +20,9 @@ _SHEET_ON_BOTH_ENDS = re.compile(r"((?:'(?:[^']|'')+'|[\w.]+)!)([$\w]+):\1([$\w]
 _RANGE = re.compile(r"([A-Z]*)([0-9]*):([A-Z]*)([0-9]*)")
 _STORAGE_PREFIX = re.compile(r"^(?:_XLFN\.|_XLWS\.)+")
 _NO_DATA: Bounds = (1, 1, 0, 0)
+_MODEL_DATE = re.compile(
+    r"\b(?:model\s+date|valuation\s+date|as\s+(?:of|at)|assumptions\s+date|date\s+prepared|prepared\s+on)\b", re.IGNORECASE
+)
 
 
 @dataclass
@@ -106,6 +110,22 @@ def load(path) -> Workbook:
     finally:
         formula_wb.close()
         value_wb.close()
+
+
+def model_date(wb: Workbook) -> str | None:
+    """ISO date of the first date cell (sheet, then row, then column) whose row label says when the model
+    was built: "Model date", "Valuation date", "As of", ... None when the workbook has no such cell."""
+    order = {sheet: i for i, sheet in enumerate(wb.sheets)}
+    dated = []
+    for cell, value in wb.values.items():
+        if isinstance(value, date):
+            sheet, coord = split_key(cell)
+            dated.append((order.get(sheet, len(order)), *coordinate_to_tuple(coord), cell, value))
+    for *_, cell, value in sorted(dated, key=lambda item: item[:3]):
+        label = wb.context(cell)["row_label"]
+        if label and _MODEL_DATE.search(label):
+            return (value.date() if isinstance(value, datetime) else value).isoformat()
+    return None
 
 
 def _read_sheet(wb: Workbook, ws, value_ws) -> None:

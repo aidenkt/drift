@@ -4,7 +4,7 @@ from pathlib import Path
 import jsonschema
 import pytest
 
-from checks.verify import build_check, effects_from_sensitivity, numbers_in, suggested_value
+from checks.verify import build_check, effects_from_sensitivity, numbers_in, quote_in_text, suggested_value
 
 SCHEMA = json.loads((Path(__file__).parents[2] / "schema" / "constant.schema.json").read_text())
 CHECK_SCHEMA = SCHEMA["$defs"]["constant"]["properties"]["check"]
@@ -46,7 +46,7 @@ def test_made_up_quote_is_dropped():
                          quotes=["EV repairs cost 60% more than gas cars"], page=1))
     assert c["live"] is None
     assert c["evidence"] == []
-    assert c["status"] == "stale"  # p_stale 0.9 alone still flags it
+    assert c["status"] == "unknown"  # p_stale 0.9 with no verified quote behind it flags nothing
 
 
 def test_number_not_in_quote_is_dropped():
@@ -236,3 +236,227 @@ def test_dropped_suggestion_logs_why(caplog):
     run(1.2, finding(kind="level", number=60, transform="percent_more_to_ratio",
                      quotes=["EV repairs cost 60% more than gas cars"], page=1))
     assert "quote not on page 1" in caplog.text
+
+
+# --- cases from the real run on the August 2026 case study -------------------------------------------------
+
+
+def _fred(series, name, unit, then, now, then_date="2026-07-31", now_date="2026-10-08"):
+    """A FRED data page as scrape._fred_page builds it."""
+    pct = "%" if unit == "percent" else ""
+    text = (f"FRED series {series} ({name}). Value on {then_date}: {then:g}{pct}. Value on {now_date}: {now:g}{pct}. "
+            f"Change between those dates: {(now - then) / then * 100:+.1f}%.")
+    return {"id": 1, "kind": "data", "url": f"https://fred.stlouisfed.org/series/{series}", "date": now_date,
+            "publisher": "FRED, Federal Reserve Bank of St. Louis", "title": f"FRED {series}", "text": text,
+            "fred": {"series": series, "unit": unit, "then": then, "then_date": then_date, "now": now, "now_date": now_date}}
+
+
+DGS10 = _fred("DGS10", "10-year Treasury yield", "percent", 4.75, 5.22)
+DEXUSEU = _fred("DEXUSEU", "US dollars to one euro", "level", 1.1519, 1.1259, now_date="2026-10-02")
+SOFR = _fred("SOFR", "Secured Overnight Financing Rate", "percent", 3.66, 3.87)
+TREASURY = {"cell": "DCF!B6", "value": 0.0475, "label": "Risk-free rate (10-year US Treasury, %)"}
+EURUSD = {"cell": "Assumptions!B21", "value": 1.1519, "label": "EUR/USD exchange rate, 31-Jul-2026 ($ per \u20ac)"}
+
+
+def _plain(page):
+    """The same page from a publisher that is not FRED, so the number has to come through the finding."""
+    return {k: v for k, v in page.items() if k != "fred"}
+
+
+def test_fred_value_is_taken_in_code_whatever_the_llm_reports():
+    for f in (finding(kind="level", number=0.0522, transform="as_is", quotes=[DGS10["text"]], page=1),  # the real run
+              finding(kind="level", number=9.99, transform="percent_to_decimal", quotes=["made up 9.99%"], page=1),
+              finding()):
+        c = build_check(TREASURY, f, [DGS10], "2026-10-10")
+        assert c["live"] == 0.0522
+        assert c["status"] == "stale"  # +0.47pp
+        assert c["source_url"] == DGS10["url"]
+        assert c["evidence"][0] == {"quote": DGS10["text"], "url": DGS10["url"], "publisher": DGS10["publisher"],
+                                    "date": "2026-10-08"}
+        jsonschema.validate(c, CHECK_SCHEMA)
+
+
+def test_fred_level_series_is_used_as_is():
+    c = build_check(EURUSD, finding(kind="change", number=-0.023, quotes=[DEXUSEU["text"]], page=1), [DEXUSEU], "2026-10-10")
+    assert c["live"] == 1.1259
+    assert c["drift_pct"] == -2.3
+    assert c["status"] == "stale"
+    assert len(c["evidence"]) == 1  # the LLM quoted the FRED page too: shown once
+    part = finding(kind="level", number=1.1259, transform="as_is", quotes=["Value on 2026-10-02: 1.1259."], page=1)
+    assert len(build_check(EURUSD, part, [DEXUSEU], "2026-10-10")["evidence"]) == 1
+
+
+def test_fred_is_not_used_for_something_priced_off_the_series():
+    margin = {"cell": "Assumptions!B29", "value": 0.0275, "label": "Term loan margin over SOFR (%)"}
+    all_in = {"cell": "P&L!C35", "value": 0.0641, "label": "Term loan interest rate (SOFR, %)"}  # SOFR + margin in one cell
+    for constant in (margin, all_in):
+        c = build_check(constant, finding(p_stale=1.0), [SOFR], "2026-10-10")
+        assert c["live"] is None
+        assert c["status"] == "unknown"  # the real run called the margin stale on p_stale 1.0 alone
+    buried = {"cell": "P&L!C35:G35", "value": 0.0366, "label": "SOFR reference rate (% per year)",
+              "formula": "=0.0366+'Assumptions'!$B$29"}  # the literal is SOFR itself
+    assert build_check(buried, finding(), [SOFR], "2026-10-10")["live"] == 0.0387
+
+
+def test_fred_is_not_used_for_another_series_or_one_that_has_not_printed():
+    brent = {"cell": "Assumptions!B20", "value": 96.95, "label": "Brent crude oil price for FY2026E ($/bbl)"}
+    wti = _fred("DCOILWTICO", "WTI crude oil, $/bbl", "level", 96.5, 96.24)  # near Brent's value, still not Brent
+    assert build_check(brent, finding(), [wti], "2026-10-10")["live"] is None
+    same_day = _fred("DGS10", "10-year Treasury yield", "percent", 4.75, 4.75, now_date="2026-07-31")
+    assert build_check(TREASURY, finding(), [same_day], "2026-08-02")["live"] is None
+
+
+def test_number_reported_in_the_other_units_is_read_as_written():
+    page = _plain(DGS10)
+    c = build_check(TREASURY, finding(kind="level", number=0.0522, transform="as_is", quotes=[page["text"]], page=1),
+                    [page], "2026-10-10")
+    assert c["live"] == 0.0522  # 5.22 as written, in the model's units
+    tax = {"id": 1, "url": "https://taxsummaries.pwc.com/x", "title": "",
+           "text": "The United States taxes resident corporations at a flat rate of 21%."}
+    c = build_check({"cell": "Assumptions!B24", "value": 0.21, "label": "US federal corporate income tax rate (%)"},
+                    finding(p_stale=0.05, kind="level", number=0.21, transform="as_is", quotes=[tax["text"]], page=1),
+                    [tax], "2026-10-10")
+    assert c["live"] == 0.21
+    assert c["status"] == "current"
+
+
+def test_number_absent_in_either_units_is_still_dropped():
+    c = run(1.2, finding(kind="level", number=0.48, transform="as_is",
+                         quotes=["collision repair on EVs cost about 56% more than on gas cars"], page=1))
+    assert c["live"] is None
+    page = {"id": 1, "url": "https://example.com", "title": "", "text": "Of 21 states surveyed, most kept their rate."}
+    c = build_check({"cell": "A!B24", "value": 0.21}, finding(kind="level", number=0.21, transform="as_is",
+                                                             quotes=[page["text"]], page=1), [page], "2026-10-10")
+    assert c["live"] is None  # 21 is on the page, but not as a percent
+
+
+def test_change_reported_as_a_fraction_uses_the_quoted_levels():
+    page = _plain(DEXUSEU)
+    c = build_check(EURUSD, finding(kind="change", number=-0.023, quotes=[page["text"]], page=1), [page], "2026-10-10")
+    assert c["live"] == pytest.approx(1.1259)  # the now-level, not 1.1519 * (1 - 0.023 / 100)
+    assert c["status"] == "stale"
+
+
+def test_change_reported_as_a_fraction_without_levels_is_applied_as_a_percent():
+    quote = "Used EV prices fell 29.5% in June compared with a year earlier."
+    assert suggested_value(0.72, {"kind": "change", "number": -0.295}, [quote]) == pytest.approx(0.72 * 0.705)
+    assert suggested_value(0.72, {"kind": "change", "number": -29.5}, [quote]) == pytest.approx(0.72 * 0.705)
+
+
+FURNITURE_TODAY = {
+    "id": 7, "url": "https://www.furnituretoday.com/tariffs/x", "publisher": "Furniture Today", "date": "2026-08-24",
+    "title": "U.S.-Canada trade war ramps up as 50% tariffs take effect",
+    "text": "U.S.-Canada trade war ramps up as 50% tariffs take effect - Furniture Today\n"
+            "U.S.-Canada trade war ramps up as 50% tariffs take effect\n"
+            "The United States imposed 50% tariffs on approximately $20 billion of Canadian goods Saturday after a "
+            "three-day extension failed to produce a deal. Canadian Prime Minister Mark Carney responded by announcing "
+            "that Canada would match the duties \u201cdollar for dollar,\u201d with retaliatory tariffs taking effect Sept. 8.\n"
+            "The U.S. tariffs cover more than 500 product categories, including furniture, lumber and plywood.\n"
+            "New 50% tariff on Canadian imports includes furniture",
+}
+CANADA = {"cell": "Assumptions!B23", "value": 0.0, "label": "Tariff rate on Canada-origin furniture (% of value)"}
+
+
+def test_quote_made_of_a_title_and_joined_passages_is_found():
+    quote = ("U.S.-Canada trade war ramps up as 50% tariffs take effect - Furniture Today\n"
+             "U.S.-Canada trade war ramps up as 50% tariffs take effect\n"
+             "The United States imposed 50% tariffs on approximately $20 billion of Canadian goods Saturday after a "
+             "three-day extension failed to produce a deal. ... The U.S. tariffs cover more than 500 product categories, "
+             "including furniture, lumber and plywood.\nNew 50% tariff on Canadian imports includes furniture")
+    c = build_check(CANADA, finding(kind="level", number=50, transform="percent_to_decimal", quotes=[quote], page=7),
+                    [FURNITURE_TODAY], "2026-10-10")
+    assert c["live"] == pytest.approx(0.5)
+    assert c["status"] == "stale"
+    assert c["source_name"] == "Furniture Today"
+
+
+def test_quote_matching_is_exact_about_words_and_numbers():
+    text = "Rates held at 12.5%.[1] Furniture pays the 12.5% Section 301 duty instead.[2]\nCheck your line \u2013 it\u2019s free."
+    assert quote_in_text("Rates held at 12.5%. Furniture pays the 12.5% Section 301 duty instead.", text)  # footnote marks
+    assert quote_in_text("Check your line - it's free.", text)  # typographic dash and apostrophe
+    assert quote_in_text("Rates held at  12.5%.\n Check your line", text)  # two pieces, both there
+    assert not quote_in_text("Rates held at 12.5%.\nFurniture pays a 25% Section 301 duty instead.", text)  # one piece is not
+    assert not quote_in_text("Rates held at 12.5%. ... 25%", text)  # a short piece with a number must be there too
+    assert not quote_in_text("Rates held ... at 12.5%", text)  # no piece long enough to mean anything
+    page = {"id": 1, "url": "https://example.com", "title": "Canada tariffs rise to 50% on furniture", "text": "Snippet."}
+    c = build_check(CANADA, finding(kind="level", number=50, transform="percent_to_decimal",
+                                    quotes=["Canada tariffs rise to 50% on furniture"], page=1), [page], "2026-10-10")
+    assert c["live"] == pytest.approx(0.5)  # the title is part of the page the LLM is shown
+
+
+VIETNAM = {"cell": "Assumptions!B22", "value": 0.125, "label": "Tariff rate on Vietnam-origin furniture (% of value)"}
+AIRLIFT = {"id": 3, "url": "https://airliftusa.com/tariff-updates/vietnam", "title": "US Tariffs on Vietnam 2026",
+           "text": "As of September 25, 2026, most Vietnamese goods pay the normal duty for their HTS line plus a 12.5% "
+                   "Section 301 duty in force since July 24, 2026.[1] Section 232 goods pay their own rates.[2]"}
+WILEY = {"id": 8, "url": "https://www.wiley.law/alert", "title": "",
+         "text": "A 12.5% duty (which stacks on existing standard duty rates) for all other investigated trading partners."}
+
+
+def test_unchanged_control_is_not_stale_whatever_p_stale_says():
+    quote = ("As of September 25, 2026, most Vietnamese goods pay the normal duty for their HTS line plus a 12.5% "
+             "Section 301 duty in force since July 24, 2026. Section 232 goods pay their own rates.[2]")  # "[1]" dropped
+    f = finding(p_stale=1.0, kind="level", number=12.5, transform="percent_to_decimal", quotes=[quote], page=3)
+    c = build_check(VIETNAM, f, [AIRLIFT, WILEY], "2026-10-10")
+    assert c["live"] == pytest.approx(0.125)
+    assert c["status"] == "current"
+    # the quote is not on the page and an event "raises": the LLM's own figure is still the model's value
+    f = finding(p_stale=1.0, kind="level", number=12.5, transform="percent_to_decimal", quotes=["Vietnam pays 12.5% now."],
+                page=3, events=[{"summary": "duty", "direction": "raises", "page": 8, "quote": WILEY["text"]}])
+    c = build_check(VIETNAM, f, [AIRLIFT, WILEY], "2026-10-10")
+    assert c["live"] is None
+    assert len(c["events"]) == 1
+    assert c["status"] == "unknown"
+
+
+def test_stale_without_a_number_needs_a_verified_quote():
+    event = {"summary": "CCC report", "direction": "raises", "page": 1,
+             "quote": "collision repair on EVs cost about 56% more than on gas cars"}
+    assert run(1.2, finding(p_stale=1.0))["status"] == "unknown"  # confidence alone (the real run's beta)
+    assert run(1.2, finding(p_stale=1.0, events=[{**event, "quote": "Repair costs doubled."}]))["status"] == "unknown"
+    assert run(1.2, finding(p_stale=1.0, events=[{**event, "direction": "unclear"}]))["status"] == "unknown"
+    assert run(1.2, finding(p_stale=1.0, events=[event]))["status"] == "stale"
+    assert run(1.2, finding(p_stale=0.1))["status"] == "unknown"  # "current" needs a quote as well
+    assert run(1.2, finding(p_stale=0.1, events=[{**event, "direction": "unclear"}]))["status"] == "current"
+
+
+def test_a_quote_that_is_not_on_the_page_is_left_out_and_the_rest_still_count():
+    f = finding(kind="level", number=56, transform="percent_more_to_ratio", page=1,
+                quotes=["collision repair on EVs cost about 56% more than on gas cars", "Insurers agree: 56% more."])
+    c = run(1.2, f)
+    assert c["live"] == pytest.approx(1.56)
+    assert [e["quote"] for e in c["evidence"]] == ["collision repair on EVs cost about 56% more than on gas cars"]
+    f["quotes"] = ["A CCC report found collision repair on EVs", "Insurers agree: 56% more."]  # the number is in the bad one
+    assert run(1.2, f)["live"] is None
+
+
+def test_curly_quotes_the_llm_wrote_as_control_characters_are_put_back():
+    quote = "Canada would match the duties \x1cdollar for dollar,\x1d with retaliatory tariffs taking effect Sept. 8."
+    f = finding(kind="level", number=50, transform="percent_to_decimal", page=7,
+                quotes=["The United States imposed 50% tariffs on approximately $20 billion of Canadian goods Saturday", quote])
+    c = build_check(CANADA, f, [FURNITURE_TODAY], "2026-10-10")
+    assert c["live"] == pytest.approx(0.5)
+    assert c["evidence"][1]["quote"].count("\u201c") == 1 and "\x1c" not in c["evidence"][1]["quote"]
+
+
+def test_a_page_dated_before_the_model_cannot_make_it_stale():
+    # the offline re-run: a 2025 Reuters snippet on another furniture tariff, read as today's Vietnam rate
+    reuters = {"id": 1, "url": "https://www.reuters.com/x-2025-09-30/", "date": "2025-09-30", "title": "",
+               "text": "25% tariffs on wooden furniture from October 14, which could rise next year to 50% for vanities."}
+    opinion = {"id": 3, "url": "https://www.furnituretoday.com/opinion/x", "title": "",
+               "text": "Last week, the U.S. Trade Representative launched a Section 301 investigation into Vietnam."}
+    f = finding(p_stale=1.0, kind="level", number=0.25, transform="as_is", quotes=[reuters["text"]], page=1,
+                events=[{"summary": "tariff", "direction": "raises", "page": 1, "quote": reuters["text"]}])
+    c = build_check(VIETNAM, f, [reuters, opinion], "2026-10-10", "2026-08-01")
+    assert c["live"] is None
+    assert c["status"] == "unknown"
+    assert len(c["evidence"]) == 1 and len(c["events"]) == 1  # still shown, they are real quotes
+    assert build_check(VIETNAM, f, [{**reuters, "date": "2026-09-30"}, opinion], "2026-10-10", "2026-08-01")["live"] == 0.25
+    # an old page may still confirm the value
+    old = {**AIRLIFT, "date": "2026-07-24"}
+    f = finding(p_stale=0.1, kind="level", number=12.5, transform="percent_to_decimal", quotes=[AIRLIFT["text"]], page=3)
+    assert build_check(VIETNAM, f, [old], "2026-10-10", "2026-08-01")["status"] == "current"
+    # with no number, an event counts only when its page is dated since the model was built
+    event = {"summary": "probe", "direction": "raises", "page": 3, "quote": opinion["text"]}
+    f = finding(p_stale=1.0, events=[event])
+    for date, status in ((None, "unknown"), ("2026-06-08", "unknown"), ("2026-09-08", "stale")):
+        assert build_check(VIETNAM, f, [reuters, {**opinion, "date": date}], "2026-10-10", "2026-08-01")["status"] == status

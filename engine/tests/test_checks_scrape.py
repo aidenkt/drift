@@ -1,6 +1,8 @@
 import json
 
-from checks import scrape
+import httpx
+
+from checks import drivers, scrape
 
 SERP = json.dumps({"organic": [
     {"link": "https://www.example.com/used-ev-prices", "title": "Used EV prices fall", "source": "Example News",
@@ -135,3 +137,111 @@ def test_pages_are_fetched_in_parallel(monkeypatch, tmp_path):
     pages = scrape.gather("EV prices", ["EV prices"], "2026-08-01", "2026-10-10", ["EV tariffs"])
     assert peak[0] > 1
     assert len(pages) == 6  # 3 per query, no URL twice
+
+
+def test_fred_page_carries_its_observations(monkeypatch):
+    monkeypatch.setenv("FRED_API_KEY", "k")
+    monkeypatch.setattr(scrape, "_cached", lambda key, fetch: FRED)
+    page = scrape._fred_page("SOFR reference rate", "2022-12-15", "2023-12-04")
+    assert page["fred"] == {"series": "SOFR", "unit": "percent", "then": 4.3, "then_date": "2022-12-14",
+                            "now": 5.31, "now_date": "2023-12-04"}
+
+
+def test_series_is_the_constants_quantity_only_when_label_and_value_agree():
+    sofr = {"series": "SOFR", "unit": "percent", "then": 3.66, "now": 3.87}
+    assert drivers.series_scale("SOFR reference rate (% per year)", 0.0366, sofr) == 0.01
+    assert drivers.series_scale("SOFR (%)", 3.66, sofr) == 1  # a model that holds percents as 3.66
+    assert drivers.series_scale("Term loan margin over SOFR (%)", 0.0366, sofr) is None  # priced off it
+    assert drivers.series_scale("SOFR reference rate", 0.0641, sofr) is None  # SOFR plus a margin in one cell
+    assert drivers.series_scale("Fed funds rate", 0.0366, sofr) is None  # another series
+    assert drivers.fred_series_for("Brent crude oil price ($/bbl)")[0] == "DCOILBRENTEU"  # not WTI via "crude"
+    assert drivers.fred_series_for("20-year Treasury yield, 2026") is None  # "2" and "10" are whole words
+    assert drivers.fred_series_for("Eurozone HICP") is None
+
+
+def _hits(monkeypatch, readable=lambda url: False):
+    """Every search returns three hits of its own; a page that can't be read becomes its search snippet."""
+    searched = []
+
+    def search(query, built_on, as_of):
+        searched.append(query)
+        return [{"url": f"https://example.com/{query}/{i}", "publisher": "x", "date": None, "title": "", "snippet": "5%"}
+                for i in range(3)]
+
+    monkeypatch.setattr(scrape, "_search", search)
+    monkeypatch.setattr(scrape, "_fetch_text", lambda url: "EV prices fell 29.5% in June." if readable(url) else "")
+    return searched
+
+
+def test_fred_covered_constant_searches_only_for_events(monkeypatch):
+    monkeypatch.setenv("FRED_API_KEY", "k")
+    monkeypatch.setattr(scrape, "_cached", lambda key, fetch: FRED)
+    searched = _hits(monkeypatch)
+    args = ("SOFR reference rate (% per year)", ["SOFR rate", "SOFR history"], "2022-12-15", "2023-12-04", ["Fed decision", "CPI", "FOMC"])
+    pages = scrape.gather(*args, 0.043)
+    assert searched == ["Fed decision", "CPI"]
+    assert [p["kind"] for p in pages] == ["data"] + ["event"] * 6
+    searched.clear()
+    scrape.gather(*args, 0.07)  # not what SOFR printed on built_on: FRED won't supply the value, so look for figures
+    assert searched == ["SOFR rate", "SOFR history", "Fed decision", "CPI", "FOMC"]
+
+
+def test_llm_gets_eight_pages_read_ones_before_snippets(monkeypatch):
+    monkeypatch.setattr(scrape, "_fred_page", lambda *a: None)
+    _hits(monkeypatch, readable=lambda url: url.endswith(("a/2", "c/1", "f/2")))  # 18 fetched, 3 could be read
+    pages = scrape.gather("EV prices", ["a", "b", "c"], "2026-08-01", "2026-10-10", ["d", "e", "f"])
+    urls = [p["url"].removeprefix("https://example.com/") for p in pages]
+    assert urls == ["a/0", "a/2", "b/0", "c/0", "c/1", "d/0", "e/0", "f/2"]  # the 3 read, then top hits' snippets
+    assert [len(p["text"]) > 2 for p in pages] == [False, True, False, False, True, False, False, True]
+    assert [p["id"] for p in pages] == list(range(1, 9))
+
+
+def test_failed_fetch_is_not_tried_again(monkeypatch, tmp_path):
+    monkeypatch.setattr(scrape, "CACHE", tmp_path)
+    calls = []
+
+    def fetch():
+        calls.append(1)
+        raise httpx.ReadTimeout("slow")
+
+    assert scrape._cached(("dead",), fetch) == ""
+    assert scrape._cached(("dead",), fetch) == ""
+    assert len(calls) == 1
+    assert list(tmp_path.iterdir()) == []
+
+    def busy():
+        calls.append(1)
+        raise httpx.HTTPStatusError("429", request=None, response=None)
+
+    assert scrape._cached(("busy",), busy) == scrape._cached(("busy",), busy) == ""
+    assert len(calls) == 3  # a rate limit is not a dead URL: tried again next time
+
+
+def test_page_fetch_is_tried_once_with_a_short_timeout(monkeypatch, tmp_path):
+    monkeypatch.setattr(scrape, "CACHE", tmp_path)
+    monkeypatch.setenv("BRIGHTDATA_API_KEY", "k")
+    monkeypatch.setenv("BRIGHTDATA_UNLOCKER_ZONE", "unlocker")
+    timeouts = []
+
+    class Empty:
+        text = ""
+        headers = {"x-brd-error": "blocked"}
+
+        def raise_for_status(self):
+            pass
+
+    monkeypatch.setattr(scrape.httpx, "post", lambda *a, **kw: timeouts.append(kw["timeout"]) or Empty())
+    assert scrape._fetch_text("https://example.com/slow") == ""
+    assert timeouts == [scrape.PAGE_TIMEOUT]
+    assert scrape.PAGE_TIMEOUT <= 20
+
+
+def test_cache_is_written_whole_from_several_threads(monkeypatch, tmp_path):
+    from concurrent.futures import ThreadPoolExecutor
+
+    monkeypatch.setattr(scrape, "CACHE", tmp_path)
+    body = "x" * 200_000
+    with ThreadPoolExecutor(8) as pool:
+        got = list(pool.map(lambda i: scrape._cached(("same",), lambda: body), range(32)))
+    assert set(got) == {body}
+    assert [f.suffix for f in tmp_path.iterdir()] == [".txt"]  # no half-written leftovers
