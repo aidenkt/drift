@@ -1,0 +1,4909 @@
+{
+ "model_id": "real",
+ "filename": "case_study_aug2026.xlsx",
+ "built_on": "2026-08-01",
+ "checked_on": "2026-10-10",
+ "outputs": [
+  {
+   "cell": "P&L!C23",
+   "label": "Gross margin",
+   "value": 0.380493794998105
+  },
+  {
+   "cell": "P&L!C27",
+   "label": "EBITDA",
+   "value": 105.977
+  },
+  {
+   "cell": "P&L!C28",
+   "label": "EBITDA margin",
+   "value": 0.125493794998105
+  },
+  {
+   "cell": "P&L!C39",
+   "label": "Net income",
+   "value": 54.2328601
+  },
+  {
+   "cell": "DCF!B38",
+   "label": "Enterprise value (NPV)",
+   "value": 905.476614699873
+  },
+  {
+   "cell": "DCF!B42",
+   "label": "Implied EV / FY2026E EBITDA",
+   "value": 8.54408611962853
+  }
+ ],
+ "constants": [
+  {
+   "cell": "P&L!C18:G18",
+   "value": 5739.0,
+   "embedded": true,
+   "formula": "=C17*5739/1000000",
+   "label": "Ocean freight cost, Asia to US West Coast (USD/FEU)",
+   "driver": "ocean_freight_cost_asia_to_us_west_coast_usd_feu",
+   "label_source": "llm",
+   "confirmed": false,
+   "feeds": 87,
+   "outputs": [
+    "P&L!C23",
+    "P&L!C27",
+    "P&L!C28",
+    "P&L!C39",
+    "DCF!B38",
+    "DCF!B42"
+   ],
+   "check": {
+    "kind": "news",
+    "status": "stale",
+    "live": 7960.0,
+    "drift_pct": 38.7,
+    "p_stale": 1.0,
+    "as_of": "2026-10-10",
+    "source_name": "FreightWaves",
+    "source_url": "https://www.freightwaves.com/news/asia-us-container-rates-soar-past-11000-near-pandemic-records",
+    "evidence": [
+     {
+      "quote": "Rates from the Far East to the U.S. West Coast reached $7,960 per forty foot equivalent unit as of Sept. 17, while Far East-U.S. East Coast prices climbed to $11,259 per FEU.",
+      "url": "https://www.freightwaves.com/news/asia-us-container-rates-soar-past-11000-near-pandemic-records",
+      "publisher": "FreightWaves",
+      "date": "2026-09-18"
+     },
+     {
+      "quote": "Far East-US West Coast$7,960 per FEU323.6%",
+      "url": "https://www.freightwaves.com/news/asia-us-container-rates-soar-past-11000-near-pandemic-records",
+      "publisher": "FreightWaves",
+      "date": "2026-09-18"
+     }
+    ],
+    "events": [
+     {
+      "summary": "Major escalation of Iran-US conflict in July led to freight rate spike as carriers imposed rate increases on most East-West trades, pushing Asia-US West Coast rates over 200% above 2025 levels.",
+      "direction": "raises",
+      "quote": "Asia-US West Coast rate increases have passed the 200% mark, and East Coast is clocking in at an increase of 101%.",
+      "url": "https://www.scangl.com/news/ocean-freight-market-turns-red-hot-prompting-freight-rate-rally/",
+      "publisher": "Scan Global Logistics",
+      "date": "2026-07-08"
+     }
+    ],
+    "effects": [
+     {
+      "output": "Gross margin",
+      "direction": "down"
+     },
+     {
+      "output": "EBITDA",
+      "direction": "down"
+     },
+     {
+      "output": "EBITDA margin",
+      "direction": "down"
+     },
+     {
+      "output": "Net income",
+      "direction": "down"
+     },
+     {
+      "output": "Enterprise value (NPV)",
+      "direction": "down"
+     },
+     {
+      "output": "Implied EV / FY2026E EBITDA",
+      "direction": "down"
+     }
+    ],
+    "assumption": "The assumption for ocean freight cost, Asia to US West Coast, should be updated to $7,960/FEU as of mid-September 2026, reflecting published spot market figures (FreightWaves, page 1).",
+    "prediction": "Raising the ocean freight cost assumption from 5,739 to 7,960 (+38.7%) would reduce EBITDA, gross margin, and enterprise value substantially; since a 1% rise lowers EBITDA by 0.56, a 38.7% increase would lower EBITDA by approximately 21.7, and enterprise value by about 250 (38.7 * 6.45 \u2248 250).",
+    "next_steps": [
+     "Update P&L!C18:G18 to 7,960 (USD/FEU), as FreightWaves (page 1) shows.",
+     "Review DCF!B38 (Enterprise value), which will likely fall by about 250.",
+     "Revise planning assumptions referenced in P&L!C27 (EBITDA), as projected annual EBITDA may drop by an estimated 21.7."
+    ]
+   },
+   "impact": [
+    {
+     "output": "P&L!C23",
+     "delta": -0.025774204244031873
+    },
+    {
+     "output": "P&L!C27",
+     "delta": -21.765800000000013
+    },
+    {
+     "output": "P&L!C28",
+     "delta": -0.025774204244031845
+    },
+    {
+     "output": "P&L!C39",
+     "delta": -17.19498200000001
+    },
+    {
+     "output": "DCF!B38",
+     "delta": -249.78244985719562
+    },
+    {
+     "output": "DCF!B42",
+     "delta": -0.7577802025690641
+    }
+   ],
+   "literal_index": 0,
+   "cells": [
+    "P&L!C18",
+    "P&L!D18",
+    "P&L!E18",
+    "P&L!F18",
+    "P&L!G18"
+   ],
+   "role": "market",
+   "search": [
+    "Asia to US West Coast container freight rates 2026",
+    "Drewry World Container Index Asia US West Coast",
+    "Freightos FBX Asia US West Coast spot rates"
+   ],
+   "events": [
+    "Ocean freight spot rate changes 2026",
+    "US West Coast port labor negotiations impact freight rates",
+    "Asia-US container shipping supply changes 2026"
+   ],
+   "graph_summary": {
+    "paths": [
+     "Ocean freight, Asia to US West Coast \u2192 Total cost of goods sold \u2192 Gross profit \u2192 Gross margin",
+     "Ocean freight, Asia to US West Coast \u2192 Total cost of goods sold \u2192 Gross profit \u2192 EBITDA",
+     "Ocean freight, Asia to US West Coast \u2192 Total cost of goods sold \u2192 Gross profit \u2192 EBITDA \u2192 EBITDA margin",
+     "Ocean freight, Asia to US West Coast \u2192 Total cost of goods sold \u2192 Gross profit \u2192 EBITDA \u2192 EBIT \u2192 Pre-tax income \u2192 Net income",
+     "Ocean freight, Asia to US West Coast \u2192 Total cost of goods sold \u2192 Gross profit \u2192 EBITDA \u2192 EBIT \u2192 Unlevered free cash flow \u2192 Terminal value at end of FY2030E (Gordon growth) \u2192 PV of terminal value \u2192 Enterprise value (NPV)",
+     "Ocean freight, Asia to US West Coast \u2192 Total cost of goods sold \u2192 Gross profit \u2192 EBITDA \u2192 Implied EV / FY2026E EBITDA"
+    ],
+    "combined_with": [
+     "Containers imported (FEU)"
+    ]
+   },
+   "sensitivity": {
+    "bump": {
+     "from": 5739.0,
+     "to": 5796.39,
+     "kind": "relative",
+     "size": 0.01
+    },
+    "effects": [
+     {
+      "output": "P&L!C23",
+      "label": "Gross margin",
+      "baseline": 0.380494,
+      "delta": -0.000665998,
+      "pct": -0.175035,
+      "direction": "falls",
+      "path": [
+       {
+        "cell": "P&L!C18",
+        "label": "Ocean freight, Asia to US West Coast",
+        "col_header": "FY2026E",
+        "formula": "=C17*5739/1000000",
+        "baseline": 56.2422,
+        "delta": 0.562422,
+        "pct": 1.0,
+        "direction": "rises"
+       },
+       {
+        "cell": "P&L!C21",
+        "label": "Total cost of goods sold",
+        "col_header": "FY2026E",
+        "formula": "=C9+C14+C15+C16+C18+C20",
+        "baseline": 523.161,
+        "delta": 0.562422,
+        "pct": 0.107505,
+        "direction": "rises"
+       },
+       {
+        "cell": "P&L!C22",
+        "label": "Gross profit",
+        "col_header": "FY2026E",
+        "formula": "=C6-C21",
+        "baseline": 321.319,
+        "delta": -0.562422,
+        "pct": -0.175035,
+        "direction": "falls"
+       },
+       {
+        "cell": "P&L!C23",
+        "label": "Gross margin",
+        "col_header": "FY2026E",
+        "formula": "=C22/C6",
+        "baseline": 0.380494,
+        "delta": -0.000665998,
+        "pct": -0.175035,
+        "direction": "falls"
+       }
+      ]
+     },
+     {
+      "output": "P&L!C27",
+      "label": "EBITDA",
+      "baseline": 105.977,
+      "delta": -0.562422,
+      "pct": -0.530702,
+      "direction": "falls",
+      "path": [
+       {
+        "cell": "P&L!C18",
+        "label": "Ocean freight, Asia to US West Coast",
+        "col_header": "FY2026E",
+        "formula": "=C17*5739/1000000",
+        "baseline": 56.2422,
+        "delta": 0.562422,
+        "pct": 1.0,
+        "direction": "rises"
+       },
+       {
+        "cell": "P&L!C21",
+        "label": "Total cost of goods sold",
+        "col_header": "FY2026E",
+        "formula": "=C9+C14+C15+C16+C18+C20",
+        "baseline": 523.161,
+        "delta": 0.562422,
+        "pct": 0.107505,
+        "direction": "rises"
+       },
+       {
+        "cell": "P&L!C22",
+        "label": "Gross profit",
+        "col_header": "FY2026E",
+        "formula": "=C6-C21",
+        "baseline": 321.319,
+        "delta": -0.562422,
+        "pct": -0.175035,
+        "direction": "falls"
+       },
+       {
+        "cell": "P&L!C27",
+        "label": "EBITDA",
+        "col_header": "FY2026E",
+        "formula": "=C22-C25-C26",
+        "baseline": 105.977,
+        "delta": -0.562422,
+        "pct": -0.530702,
+        "direction": "falls"
+       }
+      ]
+     },
+     {
+      "output": "P&L!C28",
+      "label": "EBITDA margin",
+      "baseline": 0.125494,
+      "delta": -0.000665998,
+      "pct": -0.530702,
+      "direction": "falls",
+      "path": [
+       {
+        "cell": "P&L!C18",
+        "label": "Ocean freight, Asia to US West Coast",
+        "col_header": "FY2026E",
+        "formula": "=C17*5739/1000000",
+        "baseline": 56.2422,
+        "delta": 0.562422,
+        "pct": 1.0,
+        "direction": "rises"
+       },
+       {
+        "cell": "P&L!C21",
+        "label": "Total cost of goods sold",
+        "col_header": "FY2026E",
+        "formula": "=C9+C14+C15+C16+C18+C20",
+        "baseline": 523.161,
+        "delta": 0.562422,
+        "pct": 0.107505,
+        "direction": "rises"
+       },
+       {
+        "cell": "P&L!C22",
+        "label": "Gross profit",
+        "col_header": "FY2026E",
+        "formula": "=C6-C21",
+        "baseline": 321.319,
+        "delta": -0.562422,
+        "pct": -0.175035,
+        "direction": "falls"
+       },
+       {
+        "cell": "P&L!C27",
+        "label": "EBITDA",
+        "col_header": "FY2026E",
+        "formula": "=C22-C25-C26",
+        "baseline": 105.977,
+        "delta": -0.562422,
+        "pct": -0.530702,
+        "direction": "falls"
+       },
+       {
+        "cell": "P&L!C28",
+        "label": "EBITDA margin",
+        "col_header": "FY2026E",
+        "formula": "=C27/C6",
+        "baseline": 0.125494,
+        "delta": -0.000665998,
+        "pct": -0.530702,
+        "direction": "falls"
+       }
+      ]
+     },
+     {
+      "output": "P&L!C39",
+      "label": "Net income",
+      "baseline": 54.2329,
+      "delta": -0.444313,
+      "pct": -0.81927,
+      "direction": "falls",
+      "path": [
+       {
+        "cell": "P&L!C18",
+        "label": "Ocean freight, Asia to US West Coast",
+        "col_header": "FY2026E",
+        "formula": "=C17*5739/1000000",
+        "baseline": 56.2422,
+        "delta": 0.562422,
+        "pct": 1.0,
+        "direction": "rises"
+       },
+       {
+        "cell": "P&L!C21",
+        "label": "Total cost of goods sold",
+        "col_header": "FY2026E",
+        "formula": "=C9+C14+C15+C16+C18+C20",
+        "baseline": 523.161,
+        "delta": 0.562422,
+        "pct": 0.107505,
+        "direction": "rises"
+       },
+       {
+        "cell": "P&L!C22",
+        "label": "Gross profit",
+        "col_header": "FY2026E",
+        "formula": "=C6-C21",
+        "baseline": 321.319,
+        "delta": -0.562422,
+        "pct": -0.175035,
+        "direction": "falls"
+       },
+       {
+        "cell": "P&L!C27",
+        "label": "EBITDA",
+        "col_header": "FY2026E",
+        "formula": "=C22-C25-C26",
+        "baseline": 105.977,
+        "delta": -0.562422,
+        "pct": -0.530702,
+        "direction": "falls"
+       },
+       {
+        "cell": "P&L!C30",
+        "label": "EBIT",
+        "col_header": "FY2026E",
+        "formula": "=C27-C29",
+        "baseline": 87.3984,
+        "delta": -0.562422,
+        "pct": -0.643515,
+        "direction": "falls"
+       },
+       {
+        "cell": "P&L!C37",
+        "label": "Pre-tax income",
+        "col_header": "FY2026E",
+        "formula": "=C30-C36",
+        "baseline": 68.6492,
+        "delta": -0.562422,
+        "pct": -0.81927,
+        "direction": "falls"
+       },
+       {
+        "cell": "P&L!C39",
+        "label": "Net income",
+        "col_header": "FY2026E",
+        "formula": "=C37-C38",
+        "baseline": 54.2329,
+        "delta": -0.444313,
+        "pct": -0.81927,
+        "direction": "falls"
+       }
+      ]
+     },
+     {
+      "output": "DCF!B38",
+      "label": "Enterprise value (NPV)",
+      "baseline": 905.477,
+      "delta": -6.45431,
+      "pct": -0.712808,
+      "direction": "falls",
+      "path": [
+       {
+        "cell": "P&L!G18",
+        "label": "Ocean freight, Asia to US West Coast",
+        "col_header": "FY2030E",
+        "formula": "=G17*5739/1000000",
+        "baseline": 66.1102,
+        "delta": 0.661102,
+        "pct": 1.0,
+        "direction": "rises"
+       },
+       {
+        "cell": "P&L!G21",
+        "label": "Total cost of goods sold",
+        "col_header": "FY2030E",
+        "formula": "=G9+G14+G15+G16+G18+G20",
+        "baseline": 614.952,
+        "delta": 0.661102,
+        "pct": 0.107505,
+        "direction": "rises"
+       },
+       {
+        "cell": "P&L!G22",
+        "label": "Gross profit",
+        "col_header": "FY2030E",
+        "formula": "=G6-G21",
+        "baseline": 377.697,
+        "delta": -0.661102,
+        "pct": -0.175035,
+        "direction": "falls"
+       },
+       {
+        "cell": "P&L!G27",
+        "label": "EBITDA",
+        "col_header": "FY2030E",
+        "formula": "=G22-G25-G26",
+        "baseline": 124.571,
+        "delta": -0.661102,
+        "pct": -0.530702,
+        "direction": "falls"
+       },
+       {
+        "cell": "DCF!G20",
+        "label": "EBITDA",
+        "col_header": "FY2030E",
+        "formula": "='P&L'!G27",
+        "baseline": 124.571,
+        "delta": -0.661102,
+        "pct": -0.530702,
+        "direction": "falls"
+       },
+       {
+        "cell": "DCF!G22",
+        "label": "EBIT",
+        "col_header": "FY2030E",
+        "formula": "=G20+G21",
+        "baseline": 102.733,
+        "delta": -0.661102,
+        "pct": -0.643515,
+        "direction": "falls"
+       },
+       {
+        "cell": "DCF!G27",
+        "label": "Unlevered free cash flow",
+        "col_header": "FY2030E",
+        "formula": "=SUM(G22:G26)",
+        "baseline": 73.4816,
+        "delta": -0.522271,
+        "pct": -0.71075,
+        "direction": "falls"
+       },
+       {
+        "cell": "DCF!B36",
+        "label": "Terminal value at end of FY2030E (Gordon growth)",
+        "col_header": "2026-08-01",
+        "formula": "=G27*(1+B16)/(B15-B16)",
+        "baseline": 1019.06,
+        "delta": -7.24299,
+        "pct": -0.71075,
+        "direction": "falls"
+       },
+       {
+        "cell": "DCF!B37",
+        "label": "PV of terminal value",
+        "col_header": "2026-08-01",
+        "formula": "=B36*G31",
+        "baseline": 671.711,
+        "delta": -4.77419,
+        "pct": -0.71075,
+        "direction": "falls"
+       },
+       {
+        "cell": "DCF!B38",
+        "label": "Enterprise value (NPV)",
+        "col_header": "2026-08-01",
+        "formula": "=B35+B37",
+        "baseline": 905.477,
+        "delta": -6.45431,
+        "pct": -0.712808,
+        "direction": "falls"
+       }
+      ]
+     },
+     {
+      "output": "DCF!B42",
+      "label": "Implied EV / FY2026E EBITDA",
+      "baseline": 8.54409,
+      "delta": -0.0156423,
+      "pct": -0.183077,
+      "direction": "falls",
+      "path": [
+       {
+        "cell": "P&L!C18",
+        "label": "Ocean freight, Asia to US West Coast",
+        "col_header": "FY2026E",
+        "formula": "=C17*5739/1000000",
+        "baseline": 56.2422,
+        "delta": 0.562422,
+        "pct": 1.0,
+        "direction": "rises"
+       },
+       {
+        "cell": "P&L!C21",
+        "label": "Total cost of goods sold",
+        "col_header": "FY2026E",
+        "formula": "=C9+C14+C15+C16+C18+C20",
+        "baseline": 523.161,
+        "delta": 0.562422,
+        "pct": 0.107505,
+        "direction": "rises"
+       },
+       {
+        "cell": "P&L!C22",
+        "label": "Gross profit",
+        "col_header": "FY2026E",
+        "formula": "=C6-C21",
+        "baseline": 321.319,
+        "delta": -0.562422,
+        "pct": -0.175035,
+        "direction": "falls"
+       },
+       {
+        "cell": "P&L!C27",
+        "label": "EBITDA",
+        "col_header": "FY2026E",
+        "formula": "=C22-C25-C26",
+        "baseline": 105.977,
+        "delta": -0.562422,
+        "pct": -0.530702,
+        "direction": "falls"
+       },
+       {
+        "cell": "DCF!B42",
+        "label": "Implied EV / FY2026E EBITDA",
+        "col_header": "2026-08-01",
+        "formula": "=B38/'P&L'!C27",
+        "baseline": 8.54409,
+        "delta": -0.0156423,
+        "pct": -0.183077,
+        "direction": "falls"
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "cell": "Assumptions!B20",
+   "value": 96.95,
+   "embedded": false,
+   "formula": null,
+   "label": "Brent crude oil price for FY2026E ($/bbl)",
+   "driver": "brent_crude_oil_price_for_fy2026e_bbl",
+   "label_source": "llm",
+   "confirmed": false,
+   "feeds": 87,
+   "outputs": [
+    "P&L!C23",
+    "P&L!C27",
+    "P&L!C28",
+    "P&L!C39",
+    "DCF!B38",
+    "DCF!B42"
+   ],
+   "check": {
+    "kind": "news",
+    "status": "stale",
+    "live": 125.44,
+    "drift_pct": 29.4,
+    "p_stale": 1.0,
+    "as_of": "2026-10-10",
+    "source_name": "govspending.org",
+    "source_url": "https://govspending.org/series/DCOILBRENTEU/",
+    "evidence": [
+     {
+      "quote": "As of October 6, 2026, the current crude oil prices: brent - europe is 125.44 Dollars per Barrel. This is the most recent observation available for this series, updated daily.\nCrude Oil Prices: Brent - Europe fell 0.06% day-over-day. Over the past year, crude oil prices: brent - europe rose 88.15% from October 2025. In the series' tracked history, the highest recorded value was 143.95 (July 2008), and the lowest was 9.10 (December 1998).\nAs of October 6, 2026, crude oil prices: brent - europe stands at 125.44 Dollars per Barrel.",
+      "url": "https://govspending.org/series/DCOILBRENTEU/",
+      "publisher": "govspending.org"
+     }
+    ],
+    "events": [
+     {
+      "summary": "Saudi oil output drops 1.9 million barrels/day (down 23%) in August 2026 due to the Iran conflict and redirection of flows, supporting oil prices above $100/bbl.",
+      "direction": "raises",
+      "quote": "Riyadh\u2019s output tumbled by roughly 1.9 million barrels a day to 6.24 million barrels a day in August, down 23% from July levels, according to the latest data from the Organization of the Petroleum Exporting Countries. The country is OPEC\u2019s largest producer and the world\u2019s biggest oil exporter.\nSoon after the war started in late February, Saudi Arabia began diverting flows through the East-West pipeline, a roughly 750-mile system that transports crude from the eastern oil fields and processing centers near the Gulf to the port of Yanbu on the west coast.",
+      "url": "https://www.wsj.com/business/energy-oil/opec-further-cuts-this-years-oil-demand-growth-forecast-79ed23ad",
+      "publisher": "WSJ",
+      "date": "2026-09-10"
+     }
+    ],
+    "effects": [
+     {
+      "output": "Gross margin",
+      "direction": "down"
+     },
+     {
+      "output": "EBITDA",
+      "direction": "down"
+     },
+     {
+      "output": "EBITDA margin",
+      "direction": "down"
+     },
+     {
+      "output": "Net income",
+      "direction": "down"
+     },
+     {
+      "output": "Enterprise value (NPV)",
+      "direction": "down"
+     },
+     {
+      "output": "Implied EV / FY2026E EBITDA",
+      "direction": "down"
+     }
+    ],
+    "assumption": "The Brent crude oil price for FY2026E should be updated to $125.44/bbl, reflecting the most recent reported spot price as of October 6, 2026 (page 9).",
+    "prediction": "With a Brent price of $125.44 (a 29.4% increase from $96.95), EBITDA will fall sharply: since a 1% rise lowers EBITDA by 0.407, a 29.4% rise will lower EBITDA by about 11.97 units; enterprise value will drop by about $137.45, and net income by about $9.45.",
+    "next_steps": [
+     "Update Assumptions!B20 to 125.44 and rerun the model, updating DCF!B38 (Enterprise value, delta \u2248 -137.45).",
+     "Update Assumptions!B20 to 125.44 and review P&L!C27 (EBITDA, delta \u2248 -11.97).",
+     "Update Assumptions!B20 to 125.44 and check P&L!C39 (Net income, delta \u2248 -9.45)."
+    ]
+   },
+   "impact": [
+    {
+     "output": "P&L!C23",
+     "delta": -0.01416942970822277
+    },
+    {
+     "output": "P&L!C27",
+     "delta": -11.965799999999945
+    },
+    {
+     "output": "P&L!C28",
+     "delta": -0.014169429708222742
+    },
+    {
+     "output": "P&L!C39",
+     "delta": -9.452981999999956
+    },
+    {
+     "output": "DCF!B38",
+     "delta": -137.31849224477037
+    },
+    {
+     "output": "DCF!B42",
+     "delta": -0.37316475648134784
+    }
+   ],
+   "role": "market",
+   "search": [
+    "Brent crude oil spot price forecast July 2026",
+    "EIA Brent crude oil 2026",
+    "FRED DCOILBRENTEU July 2026"
+   ],
+   "events": [
+    "Brent oil supply OPEC cuts 2026",
+    "Russia oil sanctions 2026",
+    "US crude oil strategic reserve policy 2026"
+   ],
+   "graph_summary": {
+    "paths": [
+     "Brent crude oil \u2192 Oil-linked materials and fuel \u2192 Total cost of goods sold \u2192 Gross profit \u2192 Gross margin",
+     "Brent crude oil \u2192 Oil-linked materials and fuel \u2192 Total cost of goods sold \u2192 Gross profit \u2192 EBITDA",
+     "Brent crude oil \u2192 Oil-linked materials and fuel \u2192 Total cost of goods sold \u2192 Gross profit \u2192 EBITDA \u2192 EBITDA margin",
+     "Brent crude oil \u2192 Oil-linked materials and fuel \u2192 Total cost of goods sold \u2192 Gross profit \u2192 EBITDA \u2192 EBIT \u2192 Pre-tax income \u2192 Net income",
+     "Brent crude oil \u2192 Oil-linked materials and fuel \u2192 Total cost of goods sold \u2192 Gross profit \u2192 EBITDA \u2192 EBIT \u2192 Unlevered free cash flow \u2192 Terminal value at end of FY2030E (Gordon growth) \u2192 PV of terminal value \u2192 Enterprise value (NPV)",
+     "Brent crude oil \u2192 Oil-linked materials and fuel \u2192 Total cost of goods sold \u2192 Gross profit \u2192 EBITDA \u2192 Implied EV / FY2026E EBITDA"
+    ],
+    "combined_with": [
+     "Oil-linked consumption (000 bbl-eq)"
+    ]
+   },
+   "sensitivity": {
+    "bump": {
+     "from": 96.95,
+     "to": 97.9195,
+     "kind": "relative",
+     "size": 0.01
+    },
+    "effects": [
+     {
+      "output": "P&L!C23",
+      "label": "Gross margin",
+      "baseline": 0.380494,
+      "delta": -0.000482178,
+      "pct": -0.126724,
+      "direction": "falls",
+      "path": [
+       {
+        "cell": "P&L!C20",
+        "label": "Oil-linked materials and fuel",
+        "col_header": "FY2026E",
+        "formula": "=C19*'Assumptions'!$B$20/1000",
+        "baseline": 40.719,
+        "delta": 0.40719,
+        "pct": 1.0,
+        "direction": "rises"
+       },
+       {
+        "cell": "P&L!C21",
+        "label": "Total cost of goods sold",
+        "col_header": "FY2026E",
+        "formula": "=C9+C14+C15+C16+C18+C20",
+        "baseline": 523.161,
+        "delta": 0.40719,
+        "pct": 0.0778327,
+        "direction": "rises"
+       },
+       {
+        "cell": "P&L!C22",
+        "label": "Gross profit",
+        "col_header": "FY2026E",
+        "formula": "=C6-C21",
+        "baseline": 321.319,
+        "delta": -0.40719,
+        "pct": -0.126724,
+        "direction": "falls"
+       },
+       {
+        "cell": "P&L!C23",
+        "label": "Gross margin",
+        "col_header": "FY2026E",
+        "formula": "=C22/C6",
+        "baseline": 0.380494,
+        "delta": -0.000482178,
+        "pct": -0.126724,
+        "direction": "falls"
+       }
+      ]
+     },
+     {
+      "output": "P&L!C27",
+      "label": "EBITDA",
+      "baseline": 105.977,
+      "delta": -0.40719,
+      "pct": -0.384225,
+      "direction": "falls",
+      "path": [
+       {
+        "cell": "P&L!C20",
+        "label": "Oil-linked materials and fuel",
+        "col_header": "FY2026E",
+        "formula": "=C19*'Assumptions'!$B$20/1000",
+        "baseline": 40.719,
+        "delta": 0.40719,
+        "pct": 1.0,
+        "direction": "rises"
+       },
+       {
+        "cell": "P&L!C21",
+        "label": "Total cost of goods sold",
+        "col_header": "FY2026E",
+        "formula": "=C9+C14+C15+C16+C18+C20",
+        "baseline": 523.161,
+        "delta": 0.40719,
+        "pct": 0.0778327,
+        "direction": "rises"
+       },
+       {
+        "cell": "P&L!C22",
+        "label": "Gross profit",
+        "col_header": "FY2026E",
+        "formula": "=C6-C21",
+        "baseline": 321.319,
+        "delta": -0.40719,
+        "pct": -0.126724,
+        "direction": "falls"
+       },
+       {
+        "cell": "P&L!C27",
+        "label": "EBITDA",
+        "col_header": "FY2026E",
+        "formula": "=C22-C25-C26",
+        "baseline": 105.977,
+        "delta": -0.40719,
+        "pct": -0.384225,
+        "direction": "falls"
+       }
+      ]
+     },
+     {
+      "output": "P&L!C28",
+      "label": "EBITDA margin",
+      "baseline": 0.125494,
+      "delta": -0.000482178,
+      "pct": -0.384225,
+      "direction": "falls",
+      "path": [
+       {
+        "cell": "P&L!C20",
+        "label": "Oil-linked materials and fuel",
+        "col_header": "FY2026E",
+        "formula": "=C19*'Assumptions'!$B$20/1000",
+        "baseline": 40.719,
+        "delta": 0.40719,
+        "pct": 1.0,
+        "direction": "rises"
+       },
+       {
+        "cell": "P&L!C21",
+        "label": "Total cost of goods sold",
+        "col_header": "FY2026E",
+        "formula": "=C9+C14+C15+C16+C18+C20",
+        "baseline": 523.161,
+        "delta": 0.40719,
+        "pct": 0.0778327,
+        "direction": "rises"
+       },
+       {
+        "cell": "P&L!C22",
+        "label": "Gross profit",
+        "col_header": "FY2026E",
+        "formula": "=C6-C21",
+        "baseline": 321.319,
+        "delta": -0.40719,
+        "pct": -0.126724,
+        "direction": "falls"
+       },
+       {
+        "cell": "P&L!C27",
+        "label": "EBITDA",
+        "col_header": "FY2026E",
+        "formula": "=C22-C25-C26",
+        "baseline": 105.977,
+        "delta": -0.40719,
+        "pct": -0.384225,
+        "direction": "falls"
+       },
+       {
+        "cell": "P&L!C28",
+        "label": "EBITDA margin",
+        "col_header": "FY2026E",
+        "formula": "=C27/C6",
+        "baseline": 0.125494,
+        "delta": -0.000482178,
+        "pct": -0.384225,
+        "direction": "falls"
+       }
+      ]
+     },
+     {
+      "output": "P&L!C39",
+      "label": "Net income",
+      "baseline": 54.2329,
+      "delta": -0.32168,
+      "pct": -0.593146,
+      "direction": "falls",
+      "path": [
+       {
+        "cell": "P&L!C20",
+        "label": "Oil-linked materials and fuel",
+        "col_header": "FY2026E",
+        "formula": "=C19*'Assumptions'!$B$20/1000",
+        "baseline": 40.719,
+        "delta": 0.40719,
+        "pct": 1.0,
+        "direction": "rises"
+       },
+       {
+        "cell": "P&L!C21",
+        "label": "Total cost of goods sold",
+        "col_header": "FY2026E",
+        "formula": "=C9+C14+C15+C16+C18+C20",
+        "baseline": 523.161,
+        "delta": 0.40719,
+        "pct": 0.0778327,
+        "direction": "rises"
+       },
+       {
+        "cell": "P&L!C22",
+        "label": "Gross profit",
+        "col_header": "FY2026E",
+        "formula": "=C6-C21",
+        "baseline": 321.319,
+        "delta": -0.40719,
+        "pct": -0.126724,
+        "direction": "falls"
+       },
+       {
+        "cell": "P&L!C27",
+        "label": "EBITDA",
+        "col_header": "FY2026E",
+        "formula": "=C22-C25-C26",
+        "baseline": 105.977,
+        "delta": -0.40719,
+        "pct": -0.384225,
+        "direction": "falls"
+       },
+       {
+        "cell": "P&L!C30",
+        "label": "EBIT",
+        "col_header": "FY2026E",
+        "formula": "=C27-C29",
+        "baseline": 87.3984,
+        "delta": -0.40719,
+        "pct": -0.465901,
+        "direction": "falls"
+       },
+       {
+        "cell": "P&L!C37",
+        "label": "Pre-tax income",
+        "col_header": "FY2026E",
+        "formula": "=C30-C36",
+        "baseline": 68.6492,
+        "delta": -0.40719,
+        "pct": -0.593146,
+        "direction": "falls"
+       },
+       {
+        "cell": "P&L!C39",
+        "label": "Net income",
+        "col_header": "FY2026E",
+        "formula": "=C37-C38",
+        "baseline": 54.2329,
+        "delta": -0.32168,
+        "pct": -0.593146,
+        "direction": "falls"
+       }
+      ]
+     },
+     {
+      "output": "DCF!B38",
+      "label": "Enterprise value (NPV)",
+      "baseline": 905.477,
+      "delta": -4.67288,
+      "pct": -0.516068,
+      "direction": "falls",
+      "path": [
+       {
+        "cell": "P&L!G20",
+        "label": "Oil-linked materials and fuel",
+        "col_header": "FY2030E",
+        "formula": "=G19*'Assumptions'!$B$20/1000",
+        "baseline": 47.8634,
+        "delta": 0.478634,
+        "pct": 1.0,
+        "direction": "rises"
+       },
+       {
+        "cell": "P&L!G21",
+        "label": "Total cost of goods sold",
+        "col_header": "FY2030E",
+        "formula": "=G9+G14+G15+G16+G18+G20",
+        "baseline": 614.952,
+        "delta": 0.478634,
+        "pct": 0.0778327,
+        "direction": "rises"
+       },
+       {
+        "cell": "P&L!G22",
+        "label": "Gross profit",
+        "col_header": "FY2030E",
+        "formula": "=G6-G21",
+        "baseline": 377.697,
+        "delta": -0.478634,
+        "pct": -0.126724,
+        "direction": "falls"
+       },
+       {
+        "cell": "P&L!G27",
+        "label": "EBITDA",
+        "col_header": "FY2030E",
+        "formula": "=G22-G25-G26",
+        "baseline": 124.571,
+        "delta": -0.478634,
+        "pct": -0.384225,
+        "direction": "falls"
+       },
+       {
+        "cell": "DCF!G20",
+        "label": "EBITDA",
+        "col_header": "FY2030E",
+        "formula": "='P&L'!G27",
+        "baseline": 124.571,
+        "delta": -0.478634,
+        "pct": -0.384225,
+        "direction": "falls"
+       },
+       {
+        "cell": "DCF!G22",
+        "label": "EBIT",
+        "col_header": "FY2030E",
+        "formula": "=G20+G21",
+        "baseline": 102.733,
+        "delta": -0.478634,
+        "pct": -0.465901,
+        "direction": "falls"
+       },
+       {
+        "cell": "DCF!G27",
+        "label": "Unlevered free cash flow",
+        "col_header": "FY2030E",
+        "formula": "=SUM(G22:G26)",
+        "baseline": 73.4816,
+        "delta": -0.378121,
+        "pct": -0.514579,
+        "direction": "falls"
+       },
+       {
+        "cell": "DCF!B36",
+        "label": "Terminal value at end of FY2030E (Gordon growth)",
+        "col_header": "2026-08-01",
+        "formula": "=G27*(1+B16)/(B15-B16)",
+        "baseline": 1019.06,
+        "delta": -5.24388,
+        "pct": -0.514579,
+        "direction": "falls"
+       },
+       {
+        "cell": "DCF!B37",
+        "label": "PV of terminal value",
+        "col_header": "2026-08-01",
+        "formula": "=B36*G31",
+        "baseline": 671.711,
+        "delta": -3.45648,
+        "pct": -0.514579,
+        "direction": "falls"
+       },
+       {
+        "cell": "DCF!B38",
+        "label": "Enterprise value (NPV)",
+        "col_header": "2026-08-01",
+        "formula": "=B35+B37",
+        "baseline": 905.477,
+        "delta": -4.67288,
+        "pct": -0.516068,
+        "direction": "falls"
+       }
+      ]
+     },
+     {
+      "output": "DCF!B42",
+      "label": "Implied EV / FY2026E EBITDA",
+      "baseline": 8.54409,
+      "delta": -0.0113083,
+      "pct": -0.132352,
+      "direction": "falls",
+      "path": [
+       {
+        "cell": "P&L!C20",
+        "label": "Oil-linked materials and fuel",
+        "col_header": "FY2026E",
+        "formula": "=C19*'Assumptions'!$B$20/1000",
+        "baseline": 40.719,
+        "delta": 0.40719,
+        "pct": 1.0,
+        "direction": "rises"
+       },
+       {
+        "cell": "P&L!C21",
+        "label": "Total cost of goods sold",
+        "col_header": "FY2026E",
+        "formula": "=C9+C14+C15+C16+C18+C20",
+        "baseline": 523.161,
+        "delta": 0.40719,
+        "pct": 0.0778327,
+        "direction": "rises"
+       },
+       {
+        "cell": "P&L!C22",
+        "label": "Gross profit",
+        "col_header": "FY2026E",
+        "formula": "=C6-C21",
+        "baseline": 321.319,
+        "delta": -0.40719,
+        "pct": -0.126724,
+        "direction": "falls"
+       },
+       {
+        "cell": "P&L!C27",
+        "label": "EBITDA",
+        "col_header": "FY2026E",
+        "formula": "=C22-C25-C26",
+        "baseline": 105.977,
+        "delta": -0.40719,
+        "pct": -0.384225,
+        "direction": "falls"
+       },
+       {
+        "cell": "DCF!B42",
+        "label": "Implied EV / FY2026E EBITDA",
+        "col_header": "2026-08-01",
+        "formula": "=B38/'P&L'!C27",
+        "baseline": 8.54409,
+        "delta": -0.0113083,
+        "pct": -0.132352,
+        "direction": "falls"
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "cell": "P&L!C35:G35",
+   "value": 0.0366,
+   "embedded": true,
+   "formula": "=0.0366+'Assumptions'!$B$29",
+   "label": "SOFR reference rate (% per year)",
+   "driver": "sofr_reference_rate_per_year",
+   "label_source": "llm",
+   "confirmed": false,
+   "feeds": 45,
+   "outputs": [
+    "P&L!C39",
+    "DCF!B38",
+    "DCF!B42"
+   ],
+   "check": {
+    "kind": "news",
+    "status": "stale",
+    "live": 0.0387,
+    "drift_pct": 5.7,
+    "p_stale": 1.0,
+    "as_of": "2026-10-10",
+    "source_name": "FRED, Federal Reserve Bank of St. Louis",
+    "source_url": "https://fred.stlouisfed.org/series/SOFR",
+    "evidence": [
+     {
+      "quote": "FRED series SOFR (Secured Overnight Financing Rate). Value on 2026-07-31: 3.66%. Value on 2026-10-08: 3.87%. Change between those dates: +5.7%.",
+      "url": "https://fred.stlouisfed.org/series/SOFR",
+      "publisher": "FRED, Federal Reserve Bank of St. Louis",
+      "date": "2026-10-08"
+     }
+    ],
+    "events": [
+     {
+      "summary": "SOFR increased from 3.66% to 3.87% between July 31 and October 8, 2026, highlighting a recent upward move in short-term rates.",
+      "direction": "raises",
+      "quote": "FRED series SOFR (Secured Overnight Financing Rate). Value on 2026-07-31: 3.66%. Value on 2026-10-08: 3.87%. Change between those dates: +5.7%.",
+      "url": "https://fred.stlouisfed.org/series/SOFR",
+      "publisher": "FRED, Federal Reserve Bank of St. Louis",
+      "date": "2026-10-08"
+     },
+     {
+      "summary": "Chatham Financial published SOFR rates as of 07-Oct-2026, including a 3.90000% mark, supporting recent underlying levels.",
+      "direction": "raises",
+      "quote": "Rates as of 07-Oct-2026. Secured Overnight Financing Rate (SOFR) 3.90000% 3.65000% 4.14000% 30-Day Average SOFR 13.8 bps X.XXXX -- 3.64586% -- 90-Day Average ...",
+      "url": "https://cf.com/rates/us",
+      "publisher": "Chatham Financial"
+     },
+     {
+      "summary": "TraditionData listed SOFR daily ask rates for 08-Oct-2026 around 3.9132, confirming the level near 3.87%.",
+      "direction": "raises",
+      "quote": "Daily rates and historical trends. Our data covers daily rates and historical data for the SOFR. Ask 8th Oct 2026 3.9132 3.9332 4.0279 4.0479 4.1847 4.2047 4. ...",
+      "url": "https://www.google.com/goto?url=CAESawHrOzAVUveS-OUf6BJoUBPtfY3XCXMaQk_zLJf34gyOBE6pm1uWmjE623y9bQLgRygb4REQqFXRaVasUAemeaLYi8uQMYiQUFTv5W1l-qIV3QpeI-hiKFU_Ny_c172faAm0VvL_z3Hf3jpg",
+      "publisher": "TraditionData"
+     }
+    ],
+    "effects": [
+     {
+      "output": "Net income",
+      "direction": "down"
+     },
+     {
+      "output": "Enterprise value (NPV)",
+      "direction": "down"
+     },
+     {
+      "output": "Implied EV / FY2026E EBITDA",
+      "direction": "down"
+     }
+    ],
+    "assumption": "The SOFR reference rate should now be set to 3.87% (0.0387), as reported by FRED for 2026-10-08.",
+    "prediction": null,
+    "next_steps": [
+     "Update SOFR reference rate in P&L!C35:G35 to 0.0387 to reflect current levels.",
+     "Review impact on DCF!B38 (Enterprise value) as this output is most negatively affected by the rate increase.",
+     "Check Net income (P&L!C39) for consistency with the new rate."
+    ]
+   },
+   "impact": [
+    {
+     "output": "P&L!C39",
+     "delta": -0.485257500000003
+    },
+    {
+     "output": "DCF!B38",
+     "delta": -5.090314763035622
+    },
+    {
+     "output": "DCF!B42",
+     "delta": -0.048032259481166406
+    }
+   ],
+   "literal_index": 0,
+   "cells": [
+    "P&L!C35",
+    "P&L!D35",
+    "P&L!E35",
+    "P&L!F35",
+    "P&L!G35"
+   ],
+   "role": "market",
+   "search": [
+    "SOFR rate 2026",
+    "Secured Overnight Financing Rate forecast 2026",
+    "US SOFR historical rates"
+   ],
+   "events": [
+    "Federal Reserve rate decisions 2026",
+    "US inflation report impact on SOFR",
+    "SOFR volatility 2026"
+   ],
+   "graph_summary": {
+    "paths": [
+     "Interest rate (SOFR + margin) \u2192 Interest expense \u2192 Pre-tax income \u2192 Net income",
+     "Interest rate (SOFR + margin) \u2192 Pre-tax cost of debt \u2192 After-tax cost of debt \u2192 WACC \u2192 Terminal value at end of FY2030E (Gordon growth) \u2192 PV of terminal value \u2192 Enterprise value (NPV)",
+     "Interest rate (SOFR + margin) \u2192 Pre-tax cost of debt \u2192 After-tax cost of debt \u2192 WACC \u2192 Terminal value at end of FY2030E (Gordon growth) \u2192 PV of terminal value \u2192 Enterprise value (NPV) \u2192 Implied EV / FY2026E EBITDA"
+    ],
+    "combined_with": [
+     "Term loan margin over SOFR"
+    ]
+   },
+   "sensitivity": {
+    "bump": {
+     "from": 0.0366,
+     "to": 0.036966,
+     "kind": "relative",
+     "size": 0.01
+    },
+    "effects": [
+     {
+      "output": "P&L!C39",
+      "label": "Net income",
+      "baseline": 54.2329,
+      "delta": -0.0845735,
+      "pct": -0.155945,
+      "direction": "falls",
+      "path": [
+       {
+        "cell": "P&L!C35",
+        "label": "Interest rate (SOFR + margin)",
+        "col_header": "FY2026E",
+        "formula": "=0.0366+'Assumptions'!$B$29",
+        "baseline": 0.0641,
+        "delta": 0.000366,
+        "pct": 0.570983,
+        "direction": "rises"
+       },
+       {
+        "cell": "P&L!C36",
+        "label": "Interest expense",
+        "col_header": "FY2026E",
+        "formula": "=AVERAGE(C33,C34)*C35",
+        "baseline": 18.7492,
+        "delta": 0.107055,
+        "pct": 0.570983,
+        "direction": "rises"
+       },
+       {
+        "cell": "P&L!C37",
+        "label": "Pre-tax income",
+        "col_header": "FY2026E",
+        "formula": "=C30-C36",
+        "baseline": 68.6492,
+        "delta": -0.107055,
+        "pct": -0.155945,
+        "direction": "falls"
+       },
+       {
+        "cell": "P&L!C39",
+        "label": "Net income",
+        "col_header": "FY2026E",
+        "formula": "=C37-C38",
+        "baseline": 54.2329,
+        "delta": -0.0845735,
+        "pct": -0.155945,
+        "direction": "falls"
+       }
+      ]
+     },
+     {
+      "output": "DCF!B38",
+      "label": "Enterprise value (NPV)",
+      "baseline": 905.477,
+      "delta": -0.891282,
+      "pct": -0.0984324,
+      "direction": "falls",
+      "path": [
+       {
+        "cell": "P&L!C35",
+        "label": "Interest rate (SOFR + margin)",
+        "col_header": "FY2026E",
+        "formula": "=0.0366+'Assumptions'!$B$29",
+        "baseline": 0.0641,
+        "delta": 0.000366,
+        "pct": 0.570983,
+        "direction": "rises"
+       },
+       {
+        "cell": "DCF!B11",
+        "label": "Pre-tax cost of debt",
+        "col_header": "2026-08-01",
+        "formula": "='P&L'!C35",
+        "baseline": 0.0641,
+        "delta": 0.000366,
+        "pct": 0.570983,
+        "direction": "rises"
+       },
+       {
+        "cell": "DCF!B13",
+        "label": "After-tax cost of debt",
+        "col_header": "2026-08-01",
+        "formula": "=B11*(1-B12)",
+        "baseline": 0.050639,
+        "delta": 0.00028914,
+        "pct": 0.570983,
+        "direction": "rises"
+       },
+       {
+        "cell": "DCF!B15",
+        "label": "WACC",
+        "col_header": "2026-08-01",
+        "formula": "=B10*(1-B14)+B13*B14",
+        "baseline": 0.0989097,
+        "delta": 7.2285e-05,
+        "pct": 0.0730818,
+        "direction": "rises"
+       },
+       {
+        "cell": "DCF!B36",
+        "label": "Terminal value at end of FY2030E (Gordon growth)",
+        "col_header": "2026-08-01",
+        "formula": "=G27*(1+B16)/(B15-B16)",
+        "baseline": 1019.06,
+        "delta": -0.995687,
+        "pct": -0.0977062,
+        "direction": "falls"
+       },
+       {
+        "cell": "DCF!B37",
+        "label": "PV of terminal value",
+        "col_header": "2026-08-01",
+        "formula": "=B36*G31",
+        "baseline": 671.711,
+        "delta": -0.851336,
+        "pct": -0.126741,
+        "direction": "falls"
+       },
+       {
+        "cell": "DCF!B38",
+        "label": "Enterprise value (NPV)",
+        "col_header": "2026-08-01",
+        "formula": "=B35+B37",
+        "baseline": 905.477,
+        "delta": -0.891282,
+        "pct": -0.0984324,
+        "direction": "falls"
+       }
+      ]
+     },
+     {
+      "output": "DCF!B42",
+      "label": "Implied EV / FY2026E EBITDA",
+      "baseline": 8.54409,
+      "delta": -0.00841015,
+      "pct": -0.0984324,
+      "direction": "falls",
+      "path": [
+       {
+        "cell": "P&L!C35",
+        "label": "Interest rate (SOFR + margin)",
+        "col_header": "FY2026E",
+        "formula": "=0.0366+'Assumptions'!$B$29",
+        "baseline": 0.0641,
+        "delta": 0.000366,
+        "pct": 0.570983,
+        "direction": "rises"
+       },
+       {
+        "cell": "DCF!B11",
+        "label": "Pre-tax cost of debt",
+        "col_header": "2026-08-01",
+        "formula": "='P&L'!C35",
+        "baseline": 0.0641,
+        "delta": 0.000366,
+        "pct": 0.570983,
+        "direction": "rises"
+       },
+       {
+        "cell": "DCF!B13",
+        "label": "After-tax cost of debt",
+        "col_header": "2026-08-01",
+        "formula": "=B11*(1-B12)",
+        "baseline": 0.050639,
+        "delta": 0.00028914,
+        "pct": 0.570983,
+        "direction": "rises"
+       },
+       {
+        "cell": "DCF!B15",
+        "label": "WACC",
+        "col_header": "2026-08-01",
+        "formula": "=B10*(1-B14)+B13*B14",
+        "baseline": 0.0989097,
+        "delta": 7.2285e-05,
+        "pct": 0.0730818,
+        "direction": "rises"
+       },
+       {
+        "cell": "DCF!B36",
+        "label": "Terminal value at end of FY2030E (Gordon growth)",
+        "col_header": "2026-08-01",
+        "formula": "=G27*(1+B16)/(B15-B16)",
+        "baseline": 1019.06,
+        "delta": -0.995687,
+        "pct": -0.0977062,
+        "direction": "falls"
+       },
+       {
+        "cell": "DCF!B37",
+        "label": "PV of terminal value",
+        "col_header": "2026-08-01",
+        "formula": "=B36*G31",
+        "baseline": 671.711,
+        "delta": -0.851336,
+        "pct": -0.126741,
+        "direction": "falls"
+       },
+       {
+        "cell": "DCF!B38",
+        "label": "Enterprise value (NPV)",
+        "col_header": "2026-08-01",
+        "formula": "=B35+B37",
+        "baseline": 905.477,
+        "delta": -0.891282,
+        "pct": -0.0984324,
+        "direction": "falls"
+       },
+       {
+        "cell": "DCF!B42",
+        "label": "Implied EV / FY2026E EBITDA",
+        "col_header": "2026-08-01",
+        "formula": "=B38/'P&L'!C27",
+        "baseline": 8.54409,
+        "delta": -0.00841015,
+        "pct": -0.0984324,
+        "direction": "falls"
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "cell": "Assumptions!B5",
+   "value": 812.0,
+   "embedded": false,
+   "formula": null,
+   "label": "FY2025 actual net revenue ($mm)",
+   "driver": null,
+   "label_source": "llm",
+   "confirmed": false,
+   "feeds": 153,
+   "outputs": [
+    "P&L!C23",
+    "P&L!C27",
+    "P&L!C28",
+    "P&L!C39",
+    "DCF!B38",
+    "DCF!B42"
+   ],
+   "check": null,
+   "impact": [],
+   "role": "internal",
+   "search": [],
+   "events": [],
+   "graph_summary": {
+    "paths": [
+     "FY2025A net revenue \u2192 Net revenue \u2192 Gross margin",
+     "FY2025A net revenue \u2192 Net revenue \u2192 Gross profit \u2192 EBITDA",
+     "FY2025A net revenue \u2192 Net revenue \u2192 EBITDA margin",
+     "FY2025A net revenue \u2192 Net revenue \u2192 Depreciation and amortization \u2192 EBIT \u2192 Pre-tax income \u2192 Net income",
+     "FY2025A net revenue \u2192 Net revenue \u2192 Less: increase in net working capital \u2192 Unlevered free cash flow \u2192 Free cash flow to discount \u2192 Present value of free cash flow \u2192 Sum of PV of free cash flow, FY2026E-FY2030E \u2192 Enterprise value (NPV)",
+     "FY2025A net revenue \u2192 Net revenue \u2192 Gross profit \u2192 EBITDA \u2192 Implied EV / FY2026E EBITDA"
+    ],
+    "combined_with": []
+   }
+  },
+  {
+   "cell": "Assumptions!B6",
+   "value": 0.38,
+   "embedded": false,
+   "formula": null,
+   "label": "Purchases from non-EU suppliers as % of revenue",
+   "driver": null,
+   "label_source": "llm",
+   "confirmed": false,
+   "feeds": 112,
+   "outputs": [
+    "P&L!C23",
+    "P&L!C27",
+    "P&L!C28",
+    "P&L!C39",
+    "DCF!B38",
+    "DCF!B42"
+   ],
+   "check": null,
+   "impact": [],
+   "role": "internal",
+   "search": [],
+   "events": [],
+   "graph_summary": {
+    "paths": [
+     "Purchases from non-EU suppliers, % of revenue \u2192 Purchases, non-EU suppliers \u2192 Total cost of goods sold \u2192 Gross profit \u2192 Gross margin",
+     "Purchases from non-EU suppliers, % of revenue \u2192 Purchases, non-EU suppliers \u2192 Total cost of goods sold \u2192 Gross profit \u2192 EBITDA",
+     "Purchases from non-EU suppliers, % of revenue \u2192 Purchases, non-EU suppliers \u2192 Total cost of goods sold \u2192 Gross profit \u2192 EBITDA \u2192 EBITDA margin",
+     "Purchases from non-EU suppliers, % of revenue \u2192 Purchases, non-EU suppliers \u2192 Total cost of goods sold \u2192 Gross profit \u2192 EBITDA \u2192 EBIT \u2192 Pre-tax income \u2192 Net income",
+     "Purchases from non-EU suppliers, % of revenue \u2192 Purchases, non-EU suppliers \u2192 Total cost of goods sold \u2192 Gross profit \u2192 EBITDA \u2192 EBIT \u2192 Unlevered free cash flow \u2192 Terminal value at end of FY2030E (Gordon growth) \u2192 PV of terminal value \u2192 Enterprise value (NPV)",
+     "Purchases from non-EU suppliers, % of revenue \u2192 Purchases, non-EU suppliers \u2192 Total cost of goods sold \u2192 Gross profit \u2192 EBITDA \u2192 Implied EV / FY2026E EBITDA"
+    ],
+    "combined_with": [
+     "Net revenue"
+    ]
+   }
+  },
+  {
+   "cell": "Assumptions!B7",
+   "value": 0.5,
+   "embedded": false,
+   "formula": null,
+   "label": "Vietnam share of non-EU supplier purchases (% of non-EU)",
+   "driver": null,
+   "label_source": "llm",
+   "confirmed": false,
+   "feeds": 98,
+   "outputs": [
+    "P&L!C23",
+    "P&L!C27",
+    "P&L!C28",
+    "P&L!C39",
+    "DCF!B38",
+    "DCF!B42"
+   ],
+   "check": null,
+   "impact": [],
+   "role": "lever",
+   "search": [
+    "Vietnam share of US non-EU furniture imports",
+    "US furniture imports by country 2026 forecast",
+    "Vietnam share of US furniture sourcing 2026"
+   ],
+   "events": [],
+   "graph_summary": {
+    "paths": [
+     "of which Vietnam \u2192 Vietnam \u2192 Import tariffs, Vietnam \u2192 Total cost of goods sold \u2192 Gross profit \u2192 Gross margin",
+     "of which Vietnam \u2192 Vietnam \u2192 Import tariffs, Vietnam \u2192 Total cost of goods sold \u2192 Gross profit \u2192 EBITDA",
+     "of which Vietnam \u2192 Vietnam \u2192 Import tariffs, Vietnam \u2192 Total cost of goods sold \u2192 Gross profit \u2192 EBITDA \u2192 EBITDA margin",
+     "of which Vietnam \u2192 Vietnam \u2192 Import tariffs, Vietnam \u2192 Total cost of goods sold \u2192 Gross profit \u2192 EBITDA \u2192 EBIT \u2192 Pre-tax income \u2192 Net income",
+     "of which Vietnam \u2192 Vietnam \u2192 Import tariffs, Vietnam \u2192 Total cost of goods sold \u2192 Gross profit \u2192 EBITDA \u2192 EBIT \u2192 Unlevered free cash flow \u2192 Terminal value at end of FY2030E (Gordon growth) \u2192 PV of terminal value \u2192 Enterprise value (NPV)",
+     "of which Vietnam \u2192 Vietnam \u2192 Import tariffs, Vietnam \u2192 Total cost of goods sold \u2192 Gross profit \u2192 EBITDA \u2192 Implied EV / FY2026E EBITDA"
+    ],
+    "combined_with": [
+     "of which Canada",
+     "Purchases, non-EU suppliers"
+    ]
+   }
+  },
+  {
+   "cell": "Assumptions!B8",
+   "value": 0.3,
+   "embedded": false,
+   "formula": null,
+   "label": "Canada share of non-EU supplier purchases (% of non-EU)",
+   "driver": null,
+   "label_source": "llm",
+   "confirmed": false,
+   "feeds": 98,
+   "outputs": [
+    "P&L!C23",
+    "P&L!C27",
+    "P&L!C28",
+    "P&L!C39",
+    "DCF!B38",
+    "DCF!B42"
+   ],
+   "check": null,
+   "impact": [],
+   "role": "lever",
+   "search": [
+    "Canada share of US non-EU furniture imports",
+    "US furniture imports by country 2026 forecast",
+    "Canada share of US furniture sourcing 2026"
+   ],
+   "events": [],
+   "graph_summary": {
+    "paths": [
+     "of which Canada \u2192 Canada \u2192 Import tariffs, Canada \u2192 Total cost of goods sold \u2192 Gross profit \u2192 Gross margin",
+     "of which Canada \u2192 Canada \u2192 Import tariffs, Canada \u2192 Total cost of goods sold \u2192 Gross profit \u2192 EBITDA",
+     "of which Canada \u2192 Canada \u2192 Import tariffs, Canada \u2192 Total cost of goods sold \u2192 Gross profit \u2192 EBITDA \u2192 EBITDA margin",
+     "of which Canada \u2192 Canada \u2192 Import tariffs, Canada \u2192 Total cost of goods sold \u2192 Gross profit \u2192 EBITDA \u2192 EBIT \u2192 Pre-tax income \u2192 Net income",
+     "of which Canada \u2192 Canada \u2192 Import tariffs, Canada \u2192 Total cost of goods sold \u2192 Gross profit \u2192 EBITDA \u2192 EBIT \u2192 Unlevered free cash flow \u2192 Terminal value at end of FY2030E (Gordon growth) \u2192 PV of terminal value \u2192 Enterprise value (NPV)",
+     "of which Canada \u2192 Canada \u2192 Import tariffs, Canada \u2192 Total cost of goods sold \u2192 Gross profit \u2192 EBITDA \u2192 Implied EV / FY2026E EBITDA"
+    ],
+    "combined_with": [
+     "of which Vietnam",
+     "Purchases, non-EU suppliers"
+    ]
+   }
+  },
+  {
+   "cell": "Assumptions!B10",
+   "value": 74.0,
+   "embedded": false,
+   "formula": null,
+   "label": "EU supplier contract volume, FY2026E (\u20acmm)",
+   "driver": null,
+   "label_source": "llm",
+   "confirmed": false,
+   "feeds": 92,
+   "outputs": [
+    "P&L!C23",
+    "P&L!C27",
+    "P&L!C28",
+    "P&L!C39",
+    "DCF!B38",
+    "DCF!B42"
+   ],
+   "check": null,
+   "impact": [],
+   "role": "internal",
+   "search": [],
+   "events": [],
+   "graph_summary": {
+    "paths": [
+     "EU supplier contract volume, FY2026E \u2192 EU purchases (\u20acmm) \u2192 EU purchases ($mm) \u2192 Total cost of goods sold \u2192 Gross profit \u2192 Gross margin",
+     "EU supplier contract volume, FY2026E \u2192 EU purchases (\u20acmm) \u2192 EU purchases ($mm) \u2192 Total cost of goods sold \u2192 Gross profit \u2192 EBITDA",
+     "EU supplier contract volume, FY2026E \u2192 EU purchases (\u20acmm) \u2192 EU purchases ($mm) \u2192 Total cost of goods sold \u2192 Gross profit \u2192 EBITDA \u2192 EBITDA margin",
+     "EU supplier contract volume, FY2026E \u2192 EU purchases (\u20acmm) \u2192 EU purchases ($mm) \u2192 Total cost of goods sold \u2192 Gross profit \u2192 EBITDA \u2192 EBIT \u2192 Pre-tax income \u2192 Net income",
+     "EU supplier contract volume, FY2026E \u2192 EU purchases (\u20acmm) \u2192 EU purchases ($mm) \u2192 Total cost of goods sold \u2192 Gross profit \u2192 EBITDA \u2192 EBIT \u2192 Unlevered free cash flow \u2192 Free cash flow to discount \u2192 Present value of free cash flow \u2192 Sum of PV of free cash flow, FY2026E-FY2030E \u2192 Enterprise value (NPV)",
+     "EU supplier contract volume, FY2026E \u2192 EU purchases (\u20acmm) \u2192 EU purchases ($mm) \u2192 Total cost of goods sold \u2192 Gross profit \u2192 EBITDA \u2192 Implied EV / FY2026E EBITDA"
+    ],
+    "combined_with": []
+   }
+  },
+  {
+   "cell": "Assumptions!B11",
+   "value": 9800.0,
+   "embedded": false,
+   "formula": null,
+   "label": "Containers imported from Asia, FY2026E (FEU)",
+   "driver": null,
+   "label_source": "llm",
+   "confirmed": false,
+   "feeds": 92,
+   "outputs": [
+    "P&L!C23",
+    "P&L!C27",
+    "P&L!C28",
+    "P&L!C39",
+    "DCF!B38",
+    "DCF!B42"
+   ],
+   "check": null,
+   "impact": [],
+   "role": "internal",
+   "search": [],
+   "events": [],
+   "graph_summary": {
+    "paths": [
+     "Containers imported from Asia, FY2026E \u2192 Containers imported (FEU) \u2192 Ocean freight, Asia to US West Coast \u2192 Total cost of goods sold \u2192 Gross profit \u2192 Gross margin",
+     "Containers imported from Asia, FY2026E \u2192 Containers imported (FEU) \u2192 Ocean freight, Asia to US West Coast \u2192 Total cost of goods sold \u2192 Gross profit \u2192 EBITDA",
+     "Containers imported from Asia, FY2026E \u2192 Containers imported (FEU) \u2192 Ocean freight, Asia to US West Coast \u2192 Total cost of goods sold \u2192 Gross profit \u2192 EBITDA \u2192 EBITDA margin",
+     "Containers imported from Asia, FY2026E \u2192 Containers imported (FEU) \u2192 Ocean freight, Asia to US West Coast \u2192 Total cost of goods sold \u2192 Gross profit \u2192 EBITDA \u2192 EBIT \u2192 Pre-tax income \u2192 Net income",
+     "Containers imported from Asia, FY2026E \u2192 Containers imported (FEU) \u2192 Ocean freight, Asia to US West Coast \u2192 Total cost of goods sold \u2192 Gross profit \u2192 EBITDA \u2192 EBIT \u2192 Unlevered free cash flow \u2192 Free cash flow to discount \u2192 Present value of free cash flow \u2192 Sum of PV of free cash flow, FY2026E-FY2030E \u2192 Enterprise value (NPV)",
+     "Containers imported from Asia, FY2026E \u2192 Containers imported (FEU) \u2192 Ocean freight, Asia to US West Coast \u2192 Total cost of goods sold \u2192 Gross profit \u2192 EBITDA \u2192 Implied EV / FY2026E EBITDA"
+    ],
+    "combined_with": []
+   }
+  },
+  {
+   "cell": "Assumptions!B12",
+   "value": 420.0,
+   "embedded": false,
+   "formula": null,
+   "label": "Oil-linked consumption for FY2026E (000 bbl-eq)",
+   "driver": null,
+   "label_source": "llm",
+   "confirmed": false,
+   "feeds": 92,
+   "outputs": [
+    "P&L!C23",
+    "P&L!C27",
+    "P&L!C28",
+    "P&L!C39",
+    "DCF!B38",
+    "DCF!B42"
+   ],
+   "check": null,
+   "impact": [],
+   "role": "internal",
+   "search": [],
+   "events": [],
+   "graph_summary": {
+    "paths": [
+     "Oil-linked consumption, FY2026E \u2192 Oil-linked consumption (000 bbl-eq) \u2192 Oil-linked materials and fuel \u2192 Total cost of goods sold \u2192 Gross profit \u2192 Gross margin",
+     "Oil-linked consumption, FY2026E \u2192 Oil-linked consumption (000 bbl-eq) \u2192 Oil-linked materials and fuel \u2192 Total cost of goods sold \u2192 Gross profit \u2192 EBITDA",
+     "Oil-linked consumption, FY2026E \u2192 Oil-linked consumption (000 bbl-eq) \u2192 Oil-linked materials and fuel \u2192 Total cost of goods sold \u2192 Gross profit \u2192 EBITDA \u2192 EBITDA margin",
+     "Oil-linked consumption, FY2026E \u2192 Oil-linked consumption (000 bbl-eq) \u2192 Oil-linked materials and fuel \u2192 Total cost of goods sold \u2192 Gross profit \u2192 EBITDA \u2192 EBIT \u2192 Pre-tax income \u2192 Net income",
+     "Oil-linked consumption, FY2026E \u2192 Oil-linked consumption (000 bbl-eq) \u2192 Oil-linked materials and fuel \u2192 Total cost of goods sold \u2192 Gross profit \u2192 EBITDA \u2192 EBIT \u2192 Unlevered free cash flow \u2192 Free cash flow to discount \u2192 Present value of free cash flow \u2192 Sum of PV of free cash flow, FY2026E-FY2030E \u2192 Enterprise value (NPV)",
+     "Oil-linked consumption, FY2026E \u2192 Oil-linked consumption (000 bbl-eq) \u2192 Oil-linked materials and fuel \u2192 Total cost of goods sold \u2192 Gross profit \u2192 EBITDA \u2192 Implied EV / FY2026E EBITDA"
+    ],
+    "combined_with": []
+   }
+  },
+  {
+   "cell": "Assumptions!B13",
+   "value": 0.19,
+   "embedded": false,
+   "formula": null,
+   "label": "SG&A as % of revenue",
+   "driver": null,
+   "label_source": "llm",
+   "confirmed": false,
+   "feeds": 72,
+   "outputs": [
+    "P&L!C27",
+    "P&L!C28",
+    "P&L!C39",
+    "DCF!B38",
+    "DCF!B42"
+   ],
+   "check": null,
+   "impact": [],
+   "role": "internal",
+   "search": [],
+   "events": [],
+   "graph_summary": {
+    "paths": [
+     "SG&A, % of revenue \u2192 SG&A \u2192 EBITDA",
+     "SG&A, % of revenue \u2192 SG&A \u2192 EBITDA \u2192 EBITDA margin",
+     "SG&A, % of revenue \u2192 SG&A \u2192 EBITDA \u2192 EBIT \u2192 Pre-tax income \u2192 Net income",
+     "SG&A, % of revenue \u2192 SG&A \u2192 EBITDA \u2192 EBIT \u2192 Unlevered free cash flow \u2192 Terminal value at end of FY2030E (Gordon growth) \u2192 PV of terminal value \u2192 Enterprise value (NPV)",
+     "SG&A, % of revenue \u2192 SG&A \u2192 EBITDA \u2192 Implied EV / FY2026E EBITDA"
+    ],
+    "combined_with": [
+     "Net revenue"
+    ]
+   }
+  },
+  {
+   "cell": "Assumptions!B14",
+   "value": 0.065,
+   "embedded": false,
+   "formula": null,
+   "label": "Warehousing and distribution as % of revenue",
+   "driver": null,
+   "label_source": "llm",
+   "confirmed": false,
+   "feeds": 72,
+   "outputs": [
+    "P&L!C27",
+    "P&L!C28",
+    "P&L!C39",
+    "DCF!B38",
+    "DCF!B42"
+   ],
+   "check": null,
+   "impact": [],
+   "role": "internal",
+   "search": [],
+   "events": [],
+   "graph_summary": {
+    "paths": [
+     "Warehousing and distribution, % of revenue \u2192 Warehousing and distribution \u2192 EBITDA",
+     "Warehousing and distribution, % of revenue \u2192 Warehousing and distribution \u2192 EBITDA \u2192 EBITDA margin",
+     "Warehousing and distribution, % of revenue \u2192 Warehousing and distribution \u2192 EBITDA \u2192 EBIT \u2192 Pre-tax income \u2192 Net income",
+     "Warehousing and distribution, % of revenue \u2192 Warehousing and distribution \u2192 EBITDA \u2192 EBIT \u2192 Unlevered free cash flow \u2192 Terminal value at end of FY2030E (Gordon growth) \u2192 PV of terminal value \u2192 Enterprise value (NPV)",
+     "Warehousing and distribution, % of revenue \u2192 Warehousing and distribution \u2192 EBITDA \u2192 Implied EV / FY2026E EBITDA"
+    ],
+    "combined_with": [
+     "Net revenue"
+    ]
+   }
+  },
+  {
+   "cell": "Assumptions!B15",
+   "value": 0.022,
+   "embedded": false,
+   "formula": null,
+   "label": "Depreciation and amortization as % of revenue",
+   "driver": null,
+   "label_source": "llm",
+   "confirmed": false,
+   "feeds": 67,
+   "outputs": [
+    "P&L!C39",
+    "DCF!B38",
+    "DCF!B42"
+   ],
+   "check": null,
+   "impact": [],
+   "role": "internal",
+   "search": [],
+   "events": [],
+   "graph_summary": {
+    "paths": [
+     "D&A, % of revenue \u2192 Depreciation and amortization \u2192 EBIT \u2192 Pre-tax income \u2192 Net income",
+     "D&A, % of revenue \u2192 Depreciation and amortization \u2192 Less: depreciation and amortization \u2192 EBIT \u2192 Unlevered free cash flow \u2192 Terminal value at end of FY2030E (Gordon growth) \u2192 PV of terminal value \u2192 Enterprise value (NPV)",
+     "D&A, % of revenue \u2192 Depreciation and amortization \u2192 Less: depreciation and amortization \u2192 EBIT \u2192 Unlevered free cash flow \u2192 Terminal value at end of FY2030E (Gordon growth) \u2192 PV of terminal value \u2192 Enterprise value (NPV) \u2192 Implied EV / FY2026E EBITDA"
+    ],
+    "combined_with": [
+     "Net revenue"
+    ]
+   }
+  },
+  {
+   "cell": "Assumptions!B16",
+   "value": 0.025,
+   "embedded": false,
+   "formula": null,
+   "label": "Capex as % of revenue",
+   "driver": null,
+   "label_source": "llm",
+   "confirmed": false,
+   "feeds": 27,
+   "outputs": [
+    "DCF!B38",
+    "DCF!B42"
+   ],
+   "check": null,
+   "impact": [],
+   "role": "internal",
+   "search": [],
+   "events": [],
+   "graph_summary": {
+    "paths": [
+     "Capex, % of revenue \u2192 Less: capex \u2192 Unlevered free cash flow \u2192 Terminal value at end of FY2030E (Gordon growth) \u2192 PV of terminal value \u2192 Enterprise value (NPV)",
+     "Capex, % of revenue \u2192 Less: capex \u2192 Unlevered free cash flow \u2192 Terminal value at end of FY2030E (Gordon growth) \u2192 PV of terminal value \u2192 Enterprise value (NPV) \u2192 Implied EV / FY2026E EBITDA"
+    ],
+    "combined_with": [
+     "Net revenue"
+    ]
+   }
+  },
+  {
+   "cell": "Assumptions!B17",
+   "value": 0.14,
+   "embedded": false,
+   "formula": null,
+   "label": "Net working capital as % of revenue",
+   "driver": null,
+   "label_source": "llm",
+   "confirmed": false,
+   "feeds": 27,
+   "outputs": [
+    "DCF!B38",
+    "DCF!B42"
+   ],
+   "check": null,
+   "impact": [],
+   "role": "internal",
+   "search": [],
+   "events": [],
+   "graph_summary": {
+    "paths": [
+     "Net working capital, % of revenue \u2192 Less: increase in net working capital \u2192 Unlevered free cash flow \u2192 Terminal value at end of FY2030E (Gordon growth) \u2192 PV of terminal value \u2192 Enterprise value (NPV)",
+     "Net working capital, % of revenue \u2192 Less: increase in net working capital \u2192 Unlevered free cash flow \u2192 Terminal value at end of FY2030E (Gordon growth) \u2192 PV of terminal value \u2192 Enterprise value (NPV) \u2192 Implied EV / FY2026E EBITDA"
+    ],
+    "combined_with": [
+     "Net revenue"
+    ]
+   }
+  },
+  {
+   "cell": "Assumptions!B21",
+   "value": 1.1519,
+   "embedded": false,
+   "formula": null,
+   "label": "EUR/USD exchange rate, 31-Jul-2026 ($ per \u20ac)",
+   "driver": "eur_usd_exchange_rate_31_jul_2026_per",
+   "label_source": "llm",
+   "confirmed": false,
+   "feeds": 87,
+   "outputs": [
+    "P&L!C23",
+    "P&L!C27",
+    "P&L!C28",
+    "P&L!C39",
+    "DCF!B38",
+    "DCF!B42"
+   ],
+   "check": {
+    "kind": "news",
+    "status": "stale",
+    "live": null,
+    "drift_pct": null,
+    "p_stale": 1.0,
+    "as_of": "2026-10-10",
+    "source_name": null,
+    "source_url": null,
+    "evidence": [
+     {
+      "quote": "FRED series DEXUSEU (US dollars to one euro). Value on 2026-07-31: 1.1519. Value on 2026-10-02: 1.1259. Change between those dates: -2.3%.",
+      "url": "https://fred.stlouisfed.org/series/DEXUSEU",
+      "publisher": "FRED, Federal Reserve Bank of St. Louis",
+      "date": "2026-10-02"
+     }
+    ],
+    "events": [
+     {
+      "summary": "ECB raised its main interest rate by 25bps on Sept. 10, 2026, to 2.5\u20132.9%, effective Sept. 16.",
+      "direction": "raises",
+      "quote": "key ECB interest rates by 25 basis points. will be increased to 2.50%, 2.65% and 2.90% respectively, with effect from 16 September 2026.",
+      "url": "https://www.ecb.europa.eu/press/pr/date/2026/html/ecb.mp260910~314e508016.en.html",
+      "publisher": "European Central Bank",
+      "date": "2026-09-10"
+     }
+    ],
+    "effects": [],
+    "assumption": "The EUR/USD exchange rate should be updated to 1.1259 as of October 2026, a -2.3% change from 1.1519, per FRED (page 1).",
+    "prediction": null,
+    "next_steps": []
+   },
+   "impact": [],
+   "role": "market",
+   "search": [
+    "EUR/USD exchange rate July 2026 forecast",
+    "Fed H.10 noon buying rate July 2026",
+    "DEXUSEU FRED July 2026"
+   ],
+   "events": [
+    "ECB interest rate change 2026",
+    "US Fed rate hike 2026",
+    "Eurozone inflation outlook 2026"
+   ],
+   "graph_summary": {
+    "paths": [
+     "EUR/USD exchange rate \u2192 EU purchases ($mm) \u2192 Total cost of goods sold \u2192 Gross profit \u2192 Gross margin",
+     "EUR/USD exchange rate \u2192 EU purchases ($mm) \u2192 Total cost of goods sold \u2192 Gross profit \u2192 EBITDA",
+     "EUR/USD exchange rate \u2192 EU purchases ($mm) \u2192 Total cost of goods sold \u2192 Gross profit \u2192 EBITDA \u2192 EBITDA margin",
+     "EUR/USD exchange rate \u2192 EU purchases ($mm) \u2192 Total cost of goods sold \u2192 Gross profit \u2192 EBITDA \u2192 EBIT \u2192 Pre-tax income \u2192 Net income",
+     "EUR/USD exchange rate \u2192 EU purchases ($mm) \u2192 Total cost of goods sold \u2192 Gross profit \u2192 EBITDA \u2192 EBIT \u2192 Unlevered free cash flow \u2192 Terminal value at end of FY2030E (Gordon growth) \u2192 PV of terminal value \u2192 Enterprise value (NPV)",
+     "EUR/USD exchange rate \u2192 EU purchases ($mm) \u2192 Total cost of goods sold \u2192 Gross profit \u2192 EBITDA \u2192 Implied EV / FY2026E EBITDA"
+    ],
+    "combined_with": [
+     "EU purchases (\u20acmm)"
+    ]
+   },
+   "sensitivity": {
+    "bump": {
+     "from": 1.1519,
+     "to": 1.16342,
+     "kind": "relative",
+     "size": 0.01
+    },
+    "effects": [
+     {
+      "output": "P&L!C23",
+      "label": "Gross margin",
+      "baseline": 0.380494,
+      "delta": -0.00100947,
+      "pct": -0.265306,
+      "direction": "falls",
+      "path": [
+       {
+        "cell": "P&L!C14",
+        "label": "EU purchases ($mm)",
+        "col_header": "FY2026E",
+        "formula": "=C13*'Assumptions'!$B$21",
+        "baseline": 85.2406,
+        "delta": 0.85248,
+        "pct": 1.00009,
+        "direction": "rises"
+       },
+       {
+        "cell": "P&L!C21",
+        "label": "Total cost of goods sold",
+        "col_header": "FY2026E",
+        "formula": "=C9+C14+C15+C16+C18+C20",
+        "baseline": 523.161,
+        "delta": 0.85248,
+        "pct": 0.162948,
+        "direction": "rises"
+       },
+       {
+        "cell": "P&L!C22",
+        "label": "Gross profit",
+        "col_header": "FY2026E",
+        "formula": "=C6-C21",
+        "baseline": 321.319,
+        "delta": -0.85248,
+        "pct": -0.265306,
+        "direction": "falls"
+       },
+       {
+        "cell": "P&L!C23",
+        "label": "Gross margin",
+        "col_header": "FY2026E",
+        "formula": "=C22/C6",
+        "baseline": 0.380494,
+        "delta": -0.00100947,
+        "pct": -0.265306,
+        "direction": "falls"
+       }
+      ]
+     },
+     {
+      "output": "P&L!C27",
+      "label": "EBITDA",
+      "baseline": 105.977,
+      "delta": -0.85248,
+      "pct": -0.804401,
+      "direction": "falls",
+      "path": [
+       {
+        "cell": "P&L!C14",
+        "label": "EU purchases ($mm)",
+        "col_header": "FY2026E",
+        "formula": "=C13*'Assumptions'!$B$21",
+        "baseline": 85.2406,
+        "delta": 0.85248,
+        "pct": 1.00009,
+        "direction": "rises"
+       },
+       {
+        "cell": "P&L!C21",
+        "label": "Total cost of goods sold",
+        "col_header": "FY2026E",
+        "formula": "=C9+C14+C15+C16+C18+C20",
+        "baseline": 523.161,
+        "delta": 0.85248,
+        "pct": 0.162948,
+        "direction": "rises"
+       },
+       {
+        "cell": "P&L!C22",
+        "label": "Gross profit",
+        "col_header": "FY2026E",
+        "formula": "=C6-C21",
+        "baseline": 321.319,
+        "delta": -0.85248,
+        "pct": -0.265306,
+        "direction": "falls"
+       },
+       {
+        "cell": "P&L!C27",
+        "label": "EBITDA",
+        "col_header": "FY2026E",
+        "formula": "=C22-C25-C26",
+        "baseline": 105.977,
+        "delta": -0.85248,
+        "pct": -0.804401,
+        "direction": "falls"
+       }
+      ]
+     },
+     {
+      "output": "P&L!C28",
+      "label": "EBITDA margin",
+      "baseline": 0.125494,
+      "delta": -0.00100947,
+      "pct": -0.804401,
+      "direction": "falls",
+      "path": [
+       {
+        "cell": "P&L!C14",
+        "label": "EU purchases ($mm)",
+        "col_header": "FY2026E",
+        "formula": "=C13*'Assumptions'!$B$21",
+        "baseline": 85.2406,
+        "delta": 0.85248,
+        "pct": 1.00009,
+        "direction": "rises"
+       },
+       {
+        "cell": "P&L!C21",
+        "label": "Total cost of goods sold",
+        "col_header": "FY2026E",
+        "formula": "=C9+C14+C15+C16+C18+C20",
+        "baseline": 523.161,
+        "delta": 0.85248,
+        "pct": 0.162948,
+        "direction": "rises"
+       },
+       {
+        "cell": "P&L!C22",
+        "label": "Gross profit",
+        "col_header": "FY2026E",
+        "formula": "=C6-C21",
+        "baseline": 321.319,
+        "delta": -0.85248,
+        "pct": -0.265306,
+        "direction": "falls"
+       },
+       {
+        "cell": "P&L!C27",
+        "label": "EBITDA",
+        "col_header": "FY2026E",
+        "formula": "=C22-C25-C26",
+        "baseline": 105.977,
+        "delta": -0.85248,
+        "pct": -0.804401,
+        "direction": "falls"
+       },
+       {
+        "cell": "P&L!C28",
+        "label": "EBITDA margin",
+        "col_header": "FY2026E",
+        "formula": "=C27/C6",
+        "baseline": 0.125494,
+        "delta": -0.00100947,
+        "pct": -0.804401,
+        "direction": "falls"
+       }
+      ]
+     },
+     {
+      "output": "P&L!C39",
+      "label": "Net income",
+      "baseline": 54.2329,
+      "delta": -0.673459,
+      "pct": -1.24179,
+      "direction": "falls",
+      "path": [
+       {
+        "cell": "P&L!C14",
+        "label": "EU purchases ($mm)",
+        "col_header": "FY2026E",
+        "formula": "=C13*'Assumptions'!$B$21",
+        "baseline": 85.2406,
+        "delta": 0.85248,
+        "pct": 1.00009,
+        "direction": "rises"
+       },
+       {
+        "cell": "P&L!C21",
+        "label": "Total cost of goods sold",
+        "col_header": "FY2026E",
+        "formula": "=C9+C14+C15+C16+C18+C20",
+        "baseline": 523.161,
+        "delta": 0.85248,
+        "pct": 0.162948,
+        "direction": "rises"
+       },
+       {
+        "cell": "P&L!C22",
+        "label": "Gross profit",
+        "col_header": "FY2026E",
+        "formula": "=C6-C21",
+        "baseline": 321.319,
+        "delta": -0.85248,
+        "pct": -0.265306,
+        "direction": "falls"
+       },
+       {
+        "cell": "P&L!C27",
+        "label": "EBITDA",
+        "col_header": "FY2026E",
+        "formula": "=C22-C25-C26",
+        "baseline": 105.977,
+        "delta": -0.85248,
+        "pct": -0.804401,
+        "direction": "falls"
+       },
+       {
+        "cell": "P&L!C30",
+        "label": "EBIT",
+        "col_header": "FY2026E",
+        "formula": "=C27-C29",
+        "baseline": 87.3984,
+        "delta": -0.85248,
+        "pct": -0.975395,
+        "direction": "falls"
+       },
+       {
+        "cell": "P&L!C37",
+        "label": "Pre-tax income",
+        "col_header": "FY2026E",
+        "formula": "=C30-C36",
+        "baseline": 68.6492,
+        "delta": -0.85248,
+        "pct": -1.24179,
+        "direction": "falls"
+       },
+       {
+        "cell": "P&L!C39",
+        "label": "Net income",
+        "col_header": "FY2026E",
+        "formula": "=C37-C38",
+        "baseline": 54.2329,
+        "delta": -0.673459,
+        "pct": -1.24179,
+        "direction": "falls"
+       }
+      ]
+     },
+     {
+      "output": "DCF!B38",
+      "label": "Enterprise value (NPV)",
+      "baseline": 905.477,
+      "delta": -9.78299,
+      "pct": -1.08042,
+      "direction": "falls",
+      "path": [
+       {
+        "cell": "P&L!G14",
+        "label": "EU purchases ($mm)",
+        "col_header": "FY2030E",
+        "formula": "=G13*'Assumptions'!$B$21",
+        "baseline": 100.197,
+        "delta": 1.00205,
+        "pct": 1.00009,
+        "direction": "rises"
+       },
+       {
+        "cell": "P&L!G21",
+        "label": "Total cost of goods sold",
+        "col_header": "FY2030E",
+        "formula": "=G9+G14+G15+G16+G18+G20",
+        "baseline": 614.952,
+        "delta": 1.00205,
+        "pct": 0.162948,
+        "direction": "rises"
+       },
+       {
+        "cell": "P&L!G22",
+        "label": "Gross profit",
+        "col_header": "FY2030E",
+        "formula": "=G6-G21",
+        "baseline": 377.697,
+        "delta": -1.00205,
+        "pct": -0.265306,
+        "direction": "falls"
+       },
+       {
+        "cell": "P&L!G27",
+        "label": "EBITDA",
+        "col_header": "FY2030E",
+        "formula": "=G22-G25-G26",
+        "baseline": 124.571,
+        "delta": -1.00205,
+        "pct": -0.804401,
+        "direction": "falls"
+       },
+       {
+        "cell": "DCF!G20",
+        "label": "EBITDA",
+        "col_header": "FY2030E",
+        "formula": "='P&L'!G27",
+        "baseline": 124.571,
+        "delta": -1.00205,
+        "pct": -0.804401,
+        "direction": "falls"
+       },
+       {
+        "cell": "DCF!G22",
+        "label": "EBIT",
+        "col_header": "FY2030E",
+        "formula": "=G20+G21",
+        "baseline": 102.733,
+        "delta": -1.00205,
+        "pct": -0.975395,
+        "direction": "falls"
+       },
+       {
+        "cell": "DCF!G27",
+        "label": "Unlevered free cash flow",
+        "col_header": "FY2030E",
+        "formula": "=SUM(G22:G26)",
+        "baseline": 73.4816,
+        "delta": -0.791621,
+        "pct": -1.07731,
+        "direction": "falls"
+       },
+       {
+        "cell": "DCF!B36",
+        "label": "Terminal value at end of FY2030E (Gordon growth)",
+        "col_header": "2026-08-01",
+        "formula": "=G27*(1+B16)/(B15-B16)",
+        "baseline": 1019.06,
+        "delta": -10.9784,
+        "pct": -1.07731,
+        "direction": "falls"
+       },
+       {
+        "cell": "DCF!B37",
+        "label": "PV of terminal value",
+        "col_header": "2026-08-01",
+        "formula": "=B36*G31",
+        "baseline": 671.711,
+        "delta": -7.23638,
+        "pct": -1.07731,
+        "direction": "falls"
+       },
+       {
+        "cell": "DCF!B38",
+        "label": "Enterprise value (NPV)",
+        "col_header": "2026-08-01",
+        "formula": "=B35+B37",
+        "baseline": 905.477,
+        "delta": -9.78299,
+        "pct": -1.08042,
+        "direction": "falls"
+       }
+      ]
+     },
+     {
+      "output": "DCF!B42",
+      "label": "Implied EV / FY2026E EBITDA",
+      "baseline": 8.54409,
+      "delta": -0.0237749,
+      "pct": -0.278261,
+      "direction": "falls",
+      "path": [
+       {
+        "cell": "P&L!C14",
+        "label": "EU purchases ($mm)",
+        "col_header": "FY2026E",
+        "formula": "=C13*'Assumptions'!$B$21",
+        "baseline": 85.2406,
+        "delta": 0.85248,
+        "pct": 1.00009,
+        "direction": "rises"
+       },
+       {
+        "cell": "P&L!C21",
+        "label": "Total cost of goods sold",
+        "col_header": "FY2026E",
+        "formula": "=C9+C14+C15+C16+C18+C20",
+        "baseline": 523.161,
+        "delta": 0.85248,
+        "pct": 0.162948,
+        "direction": "rises"
+       },
+       {
+        "cell": "P&L!C22",
+        "label": "Gross profit",
+        "col_header": "FY2026E",
+        "formula": "=C6-C21",
+        "baseline": 321.319,
+        "delta": -0.85248,
+        "pct": -0.265306,
+        "direction": "falls"
+       },
+       {
+        "cell": "P&L!C27",
+        "label": "EBITDA",
+        "col_header": "FY2026E",
+        "formula": "=C22-C25-C26",
+        "baseline": 105.977,
+        "delta": -0.85248,
+        "pct": -0.804401,
+        "direction": "falls"
+       },
+       {
+        "cell": "DCF!B42",
+        "label": "Implied EV / FY2026E EBITDA",
+        "col_header": "2026-08-01",
+        "formula": "=B38/'P&L'!C27",
+        "baseline": 8.54409,
+        "delta": -0.0237749,
+        "pct": -0.278261,
+        "direction": "falls"
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "cell": "Assumptions!B22",
+   "value": 0.125,
+   "embedded": false,
+   "formula": null,
+   "label": "Tariff rate on Vietnam-origin furniture (% of value)",
+   "driver": "tariff_rate_on_vietnam_origin_furniture_of_value",
+   "label_source": "llm",
+   "confirmed": false,
+   "feeds": 87,
+   "outputs": [
+    "P&L!C23",
+    "P&L!C27",
+    "P&L!C28",
+    "P&L!C39",
+    "DCF!B38",
+    "DCF!B42"
+   ],
+   "check": {
+    "kind": "news",
+    "status": "stale",
+    "live": null,
+    "drift_pct": null,
+    "p_stale": 1.0,
+    "as_of": "2026-10-10",
+    "source_name": null,
+    "source_url": null,
+    "evidence": [],
+    "events": [
+     {
+      "summary": "Section 301 forced labor tariffs were imposed on 60 trading partners, including Vietnam, with a 12.5% rate stacking on existing duties for most products not covered by Section 232 or other exclusions.",
+      "direction": "raises",
+      "quote": "A 12.5% duty (which stacks on existing standard duty rates) for all other investigated trading partners, including China and Vietnam.",
+      "url": "https://www.wiley.law/alert-New-Forced-Labor-Tariffs-Imposed-on-60-US-Trading-Partners",
+      "publisher": "Wiley Law",
+      "date": "2026-07-27"
+     },
+     {
+      "summary": "A Section 301 probe into Vietnam over intellectual property practices was launched in June and cited in July as unresolved, which could raise future tariffs, but no additional duties are yet in effect beyond those announced.",
+      "direction": "unclear",
+      "quote": "The 2026 Special 301 review found that Vietnam has demonstrated a persistent failure to resolve long-standing concerns about IP protection and ...",
+      "url": "https://ustr.gov/sites/default/files/files/Press/Releases/2026/USTR%20301%20Vietnam%20IP%20FRN.pdf",
+      "publisher": "United States Trade Representative (.gov)",
+      "date": "2026-07-02"
+     },
+     {
+      "summary": "U.S. announced a Section 301 investigation into Vietnam's IP practices in May 2026; triggers ongoing uncertainty for tariffs, but did not immediately add new rates.",
+      "direction": "unclear",
+      "quote": "On May 29, 2026, USTR announced a new Section 301 investigation on intellectual property protection and enforcement in Vietnam.",
+      "url": "https://www.dorsey.com/newsresources/publications/client-alerts/2026/6/new-section-301-tariffs",
+      "publisher": "Dorsey & Whitney",
+      "date": "2026-06-04"
+     }
+    ],
+    "effects": [],
+    "assumption": "The correct assumption for the tariff rate on Vietnam-origin furniture as of October 10, 2026 is 12.5%, unchanged from the model value, since the Section 301 duty of 12.5% remains in force for most Vietnamese furniture (unless a product is covered by another program).",
+    "prediction": "Since the best-supported tariff rate is unchanged at 12.5%, the model outputs, including EBITDA, net income, and enterprise value, remain as currently reported. For example, EBITDA stays at 105.98 and enterprise value at 905.5.",
+    "next_steps": [
+     "No immediate update needed in Assumptions!B22 since the tariff rate matches the latest available data.",
+     "Monitor announcements or new regulations affecting the Section 301 or Section 232 rates to revisit this cell if rates change for Vietnamese furniture."
+    ]
+   },
+   "impact": [],
+   "role": "market",
+   "search": [
+    "US tariff on Vietnam furniture July 2026",
+    "Section 301 tariff Vietnam furniture 2026",
+    "USTR Vietnam forced labor tariff"
+   ],
+   "events": [
+    "USTR Section 301 tariff Vietnam furniture",
+    "US-Vietnam trade negotiation 2026",
+    "Congress Vietnam forced labor policy"
+   ],
+   "graph_summary": {
+    "paths": [
+     "Tariff on Vietnam-origin furniture \u2192 Import tariffs, Vietnam \u2192 Total cost of goods sold \u2192 Gross profit \u2192 Gross margin",
+     "Tariff on Vietnam-origin furniture \u2192 Import tariffs, Vietnam \u2192 Total cost of goods sold \u2192 Gross profit \u2192 EBITDA",
+     "Tariff on Vietnam-origin furniture \u2192 Import tariffs, Vietnam \u2192 Total cost of goods sold \u2192 Gross profit \u2192 EBITDA \u2192 EBITDA margin",
+     "Tariff on Vietnam-origin furniture \u2192 Import tariffs, Vietnam \u2192 Total cost of goods sold \u2192 Gross profit \u2192 EBITDA \u2192 EBIT \u2192 Pre-tax income \u2192 Net income",
+     "Tariff on Vietnam-origin furniture \u2192 Import tariffs, Vietnam \u2192 Total cost of goods sold \u2192 Gross profit \u2192 EBITDA \u2192 EBIT \u2192 Unlevered free cash flow \u2192 Terminal value at end of FY2030E (Gordon growth) \u2192 PV of terminal value \u2192 Enterprise value (NPV)",
+     "Tariff on Vietnam-origin furniture \u2192 Import tariffs, Vietnam \u2192 Total cost of goods sold \u2192 Gross profit \u2192 EBITDA \u2192 Implied EV / FY2026E EBITDA"
+    ],
+    "combined_with": [
+     "Vietnam"
+    ]
+   },
+   "sensitivity": {
+    "bump": {
+     "from": 0.125,
+     "to": 0.12625,
+     "kind": "relative",
+     "size": 0.01
+    },
+    "effects": [
+     {
+      "output": "P&L!C23",
+      "label": "Gross margin",
+      "baseline": 0.380494,
+      "delta": -0.0002375,
+      "pct": -0.0624189,
+      "direction": "falls",
+      "path": [
+       {
+        "cell": "P&L!C15",
+        "label": "Import tariffs, Vietnam",
+        "col_header": "FY2026E",
+        "formula": "=C10*'Assumptions'!$B$22",
+        "baseline": 20.0564,
+        "delta": 0.200564,
+        "pct": 1.0,
+        "direction": "rises"
+       },
+       {
+        "cell": "P&L!C21",
+        "label": "Total cost of goods sold",
+        "col_header": "FY2026E",
+        "formula": "=C9+C14+C15+C16+C18+C20",
+        "baseline": 523.161,
+        "delta": 0.200564,
+        "pct": 0.038337,
+        "direction": "rises"
+       },
+       {
+        "cell": "P&L!C22",
+        "label": "Gross profit",
+        "col_header": "FY2026E",
+        "formula": "=C6-C21",
+        "baseline": 321.319,
+        "delta": -0.200564,
+        "pct": -0.0624189,
+        "direction": "falls"
+       },
+       {
+        "cell": "P&L!C23",
+        "label": "Gross margin",
+        "col_header": "FY2026E",
+        "formula": "=C22/C6",
+        "baseline": 0.380494,
+        "delta": -0.0002375,
+        "pct": -0.0624189,
+        "direction": "falls"
+       }
+      ]
+     },
+     {
+      "output": "P&L!C27",
+      "label": "EBITDA",
+      "baseline": 105.977,
+      "delta": -0.200564,
+      "pct": -0.189252,
+      "direction": "falls",
+      "path": [
+       {
+        "cell": "P&L!C15",
+        "label": "Import tariffs, Vietnam",
+        "col_header": "FY2026E",
+        "formula": "=C10*'Assumptions'!$B$22",
+        "baseline": 20.0564,
+        "delta": 0.200564,
+        "pct": 1.0,
+        "direction": "rises"
+       },
+       {
+        "cell": "P&L!C21",
+        "label": "Total cost of goods sold",
+        "col_header": "FY2026E",
+        "formula": "=C9+C14+C15+C16+C18+C20",
+        "baseline": 523.161,
+        "delta": 0.200564,
+        "pct": 0.038337,
+        "direction": "rises"
+       },
+       {
+        "cell": "P&L!C22",
+        "label": "Gross profit",
+        "col_header": "FY2026E",
+        "formula": "=C6-C21",
+        "baseline": 321.319,
+        "delta": -0.200564,
+        "pct": -0.0624189,
+        "direction": "falls"
+       },
+       {
+        "cell": "P&L!C27",
+        "label": "EBITDA",
+        "col_header": "FY2026E",
+        "formula": "=C22-C25-C26",
+        "baseline": 105.977,
+        "delta": -0.200564,
+        "pct": -0.189252,
+        "direction": "falls"
+       }
+      ]
+     },
+     {
+      "output": "P&L!C28",
+      "label": "EBITDA margin",
+      "baseline": 0.125494,
+      "delta": -0.0002375,
+      "pct": -0.189252,
+      "direction": "falls",
+      "path": [
+       {
+        "cell": "P&L!C15",
+        "label": "Import tariffs, Vietnam",
+        "col_header": "FY2026E",
+        "formula": "=C10*'Assumptions'!$B$22",
+        "baseline": 20.0564,
+        "delta": 0.200564,
+        "pct": 1.0,
+        "direction": "rises"
+       },
+       {
+        "cell": "P&L!C21",
+        "label": "Total cost of goods sold",
+        "col_header": "FY2026E",
+        "formula": "=C9+C14+C15+C16+C18+C20",
+        "baseline": 523.161,
+        "delta": 0.200564,
+        "pct": 0.038337,
+        "direction": "rises"
+       },
+       {
+        "cell": "P&L!C22",
+        "label": "Gross profit",
+        "col_header": "FY2026E",
+        "formula": "=C6-C21",
+        "baseline": 321.319,
+        "delta": -0.200564,
+        "pct": -0.0624189,
+        "direction": "falls"
+       },
+       {
+        "cell": "P&L!C27",
+        "label": "EBITDA",
+        "col_header": "FY2026E",
+        "formula": "=C22-C25-C26",
+        "baseline": 105.977,
+        "delta": -0.200564,
+        "pct": -0.189252,
+        "direction": "falls"
+       },
+       {
+        "cell": "P&L!C28",
+        "label": "EBITDA margin",
+        "col_header": "FY2026E",
+        "formula": "=C27/C6",
+        "baseline": 0.125494,
+        "delta": -0.0002375,
+        "pct": -0.189252,
+        "direction": "falls"
+       }
+      ]
+     },
+     {
+      "output": "P&L!C39",
+      "label": "Net income",
+      "baseline": 54.2329,
+      "delta": -0.158446,
+      "pct": -0.292158,
+      "direction": "falls",
+      "path": [
+       {
+        "cell": "P&L!C15",
+        "label": "Import tariffs, Vietnam",
+        "col_header": "FY2026E",
+        "formula": "=C10*'Assumptions'!$B$22",
+        "baseline": 20.0564,
+        "delta": 0.200564,
+        "pct": 1.0,
+        "direction": "rises"
+       },
+       {
+        "cell": "P&L!C21",
+        "label": "Total cost of goods sold",
+        "col_header": "FY2026E",
+        "formula": "=C9+C14+C15+C16+C18+C20",
+        "baseline": 523.161,
+        "delta": 0.200564,
+        "pct": 0.038337,
+        "direction": "rises"
+       },
+       {
+        "cell": "P&L!C22",
+        "label": "Gross profit",
+        "col_header": "FY2026E",
+        "formula": "=C6-C21",
+        "baseline": 321.319,
+        "delta": -0.200564,
+        "pct": -0.0624189,
+        "direction": "falls"
+       },
+       {
+        "cell": "P&L!C27",
+        "label": "EBITDA",
+        "col_header": "FY2026E",
+        "formula": "=C22-C25-C26",
+        "baseline": 105.977,
+        "delta": -0.200564,
+        "pct": -0.189252,
+        "direction": "falls"
+       },
+       {
+        "cell": "P&L!C30",
+        "label": "EBIT",
+        "col_header": "FY2026E",
+        "formula": "=C27-C29",
+        "baseline": 87.3984,
+        "delta": -0.200564,
+        "pct": -0.229482,
+        "direction": "falls"
+       },
+       {
+        "cell": "P&L!C37",
+        "label": "Pre-tax income",
+        "col_header": "FY2026E",
+        "formula": "=C30-C36",
+        "baseline": 68.6492,
+        "delta": -0.200564,
+        "pct": -0.292158,
+        "direction": "falls"
+       },
+       {
+        "cell": "P&L!C39",
+        "label": "Net income",
+        "col_header": "FY2026E",
+        "formula": "=C37-C38",
+        "baseline": 54.2329,
+        "delta": -0.158446,
+        "pct": -0.292158,
+        "direction": "falls"
+       }
+      ]
+     },
+     {
+      "output": "DCF!B38",
+      "label": "Enterprise value (NPV)",
+      "baseline": 905.477,
+      "delta": -2.30166,
+      "pct": -0.254193,
+      "direction": "falls",
+      "path": [
+       {
+        "cell": "P&L!G15",
+        "label": "Import tariffs, Vietnam",
+        "col_header": "FY2030E",
+        "formula": "=G10*'Assumptions'!$B$22",
+        "baseline": 23.5754,
+        "delta": 0.235754,
+        "pct": 1.0,
+        "direction": "rises"
+       },
+       {
+        "cell": "P&L!G21",
+        "label": "Total cost of goods sold",
+        "col_header": "FY2030E",
+        "formula": "=G9+G14+G15+G16+G18+G20",
+        "baseline": 614.952,
+        "delta": 0.235754,
+        "pct": 0.038337,
+        "direction": "rises"
+       },
+       {
+        "cell": "P&L!G22",
+        "label": "Gross profit",
+        "col_header": "FY2030E",
+        "formula": "=G6-G21",
+        "baseline": 377.697,
+        "delta": -0.235754,
+        "pct": -0.0624189,
+        "direction": "falls"
+       },
+       {
+        "cell": "P&L!G27",
+        "label": "EBITDA",
+        "col_header": "FY2030E",
+        "formula": "=G22-G25-G26",
+        "baseline": 124.571,
+        "delta": -0.235754,
+        "pct": -0.189252,
+        "direction": "falls"
+       },
+       {
+        "cell": "DCF!G20",
+        "label": "EBITDA",
+        "col_header": "FY2030E",
+        "formula": "='P&L'!G27",
+        "baseline": 124.571,
+        "delta": -0.235754,
+        "pct": -0.189252,
+        "direction": "falls"
+       },
+       {
+        "cell": "DCF!G22",
+        "label": "EBIT",
+        "col_header": "FY2030E",
+        "formula": "=G20+G21",
+        "baseline": 102.733,
+        "delta": -0.235754,
+        "pct": -0.229482,
+        "direction": "falls"
+       },
+       {
+        "cell": "DCF!G27",
+        "label": "Unlevered free cash flow",
+        "col_header": "FY2030E",
+        "formula": "=SUM(G22:G26)",
+        "baseline": 73.4816,
+        "delta": -0.186246,
+        "pct": -0.253459,
+        "direction": "falls"
+       },
+       {
+        "cell": "DCF!B36",
+        "label": "Terminal value at end of FY2030E (Gordon growth)",
+        "col_header": "2026-08-01",
+        "formula": "=G27*(1+B16)/(B15-B16)",
+        "baseline": 1019.06,
+        "delta": -2.58291,
+        "pct": -0.253459,
+        "direction": "falls"
+       },
+       {
+        "cell": "DCF!B37",
+        "label": "PV of terminal value",
+        "col_header": "2026-08-01",
+        "formula": "=B36*G31",
+        "baseline": 671.711,
+        "delta": -1.70251,
+        "pct": -0.253459,
+        "direction": "falls"
+       },
+       {
+        "cell": "DCF!B38",
+        "label": "Enterprise value (NPV)",
+        "col_header": "2026-08-01",
+        "formula": "=B35+B37",
+        "baseline": 905.477,
+        "delta": -2.30166,
+        "pct": -0.254193,
+        "direction": "falls"
+       }
+      ]
+     },
+     {
+      "output": "DCF!B42",
+      "label": "Implied EV / FY2026E EBITDA",
+      "baseline": 8.54409,
+      "delta": -0.00555907,
+      "pct": -0.0650634,
+      "direction": "falls",
+      "path": [
+       {
+        "cell": "P&L!C15",
+        "label": "Import tariffs, Vietnam",
+        "col_header": "FY2026E",
+        "formula": "=C10*'Assumptions'!$B$22",
+        "baseline": 20.0564,
+        "delta": 0.200564,
+        "pct": 1.0,
+        "direction": "rises"
+       },
+       {
+        "cell": "P&L!C21",
+        "label": "Total cost of goods sold",
+        "col_header": "FY2026E",
+        "formula": "=C9+C14+C15+C16+C18+C20",
+        "baseline": 523.161,
+        "delta": 0.200564,
+        "pct": 0.038337,
+        "direction": "rises"
+       },
+       {
+        "cell": "P&L!C22",
+        "label": "Gross profit",
+        "col_header": "FY2026E",
+        "formula": "=C6-C21",
+        "baseline": 321.319,
+        "delta": -0.200564,
+        "pct": -0.0624189,
+        "direction": "falls"
+       },
+       {
+        "cell": "P&L!C27",
+        "label": "EBITDA",
+        "col_header": "FY2026E",
+        "formula": "=C22-C25-C26",
+        "baseline": 105.977,
+        "delta": -0.200564,
+        "pct": -0.189252,
+        "direction": "falls"
+       },
+       {
+        "cell": "DCF!B42",
+        "label": "Implied EV / FY2026E EBITDA",
+        "col_header": "2026-08-01",
+        "formula": "=B38/'P&L'!C27",
+        "baseline": 8.54409,
+        "delta": -0.00555907,
+        "pct": -0.0650634,
+        "direction": "falls"
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "cell": "Assumptions!B23",
+   "value": 0.0,
+   "embedded": false,
+   "formula": null,
+   "label": "Tariff rate on Canada-origin furniture (% of value)",
+   "driver": "tariff_rate_on_canada_origin_furniture_of_value",
+   "label_source": "llm",
+   "confirmed": false,
+   "feeds": 87,
+   "outputs": [
+    "P&L!C23",
+    "P&L!C27",
+    "P&L!C28",
+    "P&L!C39",
+    "DCF!B38",
+    "DCF!B42"
+   ],
+   "check": {
+    "kind": "news",
+    "status": "stale",
+    "live": null,
+    "drift_pct": null,
+    "p_stale": 1.0,
+    "as_of": "2026-10-10",
+    "source_name": null,
+    "source_url": null,
+    "evidence": [],
+    "events": [],
+    "effects": [],
+    "assumption": "The tariff rate on Canada-origin furniture should now be set to 50%, as the United States imposed a 50% tariff on Canadian furniture imports effective August 24, 2026, per Furniture Today (page 7).",
+    "prediction": null,
+    "next_steps": []
+   },
+   "impact": [],
+   "role": "market",
+   "search": [
+    "US tariff on Canada furniture 2026",
+    "USMCA duty-free furniture"
+   ],
+   "events": [
+    "USMCA revisions 2026",
+    "US-Canada trade dispute furniture"
+   ],
+   "graph_summary": {
+    "paths": [
+     "Tariff on Canada-origin furniture \u2192 Import tariffs, Canada \u2192 Total cost of goods sold \u2192 Gross profit \u2192 Gross margin",
+     "Tariff on Canada-origin furniture \u2192 Import tariffs, Canada \u2192 Total cost of goods sold \u2192 Gross profit \u2192 EBITDA",
+     "Tariff on Canada-origin furniture \u2192 Import tariffs, Canada \u2192 Total cost of goods sold \u2192 Gross profit \u2192 EBITDA \u2192 EBITDA margin",
+     "Tariff on Canada-origin furniture \u2192 Import tariffs, Canada \u2192 Total cost of goods sold \u2192 Gross profit \u2192 EBITDA \u2192 EBIT \u2192 Pre-tax income \u2192 Net income",
+     "Tariff on Canada-origin furniture \u2192 Import tariffs, Canada \u2192 Total cost of goods sold \u2192 Gross profit \u2192 EBITDA \u2192 EBIT \u2192 Unlevered free cash flow \u2192 Terminal value at end of FY2030E (Gordon growth) \u2192 PV of terminal value \u2192 Enterprise value (NPV)",
+     "Tariff on Canada-origin furniture \u2192 Import tariffs, Canada \u2192 Total cost of goods sold \u2192 Gross profit \u2192 EBITDA \u2192 Implied EV / FY2026E EBITDA"
+    ],
+    "combined_with": [
+     "Canada"
+    ]
+   },
+   "sensitivity": {
+    "bump": {
+     "from": 0.0,
+     "to": 0.01,
+     "kind": "absolute",
+     "size": 0.01
+    },
+    "effects": [
+     {
+      "output": "P&L!C23",
+      "label": "Gross margin",
+      "baseline": 0.380494,
+      "delta": -0.00114,
+      "pct": -0.299611,
+      "direction": "falls",
+      "path": [
+       {
+        "cell": "P&L!C16",
+        "label": "Import tariffs, Canada",
+        "col_header": "FY2026E",
+        "formula": "=C11*'Assumptions'!$B$23",
+        "baseline": 0.0,
+        "delta": 0.962707,
+        "pct": null,
+        "direction": "rises"
+       },
+       {
+        "cell": "P&L!C21",
+        "label": "Total cost of goods sold",
+        "col_header": "FY2026E",
+        "formula": "=C9+C14+C15+C16+C18+C20",
+        "baseline": 523.161,
+        "delta": 0.962707,
+        "pct": 0.184018,
+        "direction": "rises"
+       },
+       {
+        "cell": "P&L!C22",
+        "label": "Gross profit",
+        "col_header": "FY2026E",
+        "formula": "=C6-C21",
+        "baseline": 321.319,
+        "delta": -0.962707,
+        "pct": -0.299611,
+        "direction": "falls"
+       },
+       {
+        "cell": "P&L!C23",
+        "label": "Gross margin",
+        "col_header": "FY2026E",
+        "formula": "=C22/C6",
+        "baseline": 0.380494,
+        "delta": -0.00114,
+        "pct": -0.299611,
+        "direction": "falls"
+       }
+      ]
+     },
+     {
+      "output": "P&L!C27",
+      "label": "EBITDA",
+      "baseline": 105.977,
+      "delta": -0.962707,
+      "pct": -0.908411,
+      "direction": "falls",
+      "path": [
+       {
+        "cell": "P&L!C16",
+        "label": "Import tariffs, Canada",
+        "col_header": "FY2026E",
+        "formula": "=C11*'Assumptions'!$B$23",
+        "baseline": 0.0,
+        "delta": 0.962707,
+        "pct": null,
+        "direction": "rises"
+       },
+       {
+        "cell": "P&L!C21",
+        "label": "Total cost of goods sold",
+        "col_header": "FY2026E",
+        "formula": "=C9+C14+C15+C16+C18+C20",
+        "baseline": 523.161,
+        "delta": 0.962707,
+        "pct": 0.184018,
+        "direction": "rises"
+       },
+       {
+        "cell": "P&L!C22",
+        "label": "Gross profit",
+        "col_header": "FY2026E",
+        "formula": "=C6-C21",
+        "baseline": 321.319,
+        "delta": -0.962707,
+        "pct": -0.299611,
+        "direction": "falls"
+       },
+       {
+        "cell": "P&L!C27",
+        "label": "EBITDA",
+        "col_header": "FY2026E",
+        "formula": "=C22-C25-C26",
+        "baseline": 105.977,
+        "delta": -0.962707,
+        "pct": -0.908411,
+        "direction": "falls"
+       }
+      ]
+     },
+     {
+      "output": "P&L!C28",
+      "label": "EBITDA margin",
+      "baseline": 0.125494,
+      "delta": -0.00114,
+      "pct": -0.908411,
+      "direction": "falls",
+      "path": [
+       {
+        "cell": "P&L!C16",
+        "label": "Import tariffs, Canada",
+        "col_header": "FY2026E",
+        "formula": "=C11*'Assumptions'!$B$23",
+        "baseline": 0.0,
+        "delta": 0.962707,
+        "pct": null,
+        "direction": "rises"
+       },
+       {
+        "cell": "P&L!C21",
+        "label": "Total cost of goods sold",
+        "col_header": "FY2026E",
+        "formula": "=C9+C14+C15+C16+C18+C20",
+        "baseline": 523.161,
+        "delta": 0.962707,
+        "pct": 0.184018,
+        "direction": "rises"
+       },
+       {
+        "cell": "P&L!C22",
+        "label": "Gross profit",
+        "col_header": "FY2026E",
+        "formula": "=C6-C21",
+        "baseline": 321.319,
+        "delta": -0.962707,
+        "pct": -0.299611,
+        "direction": "falls"
+       },
+       {
+        "cell": "P&L!C27",
+        "label": "EBITDA",
+        "col_header": "FY2026E",
+        "formula": "=C22-C25-C26",
+        "baseline": 105.977,
+        "delta": -0.962707,
+        "pct": -0.908411,
+        "direction": "falls"
+       },
+       {
+        "cell": "P&L!C28",
+        "label": "EBITDA margin",
+        "col_header": "FY2026E",
+        "formula": "=C27/C6",
+        "baseline": 0.125494,
+        "delta": -0.00114,
+        "pct": -0.908411,
+        "direction": "falls"
+       }
+      ]
+     },
+     {
+      "output": "P&L!C39",
+      "label": "Net income",
+      "baseline": 54.2329,
+      "delta": -0.760539,
+      "pct": -1.40236,
+      "direction": "falls",
+      "path": [
+       {
+        "cell": "P&L!C16",
+        "label": "Import tariffs, Canada",
+        "col_header": "FY2026E",
+        "formula": "=C11*'Assumptions'!$B$23",
+        "baseline": 0.0,
+        "delta": 0.962707,
+        "pct": null,
+        "direction": "rises"
+       },
+       {
+        "cell": "P&L!C21",
+        "label": "Total cost of goods sold",
+        "col_header": "FY2026E",
+        "formula": "=C9+C14+C15+C16+C18+C20",
+        "baseline": 523.161,
+        "delta": 0.962707,
+        "pct": 0.184018,
+        "direction": "rises"
+       },
+       {
+        "cell": "P&L!C22",
+        "label": "Gross profit",
+        "col_header": "FY2026E",
+        "formula": "=C6-C21",
+        "baseline": 321.319,
+        "delta": -0.962707,
+        "pct": -0.299611,
+        "direction": "falls"
+       },
+       {
+        "cell": "P&L!C27",
+        "label": "EBITDA",
+        "col_header": "FY2026E",
+        "formula": "=C22-C25-C26",
+        "baseline": 105.977,
+        "delta": -0.962707,
+        "pct": -0.908411,
+        "direction": "falls"
+       },
+       {
+        "cell": "P&L!C30",
+        "label": "EBIT",
+        "col_header": "FY2026E",
+        "formula": "=C27-C29",
+        "baseline": 87.3984,
+        "delta": -0.962707,
+        "pct": -1.10152,
+        "direction": "falls"
+       },
+       {
+        "cell": "P&L!C37",
+        "label": "Pre-tax income",
+        "col_header": "FY2026E",
+        "formula": "=C30-C36",
+        "baseline": 68.6492,
+        "delta": -0.962707,
+        "pct": -1.40236,
+        "direction": "falls"
+       },
+       {
+        "cell": "P&L!C39",
+        "label": "Net income",
+        "col_header": "FY2026E",
+        "formula": "=C37-C38",
+        "baseline": 54.2329,
+        "delta": -0.760539,
+        "pct": -1.40236,
+        "direction": "falls"
+       }
+      ]
+     },
+     {
+      "output": "DCF!B38",
+      "label": "Enterprise value (NPV)",
+      "baseline": 905.477,
+      "delta": -11.0479,
+      "pct": -1.22012,
+      "direction": "falls",
+      "path": [
+       {
+        "cell": "P&L!G16",
+        "label": "Import tariffs, Canada",
+        "col_header": "FY2030E",
+        "formula": "=G11*'Assumptions'!$B$23",
+        "baseline": 0.0,
+        "delta": 1.13162,
+        "pct": null,
+        "direction": "rises"
+       },
+       {
+        "cell": "P&L!G21",
+        "label": "Total cost of goods sold",
+        "col_header": "FY2030E",
+        "formula": "=G9+G14+G15+G16+G18+G20",
+        "baseline": 614.952,
+        "delta": 1.13162,
+        "pct": 0.184018,
+        "direction": "rises"
+       },
+       {
+        "cell": "P&L!G22",
+        "label": "Gross profit",
+        "col_header": "FY2030E",
+        "formula": "=G6-G21",
+        "baseline": 377.697,
+        "delta": -1.13162,
+        "pct": -0.299611,
+        "direction": "falls"
+       },
+       {
+        "cell": "P&L!G27",
+        "label": "EBITDA",
+        "col_header": "FY2030E",
+        "formula": "=G22-G25-G26",
+        "baseline": 124.571,
+        "delta": -1.13162,
+        "pct": -0.908411,
+        "direction": "falls"
+       },
+       {
+        "cell": "DCF!G20",
+        "label": "EBITDA",
+        "col_header": "FY2030E",
+        "formula": "='P&L'!G27",
+        "baseline": 124.571,
+        "delta": -1.13162,
+        "pct": -0.908411,
+        "direction": "falls"
+       },
+       {
+        "cell": "DCF!G22",
+        "label": "EBIT",
+        "col_header": "FY2030E",
+        "formula": "=G20+G21",
+        "baseline": 102.733,
+        "delta": -1.13162,
+        "pct": -1.10152,
+        "direction": "falls"
+       },
+       {
+        "cell": "DCF!G27",
+        "label": "Unlevered free cash flow",
+        "col_header": "FY2030E",
+        "formula": "=SUM(G22:G26)",
+        "baseline": 73.4816,
+        "delta": -0.89398,
+        "pct": -1.2166,
+        "direction": "falls"
+       },
+       {
+        "cell": "DCF!B36",
+        "label": "Terminal value at end of FY2030E (Gordon growth)",
+        "col_header": "2026-08-01",
+        "formula": "=G27*(1+B16)/(B15-B16)",
+        "baseline": 1019.06,
+        "delta": -12.3979,
+        "pct": -1.2166,
+        "direction": "falls"
+       },
+       {
+        "cell": "DCF!B37",
+        "label": "PV of terminal value",
+        "col_header": "2026-08-01",
+        "formula": "=B36*G31",
+        "baseline": 671.711,
+        "delta": -8.17205,
+        "pct": -1.2166,
+        "direction": "falls"
+       },
+       {
+        "cell": "DCF!B38",
+        "label": "Enterprise value (NPV)",
+        "col_header": "2026-08-01",
+        "formula": "=B35+B37",
+        "baseline": 905.477,
+        "delta": -11.0479,
+        "pct": -1.22012,
+        "direction": "falls"
+       }
+      ]
+     },
+     {
+      "output": "DCF!B42",
+      "label": "Implied EV / FY2026E EBITDA",
+      "baseline": 8.54409,
+      "delta": -0.0268772,
+      "pct": -0.314571,
+      "direction": "falls",
+      "path": [
+       {
+        "cell": "P&L!C16",
+        "label": "Import tariffs, Canada",
+        "col_header": "FY2026E",
+        "formula": "=C11*'Assumptions'!$B$23",
+        "baseline": 0.0,
+        "delta": 0.962707,
+        "pct": null,
+        "direction": "rises"
+       },
+       {
+        "cell": "P&L!C21",
+        "label": "Total cost of goods sold",
+        "col_header": "FY2026E",
+        "formula": "=C9+C14+C15+C16+C18+C20",
+        "baseline": 523.161,
+        "delta": 0.962707,
+        "pct": 0.184018,
+        "direction": "rises"
+       },
+       {
+        "cell": "P&L!C22",
+        "label": "Gross profit",
+        "col_header": "FY2026E",
+        "formula": "=C6-C21",
+        "baseline": 321.319,
+        "delta": -0.962707,
+        "pct": -0.299611,
+        "direction": "falls"
+       },
+       {
+        "cell": "P&L!C27",
+        "label": "EBITDA",
+        "col_header": "FY2026E",
+        "formula": "=C22-C25-C26",
+        "baseline": 105.977,
+        "delta": -0.962707,
+        "pct": -0.908411,
+        "direction": "falls"
+       },
+       {
+        "cell": "DCF!B42",
+        "label": "Implied EV / FY2026E EBITDA",
+        "col_header": "2026-08-01",
+        "formula": "=B38/'P&L'!C27",
+        "baseline": 8.54409,
+        "delta": -0.0268772,
+        "pct": -0.314571,
+        "direction": "falls"
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "cell": "Assumptions!B24",
+   "value": 0.21,
+   "embedded": false,
+   "formula": null,
+   "label": "US federal corporate income tax rate (%)",
+   "driver": "us_federal_corporate_income_tax_rate",
+   "label_source": "llm",
+   "confirmed": false,
+   "feeds": 45,
+   "outputs": [
+    "P&L!C39",
+    "DCF!B38",
+    "DCF!B42"
+   ],
+   "check": {
+    "kind": "news",
+    "status": "current",
+    "live": null,
+    "drift_pct": null,
+    "p_stale": 0.05,
+    "as_of": "2026-10-10",
+    "source_name": null,
+    "source_url": null,
+    "evidence": [
+     {
+      "quote": "The United States taxes resident corporations at a flat rate of 21%.",
+      "url": "https://taxsummaries.pwc.com/united-states/corporate/taxes-on-corporate-income",
+      "publisher": "PwC",
+      "date": "2026-09-04"
+     }
+    ],
+    "events": [],
+    "effects": [],
+    "assumption": "The US federal corporate income tax rate remains at 21% as of October 2026, with no law or policy change reported since model build.",
+    "prediction": "There is no impact on model outputs; the core figures such as Net Income and Enterprise Value remain unchanged from baseline, since the tax rate is still 21%.",
+    "next_steps": [
+     "No action required for Assumptions!B24; confirm this cell if updating for completeness."
+    ]
+   },
+   "impact": [],
+   "role": "market",
+   "search": [
+    "US federal corporate income tax rate 2026",
+    "IRC section 11(b) corporate tax"
+   ],
+   "events": [
+    "US corporate tax reforms 2026",
+    "US budget legislation tax rates"
+   ],
+   "graph_summary": {
+    "paths": [
+     "US federal corporate income tax rate \u2192 Income tax \u2192 Net income",
+     "US federal corporate income tax rate \u2192 Tax rate \u2192 After-tax cost of debt \u2192 WACC \u2192 Terminal value at end of FY2030E (Gordon growth) \u2192 PV of terminal value \u2192 Enterprise value (NPV)",
+     "US federal corporate income tax rate \u2192 Tax rate \u2192 After-tax cost of debt \u2192 WACC \u2192 Terminal value at end of FY2030E (Gordon growth) \u2192 PV of terminal value \u2192 Enterprise value (NPV) \u2192 Implied EV / FY2026E EBITDA"
+    ],
+    "combined_with": [
+     "Pre-tax income"
+    ]
+   },
+   "sensitivity": {
+    "bump": {
+     "from": 0.21,
+     "to": 0.2121,
+     "kind": "relative",
+     "size": 0.01
+    },
+    "effects": [
+     {
+      "output": "P&L!C39",
+      "label": "Net income",
+      "baseline": 54.2329,
+      "delta": -0.144163,
+      "pct": -0.265823,
+      "direction": "falls",
+      "path": [
+       {
+        "cell": "P&L!C38",
+        "label": "Income tax",
+        "col_header": "FY2026E",
+        "formula": "=MAX(C37,0)*'Assumptions'!$B$24",
+        "baseline": 14.4163,
+        "delta": 0.144163,
+        "pct": 1.0,
+        "direction": "rises"
+       },
+       {
+        "cell": "P&L!C39",
+        "label": "Net income",
+        "col_header": "FY2026E",
+        "formula": "=C37-C38",
+        "baseline": 54.2329,
+        "delta": -0.144163,
+        "pct": -0.265823,
+        "direction": "falls"
+       }
+      ]
+     },
+     {
+      "output": "DCF!B38",
+      "label": "Enterprise value (NPV)",
+      "baseline": 905.477,
+      "delta": -2.25183,
+      "pct": -0.24869,
+      "direction": "falls",
+      "path": [
+       {
+        "cell": "DCF!B12",
+        "label": "Tax rate",
+        "col_header": "2026-08-01",
+        "formula": "='Assumptions'!B24",
+        "baseline": 0.21,
+        "delta": 0.0021,
+        "pct": 1.0,
+        "direction": "rises"
+       },
+       {
+        "cell": "DCF!B13",
+        "label": "After-tax cost of debt",
+        "col_header": "2026-08-01",
+        "formula": "=B11*(1-B12)",
+        "baseline": 0.050639,
+        "delta": -0.00013461,
+        "pct": -0.265823,
+        "direction": "falls"
+       },
+       {
+        "cell": "DCF!B15",
+        "label": "WACC",
+        "col_header": "2026-08-01",
+        "formula": "=B10*(1-B14)+B13*B14",
+        "baseline": 0.0989097,
+        "delta": -3.36525e-05,
+        "pct": -0.0340234,
+        "direction": "falls"
+       },
+       {
+        "cell": "DCF!B36",
+        "label": "Terminal value at end of FY2030E (Gordon growth)",
+        "col_header": "2026-08-01",
+        "formula": "=G27*(1+B16)/(B15-B16)",
+        "baseline": 1019.06,
+        "delta": -2.52908,
+        "pct": -0.248177,
+        "direction": "falls"
+       },
+       {
+        "cell": "DCF!B37",
+        "label": "PV of terminal value",
+        "col_header": "2026-08-01",
+        "formula": "=B36*G31",
+        "baseline": 671.711,
+        "delta": -1.57635,
+        "pct": -0.234677,
+        "direction": "falls"
+       },
+       {
+        "cell": "DCF!B38",
+        "label": "Enterprise value (NPV)",
+        "col_header": "2026-08-01",
+        "formula": "=B35+B37",
+        "baseline": 905.477,
+        "delta": -2.25183,
+        "pct": -0.24869,
+        "direction": "falls"
+       }
+      ]
+     },
+     {
+      "output": "DCF!B42",
+      "label": "Implied EV / FY2026E EBITDA",
+      "baseline": 8.54409,
+      "delta": -0.0212483,
+      "pct": -0.24869,
+      "direction": "falls",
+      "path": [
+       {
+        "cell": "DCF!B12",
+        "label": "Tax rate",
+        "col_header": "2026-08-01",
+        "formula": "='Assumptions'!B24",
+        "baseline": 0.21,
+        "delta": 0.0021,
+        "pct": 1.0,
+        "direction": "rises"
+       },
+       {
+        "cell": "DCF!B13",
+        "label": "After-tax cost of debt",
+        "col_header": "2026-08-01",
+        "formula": "=B11*(1-B12)",
+        "baseline": 0.050639,
+        "delta": -0.00013461,
+        "pct": -0.265823,
+        "direction": "falls"
+       },
+       {
+        "cell": "DCF!B15",
+        "label": "WACC",
+        "col_header": "2026-08-01",
+        "formula": "=B10*(1-B14)+B13*B14",
+        "baseline": 0.0989097,
+        "delta": -3.36525e-05,
+        "pct": -0.0340234,
+        "direction": "falls"
+       },
+       {
+        "cell": "DCF!B36",
+        "label": "Terminal value at end of FY2030E (Gordon growth)",
+        "col_header": "2026-08-01",
+        "formula": "=G27*(1+B16)/(B15-B16)",
+        "baseline": 1019.06,
+        "delta": -2.52908,
+        "pct": -0.248177,
+        "direction": "falls"
+       },
+       {
+        "cell": "DCF!B37",
+        "label": "PV of terminal value",
+        "col_header": "2026-08-01",
+        "formula": "=B36*G31",
+        "baseline": 671.711,
+        "delta": -1.57635,
+        "pct": -0.234677,
+        "direction": "falls"
+       },
+       {
+        "cell": "DCF!B38",
+        "label": "Enterprise value (NPV)",
+        "col_header": "2026-08-01",
+        "formula": "=B35+B37",
+        "baseline": 905.477,
+        "delta": -2.25183,
+        "pct": -0.24869,
+        "direction": "falls"
+       },
+       {
+        "cell": "DCF!B42",
+        "label": "Implied EV / FY2026E EBITDA",
+        "col_header": "2026-08-01",
+        "formula": "=B38/'P&L'!C27",
+        "baseline": 8.54409,
+        "delta": -0.0212483,
+        "pct": -0.24869,
+        "direction": "falls"
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "cell": "Assumptions!B27",
+   "value": 300.0,
+   "embedded": false,
+   "formula": null,
+   "label": "Term loan balance at 31-Dec-2025 ($mm)",
+   "driver": null,
+   "label_source": "llm",
+   "confirmed": false,
+   "feeds": 32,
+   "outputs": [
+    "P&L!C39"
+   ],
+   "check": null,
+   "impact": [],
+   "role": "internal",
+   "search": [],
+   "events": [],
+   "graph_summary": {
+    "paths": [
+     "Term loan balance, 31-Dec-2025 \u2192 Term loan, opening \u2192 Interest expense \u2192 Pre-tax income \u2192 Net income"
+    ],
+    "combined_with": [
+     "Scheduled amortization, % of original balance per year",
+     "Term loan, opening"
+    ]
+   }
+  },
+  {
+   "cell": "Assumptions!B28",
+   "value": 0.05,
+   "embedded": false,
+   "formula": null,
+   "label": "Scheduled loan amortization rate (% of original balance per year)",
+   "driver": null,
+   "label_source": "llm",
+   "confirmed": false,
+   "feeds": 29,
+   "outputs": [
+    "P&L!C39"
+   ],
+   "check": null,
+   "impact": [],
+   "role": "internal",
+   "search": [],
+   "events": [],
+   "graph_summary": {
+    "paths": [
+     "Scheduled amortization, % of original balance per year \u2192 Term loan, closing \u2192 Interest expense \u2192 Pre-tax income \u2192 Net income"
+    ],
+    "combined_with": [
+     "Term loan balance, 31-Dec-2025",
+     "Term loan, opening"
+    ]
+   }
+  },
+  {
+   "cell": "Assumptions!B29",
+   "value": 0.0275,
+   "embedded": false,
+   "formula": null,
+   "label": "Term loan margin over SOFR (%)",
+   "driver": "term_loan_margin_over_sofr",
+   "label_source": "llm",
+   "confirmed": false,
+   "feeds": 45,
+   "outputs": [
+    "P&L!C39",
+    "DCF!B38",
+    "DCF!B42"
+   ],
+   "check": {
+    "kind": "news",
+    "status": "stale",
+    "live": null,
+    "drift_pct": null,
+    "p_stale": 1.0,
+    "as_of": "2026-10-10",
+    "source_name": null,
+    "source_url": null,
+    "evidence": [],
+    "events": [
+     {
+      "summary": "Credit spreads for lower-rated syndicated borrowers in the United States widened by 55 basis points in Q2 2026, while higher-rated spreads were largely unchanged.",
+      "direction": "raises",
+      "quote": "The credit spread for lower-rated borrowers rated B-minus widened by 55 basis points in Q2, while spreads for higher-rated cohorts barely moved.",
+      "url": "https://institutional.fidelity.com/app/proxy/content?literatureURL=%2F9898326.PDF",
+      "publisher": "institutional.fidelity.com",
+      "date": "2026-06-30"
+     }
+    ],
+    "effects": [],
+    "assumption": "At present there is no direct market data for typical term loan SOFR margins as of October 2026; however, evidence suggests spreads for riskier borrowers have risen by up to 55bps in mid-2026, but most loans (likely those closer to investment-grade) have seen little to no change.",
+    "prediction": "Since the model's assumed margin (2.75%) is not clearly wrong and knowledgeable sources report margin stability except for riskier credits, model outputs likely remain accurate for a high-quality borrower; net income, for example, would fall by 0.0635 if the margin were raised by 1%, but no adjustment is warranted now.",
+    "next_steps": [
+     "Monitor sources for direct quotes of new-issue SOFR margins for comparable credits; if a deal close to the company's rating/pricing appears, update Assumptions!B29 and assess impact on DCF!B38 (Enterprise value)."
+    ]
+   },
+   "impact": [],
+   "role": "market",
+   "search": [
+    "Term loan margin over SOFR 2026",
+    "US syndicated loan spreads 2026"
+   ],
+   "events": [
+    "SOFR benchmark interest rate movement",
+    "Market leveraged loan spreads 2026"
+   ],
+   "graph_summary": {
+    "paths": [
+     "Term loan margin over SOFR \u2192 Interest rate (SOFR + margin) \u2192 Interest expense \u2192 Pre-tax income \u2192 Net income",
+     "Term loan margin over SOFR \u2192 Interest rate (SOFR + margin) \u2192 Pre-tax cost of debt \u2192 After-tax cost of debt \u2192 WACC \u2192 Terminal value at end of FY2030E (Gordon growth) \u2192 PV of terminal value \u2192 Enterprise value (NPV)",
+     "Term loan margin over SOFR \u2192 Interest rate (SOFR + margin) \u2192 Pre-tax cost of debt \u2192 After-tax cost of debt \u2192 WACC \u2192 Terminal value at end of FY2030E (Gordon growth) \u2192 PV of terminal value \u2192 Enterprise value (NPV) \u2192 Implied EV / FY2026E EBITDA"
+    ],
+    "combined_with": []
+   },
+   "sensitivity": {
+    "bump": {
+     "from": 0.0275,
+     "to": 0.027775,
+     "kind": "relative",
+     "size": 0.01
+    },
+    "effects": [
+     {
+      "output": "P&L!C39",
+      "label": "Net income",
+      "baseline": 54.2329,
+      "delta": -0.0635456,
+      "pct": -0.117172,
+      "direction": "falls",
+      "path": [
+       {
+        "cell": "P&L!C35",
+        "label": "Interest rate (SOFR + margin)",
+        "col_header": "FY2026E",
+        "formula": "=0.0366+'Assumptions'!$B$29",
+        "baseline": 0.0641,
+        "delta": 0.000275,
+        "pct": 0.429017,
+        "direction": "rises"
+       },
+       {
+        "cell": "P&L!C36",
+        "label": "Interest expense",
+        "col_header": "FY2026E",
+        "formula": "=AVERAGE(C33,C34)*C35",
+        "baseline": 18.7492,
+        "delta": 0.0804375,
+        "pct": 0.429017,
+        "direction": "rises"
+       },
+       {
+        "cell": "P&L!C37",
+        "label": "Pre-tax income",
+        "col_header": "FY2026E",
+        "formula": "=C30-C36",
+        "baseline": 68.6492,
+        "delta": -0.0804375,
+        "pct": -0.117172,
+        "direction": "falls"
+       },
+       {
+        "cell": "P&L!C39",
+        "label": "Net income",
+        "col_header": "FY2026E",
+        "formula": "=C37-C38",
+        "baseline": 54.2329,
+        "delta": -0.0635456,
+        "pct": -0.117172,
+        "direction": "falls"
+       }
+      ]
+     },
+     {
+      "output": "DCF!B38",
+      "label": "Enterprise value (NPV)",
+      "baseline": 905.477,
+      "delta": -0.669842,
+      "pct": -0.0739767,
+      "direction": "falls",
+      "path": [
+       {
+        "cell": "P&L!C35",
+        "label": "Interest rate (SOFR + margin)",
+        "col_header": "FY2026E",
+        "formula": "=0.0366+'Assumptions'!$B$29",
+        "baseline": 0.0641,
+        "delta": 0.000275,
+        "pct": 0.429017,
+        "direction": "rises"
+       },
+       {
+        "cell": "DCF!B11",
+        "label": "Pre-tax cost of debt",
+        "col_header": "2026-08-01",
+        "formula": "='P&L'!C35",
+        "baseline": 0.0641,
+        "delta": 0.000275,
+        "pct": 0.429017,
+        "direction": "rises"
+       },
+       {
+        "cell": "DCF!B13",
+        "label": "After-tax cost of debt",
+        "col_header": "2026-08-01",
+        "formula": "=B11*(1-B12)",
+        "baseline": 0.050639,
+        "delta": 0.00021725,
+        "pct": 0.429017,
+        "direction": "rises"
+       },
+       {
+        "cell": "DCF!B15",
+        "label": "WACC",
+        "col_header": "2026-08-01",
+        "formula": "=B10*(1-B14)+B13*B14",
+        "baseline": 0.0989097,
+        "delta": 5.43125e-05,
+        "pct": 0.0549112,
+        "direction": "rises"
+       },
+       {
+        "cell": "DCF!B36",
+        "label": "Terminal value at end of FY2030E (Gordon growth)",
+        "col_header": "2026-08-01",
+        "formula": "=G27*(1+B16)/(B15-B16)",
+        "baseline": 1019.06,
+        "delta": -0.748307,
+        "pct": -0.0734309,
+        "direction": "falls"
+       },
+       {
+        "cell": "DCF!B37",
+        "label": "PV of terminal value",
+        "col_header": "2026-08-01",
+        "formula": "=B36*G31",
+        "baseline": 671.711,
+        "delta": -0.639827,
+        "pct": -0.0952533,
+        "direction": "falls"
+       },
+       {
+        "cell": "DCF!B38",
+        "label": "Enterprise value (NPV)",
+        "col_header": "2026-08-01",
+        "formula": "=B35+B37",
+        "baseline": 905.477,
+        "delta": -0.669842,
+        "pct": -0.0739767,
+        "direction": "falls"
+       }
+      ]
+     },
+     {
+      "output": "DCF!B42",
+      "label": "Implied EV / FY2026E EBITDA",
+      "baseline": 8.54409,
+      "delta": -0.00632064,
+      "pct": -0.0739767,
+      "direction": "falls",
+      "path": [
+       {
+        "cell": "P&L!C35",
+        "label": "Interest rate (SOFR + margin)",
+        "col_header": "FY2026E",
+        "formula": "=0.0366+'Assumptions'!$B$29",
+        "baseline": 0.0641,
+        "delta": 0.000275,
+        "pct": 0.429017,
+        "direction": "rises"
+       },
+       {
+        "cell": "DCF!B11",
+        "label": "Pre-tax cost of debt",
+        "col_header": "2026-08-01",
+        "formula": "='P&L'!C35",
+        "baseline": 0.0641,
+        "delta": 0.000275,
+        "pct": 0.429017,
+        "direction": "rises"
+       },
+       {
+        "cell": "DCF!B13",
+        "label": "After-tax cost of debt",
+        "col_header": "2026-08-01",
+        "formula": "=B11*(1-B12)",
+        "baseline": 0.050639,
+        "delta": 0.00021725,
+        "pct": 0.429017,
+        "direction": "rises"
+       },
+       {
+        "cell": "DCF!B15",
+        "label": "WACC",
+        "col_header": "2026-08-01",
+        "formula": "=B10*(1-B14)+B13*B14",
+        "baseline": 0.0989097,
+        "delta": 5.43125e-05,
+        "pct": 0.0549112,
+        "direction": "rises"
+       },
+       {
+        "cell": "DCF!B36",
+        "label": "Terminal value at end of FY2030E (Gordon growth)",
+        "col_header": "2026-08-01",
+        "formula": "=G27*(1+B16)/(B15-B16)",
+        "baseline": 1019.06,
+        "delta": -0.748307,
+        "pct": -0.0734309,
+        "direction": "falls"
+       },
+       {
+        "cell": "DCF!B37",
+        "label": "PV of terminal value",
+        "col_header": "2026-08-01",
+        "formula": "=B36*G31",
+        "baseline": 671.711,
+        "delta": -0.639827,
+        "pct": -0.0952533,
+        "direction": "falls"
+       },
+       {
+        "cell": "DCF!B38",
+        "label": "Enterprise value (NPV)",
+        "col_header": "2026-08-01",
+        "formula": "=B35+B37",
+        "baseline": 905.477,
+        "delta": -0.669842,
+        "pct": -0.0739767,
+        "direction": "falls"
+       },
+       {
+        "cell": "DCF!B42",
+        "label": "Implied EV / FY2026E EBITDA",
+        "col_header": "2026-08-01",
+        "formula": "=B38/'P&L'!C27",
+        "baseline": 8.54409,
+        "delta": -0.00632064,
+        "pct": -0.0739767,
+        "direction": "falls"
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "cell": "Assumptions!B30",
+   "value": 46.0,
+   "embedded": false,
+   "formula": null,
+   "label": "Cash balance as of July 31, 2026 ($mm)",
+   "driver": null,
+   "label_source": "llm",
+   "confirmed": false,
+   "feeds": 2,
+   "outputs": [],
+   "check": null,
+   "impact": [],
+   "role": "internal",
+   "search": [],
+   "events": [],
+   "graph_summary": {
+    "paths": [],
+    "combined_with": []
+   }
+  },
+  {
+   "cell": "Assumptions!B33",
+   "value": 0.04,
+   "embedded": false,
+   "formula": null,
+   "label": "Net revenue growth for FY2026E (% YoY)",
+   "driver": null,
+   "label_source": "llm",
+   "confirmed": false,
+   "feeds": 153,
+   "outputs": [
+    "P&L!C23",
+    "P&L!C27",
+    "P&L!C28",
+    "P&L!C39",
+    "DCF!B38",
+    "DCF!B42"
+   ],
+   "check": null,
+   "impact": [],
+   "role": "internal",
+   "search": [],
+   "events": [],
+   "graph_summary": {
+    "paths": [
+     "Net revenue growth, year on year \u2192 Revenue growth \u2192 Net revenue \u2192 Gross margin",
+     "Net revenue growth, year on year \u2192 Revenue growth \u2192 Net revenue \u2192 Gross profit \u2192 EBITDA",
+     "Net revenue growth, year on year \u2192 Revenue growth \u2192 Net revenue \u2192 EBITDA margin",
+     "Net revenue growth, year on year \u2192 Revenue growth \u2192 Net revenue \u2192 Depreciation and amortization \u2192 EBIT \u2192 Pre-tax income \u2192 Net income",
+     "Net revenue growth, year on year \u2192 Revenue growth \u2192 Net revenue \u2192 Less: capex \u2192 Unlevered free cash flow \u2192 Free cash flow to discount \u2192 Present value of free cash flow \u2192 Sum of PV of free cash flow, FY2026E-FY2030E \u2192 Enterprise value (NPV)",
+     "Net revenue growth, year on year \u2192 Revenue growth \u2192 Net revenue \u2192 Gross profit \u2192 EBITDA \u2192 Implied EV / FY2026E EBITDA"
+    ],
+    "combined_with": []
+   }
+  },
+  {
+   "cell": "Assumptions!C33",
+   "value": 0.045,
+   "embedded": false,
+   "formula": null,
+   "label": "Net revenue growth for FY2027E (% YoY)",
+   "driver": null,
+   "label_source": "llm",
+   "confirmed": false,
+   "feeds": 148,
+   "outputs": [
+    "DCF!B38",
+    "DCF!B42"
+   ],
+   "check": null,
+   "impact": [],
+   "role": "internal",
+   "search": [],
+   "events": [],
+   "graph_summary": {
+    "paths": [
+     "Net revenue growth, year on year \u2192 Revenue growth \u2192 Net revenue \u2192 Less: capex \u2192 Unlevered free cash flow \u2192 Free cash flow to discount \u2192 Present value of free cash flow \u2192 Sum of PV of free cash flow, FY2026E-FY2030E \u2192 Enterprise value (NPV)",
+     "Net revenue growth, year on year \u2192 Revenue growth \u2192 Net revenue \u2192 Less: capex \u2192 Unlevered free cash flow \u2192 Free cash flow to discount \u2192 Present value of free cash flow \u2192 Sum of PV of free cash flow, FY2026E-FY2030E \u2192 Enterprise value (NPV) \u2192 Implied EV / FY2026E EBITDA"
+    ],
+    "combined_with": []
+   }
+  },
+  {
+   "cell": "Assumptions!D33",
+   "value": 0.045,
+   "embedded": false,
+   "formula": null,
+   "label": "Net revenue growth for FY2028E (% YoY)",
+   "driver": null,
+   "label_source": "llm",
+   "confirmed": false,
+   "feeds": 113,
+   "outputs": [
+    "DCF!B38",
+    "DCF!B42"
+   ],
+   "check": null,
+   "impact": [],
+   "role": "internal",
+   "search": [],
+   "events": [],
+   "graph_summary": {
+    "paths": [
+     "Net revenue growth, year on year \u2192 Revenue growth \u2192 Net revenue \u2192 Less: capex \u2192 Unlevered free cash flow \u2192 Free cash flow to discount \u2192 Present value of free cash flow \u2192 Sum of PV of free cash flow, FY2026E-FY2030E \u2192 Enterprise value (NPV)",
+     "Net revenue growth, year on year \u2192 Revenue growth \u2192 Net revenue \u2192 Less: capex \u2192 Unlevered free cash flow \u2192 Free cash flow to discount \u2192 Present value of free cash flow \u2192 Sum of PV of free cash flow, FY2026E-FY2030E \u2192 Enterprise value (NPV) \u2192 Implied EV / FY2026E EBITDA"
+    ],
+    "combined_with": []
+   }
+  },
+  {
+   "cell": "Assumptions!E33",
+   "value": 0.04,
+   "embedded": false,
+   "formula": null,
+   "label": "Net revenue growth for FY2029E (% YoY)",
+   "driver": null,
+   "label_source": "llm",
+   "confirmed": false,
+   "feeds": 78,
+   "outputs": [
+    "DCF!B38",
+    "DCF!B42"
+   ],
+   "check": null,
+   "impact": [],
+   "role": "internal",
+   "search": [],
+   "events": [],
+   "graph_summary": {
+    "paths": [
+     "Net revenue growth, year on year \u2192 Revenue growth \u2192 Net revenue \u2192 Less: increase in net working capital \u2192 Unlevered free cash flow \u2192 Terminal value at end of FY2030E (Gordon growth) \u2192 PV of terminal value \u2192 Enterprise value (NPV)",
+     "Net revenue growth, year on year \u2192 Revenue growth \u2192 Net revenue \u2192 Less: increase in net working capital \u2192 Unlevered free cash flow \u2192 Terminal value at end of FY2030E (Gordon growth) \u2192 PV of terminal value \u2192 Enterprise value (NPV) \u2192 Implied EV / FY2026E EBITDA"
+    ],
+    "combined_with": []
+   }
+  },
+  {
+   "cell": "Assumptions!F33",
+   "value": 0.035,
+   "embedded": false,
+   "formula": null,
+   "label": "Net revenue growth for FY2030E (% YoY)",
+   "driver": null,
+   "label_source": "llm",
+   "confirmed": false,
+   "feeds": 43,
+   "outputs": [
+    "DCF!B38",
+    "DCF!B42"
+   ],
+   "check": null,
+   "impact": [],
+   "role": "internal",
+   "search": [],
+   "events": [],
+   "graph_summary": {
+    "paths": [
+     "Net revenue growth, year on year \u2192 Revenue growth \u2192 Net revenue \u2192 Less: capex \u2192 Unlevered free cash flow \u2192 Terminal value at end of FY2030E (Gordon growth) \u2192 PV of terminal value \u2192 Enterprise value (NPV)",
+     "Net revenue growth, year on year \u2192 Revenue growth \u2192 Net revenue \u2192 Less: capex \u2192 Unlevered free cash flow \u2192 Terminal value at end of FY2030E (Gordon growth) \u2192 PV of terminal value \u2192 Enterprise value (NPV) \u2192 Implied EV / FY2026E EBITDA"
+    ],
+    "combined_with": []
+   }
+  },
+  {
+   "cell": "P&L!C18:G18",
+   "value": 1000000.0,
+   "embedded": true,
+   "formula": "=C17*5739/1000000",
+   "label": "Unit constant (1e+06)",
+   "driver": null,
+   "label_source": "header",
+   "confirmed": false,
+   "feeds": 87,
+   "outputs": [
+    "P&L!C23",
+    "P&L!C27",
+    "P&L!C28",
+    "P&L!C39",
+    "DCF!B38",
+    "DCF!B42"
+   ],
+   "check": null,
+   "impact": [],
+   "literal_index": 1,
+   "cells": [
+    "P&L!C18",
+    "P&L!D18",
+    "P&L!E18",
+    "P&L!F18",
+    "P&L!G18"
+   ],
+   "role": "unit",
+   "search": [],
+   "events": [],
+   "graph_summary": {
+    "paths": [
+     "Ocean freight, Asia to US West Coast \u2192 Total cost of goods sold \u2192 Gross profit \u2192 Gross margin",
+     "Ocean freight, Asia to US West Coast \u2192 Total cost of goods sold \u2192 Gross profit \u2192 EBITDA",
+     "Ocean freight, Asia to US West Coast \u2192 Total cost of goods sold \u2192 Gross profit \u2192 EBITDA \u2192 EBITDA margin",
+     "Ocean freight, Asia to US West Coast \u2192 Total cost of goods sold \u2192 Gross profit \u2192 EBITDA \u2192 EBIT \u2192 Pre-tax income \u2192 Net income",
+     "Ocean freight, Asia to US West Coast \u2192 Total cost of goods sold \u2192 Gross profit \u2192 EBITDA \u2192 EBIT \u2192 Unlevered free cash flow \u2192 Terminal value at end of FY2030E (Gordon growth) \u2192 PV of terminal value \u2192 Enterprise value (NPV)",
+     "Ocean freight, Asia to US West Coast \u2192 Total cost of goods sold \u2192 Gross profit \u2192 EBITDA \u2192 Implied EV / FY2026E EBITDA"
+    ],
+    "combined_with": [
+     "Containers imported (FEU)"
+    ]
+   }
+  },
+  {
+   "cell": "P&L!C20:G20",
+   "value": 1000.0,
+   "embedded": true,
+   "formula": "=C19*'Assumptions'!$B$20/1000",
+   "label": "Unit constant (1000)",
+   "driver": null,
+   "label_source": "header",
+   "confirmed": false,
+   "feeds": 87,
+   "outputs": [
+    "P&L!C23",
+    "P&L!C27",
+    "P&L!C28",
+    "P&L!C39",
+    "DCF!B38",
+    "DCF!B42"
+   ],
+   "check": null,
+   "impact": [],
+   "literal_index": 0,
+   "cells": [
+    "P&L!C20",
+    "P&L!D20",
+    "P&L!E20",
+    "P&L!F20",
+    "P&L!G20"
+   ],
+   "role": "unit",
+   "search": [],
+   "events": [],
+   "graph_summary": {
+    "paths": [
+     "Oil-linked materials and fuel \u2192 Total cost of goods sold \u2192 Gross profit \u2192 Gross margin",
+     "Oil-linked materials and fuel \u2192 Total cost of goods sold \u2192 Gross profit \u2192 EBITDA",
+     "Oil-linked materials and fuel \u2192 Total cost of goods sold \u2192 Gross profit \u2192 EBITDA \u2192 EBITDA margin",
+     "Oil-linked materials and fuel \u2192 Total cost of goods sold \u2192 Gross profit \u2192 EBITDA \u2192 EBIT \u2192 Pre-tax income \u2192 Net income",
+     "Oil-linked materials and fuel \u2192 Total cost of goods sold \u2192 Gross profit \u2192 EBITDA \u2192 EBIT \u2192 Unlevered free cash flow \u2192 Terminal value at end of FY2030E (Gordon growth) \u2192 PV of terminal value \u2192 Enterprise value (NPV)",
+     "Oil-linked materials and fuel \u2192 Total cost of goods sold \u2192 Gross profit \u2192 EBITDA \u2192 Implied EV / FY2026E EBITDA"
+    ],
+    "combined_with": [
+     "Brent crude oil",
+     "Oil-linked consumption (000 bbl-eq)"
+    ]
+   }
+  },
+  {
+   "cell": "DCF!B6",
+   "value": 0.0475,
+   "embedded": false,
+   "formula": null,
+   "label": "Risk-free rate (10-year US Treasury, %)",
+   "driver": "risk_free_rate_10_year_us_treasury",
+   "label_source": "llm",
+   "confirmed": false,
+   "feeds": 19,
+   "outputs": [
+    "DCF!B38",
+    "DCF!B42"
+   ],
+   "check": {
+    "kind": "news",
+    "status": "stale",
+    "live": null,
+    "drift_pct": null,
+    "p_stale": 1.0,
+    "as_of": "2026-10-10",
+    "source_name": null,
+    "source_url": null,
+    "evidence": [
+     {
+      "quote": "FRED series DGS10 (10-year Treasury yield). Value on 2026-07-31: 4.75%. Value on 2026-10-08: 5.22%. Change between those dates: +9.9%.",
+      "url": "https://fred.stlouisfed.org/series/DGS10",
+      "publisher": "FRED, Federal Reserve Bank of St. Louis",
+      "date": "2026-10-08"
+     }
+    ],
+    "events": [],
+    "effects": [],
+    "assumption": "The risk-free rate (10-year US Treasury) should be updated to 5.22%, as FRED reports the yield was 5.22% on 2026-10-08, up from 4.75% on 2026-07-31.",
+    "prediction": null,
+    "next_steps": [
+     "Check all downstream outputs that reference DCF!B6, especially DCF!B42."
+    ]
+   },
+   "impact": [],
+   "role": "market",
+   "search": [
+    "10-year US Treasury yield July 2026",
+    "US Treasury rates historical 2026",
+    "FRED DGS10 July 2026"
+   ],
+   "events": [
+    "Federal Reserve interest rate policy 2026",
+    "US CPI inflation releases 2026",
+    "Major Treasury auction results 2026"
+   ],
+   "graph_summary": {
+    "paths": [
+     "Risk-free rate (10-year US Treasury) \u2192 Cost of equity \u2192 WACC \u2192 Terminal value at end of FY2030E (Gordon growth) \u2192 PV of terminal value \u2192 Enterprise value (NPV)",
+     "Risk-free rate (10-year US Treasury) \u2192 Cost of equity \u2192 WACC \u2192 Terminal value at end of FY2030E (Gordon growth) \u2192 PV of terminal value \u2192 Enterprise value (NPV) \u2192 Implied EV / FY2026E EBITDA"
+    ],
+    "combined_with": [
+     "Equity risk premium",
+     "Levered beta",
+     "Size premium"
+    ]
+   },
+   "sensitivity": {
+    "bump": {
+     "from": 0.0475,
+     "to": 0.047975,
+     "kind": "relative",
+     "size": 0.01
+    },
+    "effects": [
+     {
+      "output": "DCF!B38",
+      "label": "Enterprise value (NPV)",
+      "baseline": 905.477,
+      "delta": -4.37578,
+      "pct": -0.483257,
+      "direction": "falls",
+      "path": [
+       {
+        "cell": "DCF!B10",
+        "label": "Cost of equity",
+        "col_header": "2026-08-01",
+        "formula": "=B6+B8*B7+B9",
+        "baseline": 0.115,
+        "delta": 0.000475,
+        "pct": 0.413043,
+        "direction": "rises"
+       },
+       {
+        "cell": "DCF!B15",
+        "label": "WACC",
+        "col_header": "2026-08-01",
+        "formula": "=B10*(1-B14)+B13*B14",
+        "baseline": 0.0989097,
+        "delta": 0.00035625,
+        "pct": 0.360177,
+        "direction": "rises"
+       },
+       {
+        "cell": "DCF!B36",
+        "label": "Terminal value at end of FY2030E (Gordon growth)",
+        "col_header": "2026-08-01",
+        "formula": "=G27*(1+B16)/(B15-B16)",
+        "baseline": 1019.06,
+        "delta": -4.88839,
+        "pct": -0.479695,
+        "direction": "falls"
+       },
+       {
+        "cell": "DCF!B37",
+        "label": "PV of terminal value",
+        "col_header": "2026-08-01",
+        "formula": "=B36*G31",
+        "baseline": 671.711,
+        "delta": -4.17902,
+        "pct": -0.622145,
+        "direction": "falls"
+       },
+       {
+        "cell": "DCF!B38",
+        "label": "Enterprise value (NPV)",
+        "col_header": "2026-08-01",
+        "formula": "=B35+B37",
+        "baseline": 905.477,
+        "delta": -4.37578,
+        "pct": -0.483257,
+        "direction": "falls"
+       }
+      ]
+     },
+     {
+      "output": "DCF!B42",
+      "label": "Implied EV / FY2026E EBITDA",
+      "baseline": 8.54409,
+      "delta": -0.0412899,
+      "pct": -0.483257,
+      "direction": "falls",
+      "path": [
+       {
+        "cell": "DCF!B10",
+        "label": "Cost of equity",
+        "col_header": "2026-08-01",
+        "formula": "=B6+B8*B7+B9",
+        "baseline": 0.115,
+        "delta": 0.000475,
+        "pct": 0.413043,
+        "direction": "rises"
+       },
+       {
+        "cell": "DCF!B15",
+        "label": "WACC",
+        "col_header": "2026-08-01",
+        "formula": "=B10*(1-B14)+B13*B14",
+        "baseline": 0.0989097,
+        "delta": 0.00035625,
+        "pct": 0.360177,
+        "direction": "rises"
+       },
+       {
+        "cell": "DCF!B36",
+        "label": "Terminal value at end of FY2030E (Gordon growth)",
+        "col_header": "2026-08-01",
+        "formula": "=G27*(1+B16)/(B15-B16)",
+        "baseline": 1019.06,
+        "delta": -4.88839,
+        "pct": -0.479695,
+        "direction": "falls"
+       },
+       {
+        "cell": "DCF!B37",
+        "label": "PV of terminal value",
+        "col_header": "2026-08-01",
+        "formula": "=B36*G31",
+        "baseline": 671.711,
+        "delta": -4.17902,
+        "pct": -0.622145,
+        "direction": "falls"
+       },
+       {
+        "cell": "DCF!B38",
+        "label": "Enterprise value (NPV)",
+        "col_header": "2026-08-01",
+        "formula": "=B35+B37",
+        "baseline": 905.477,
+        "delta": -4.37578,
+        "pct": -0.483257,
+        "direction": "falls"
+       },
+       {
+        "cell": "DCF!B42",
+        "label": "Implied EV / FY2026E EBITDA",
+        "col_header": "2026-08-01",
+        "formula": "=B38/'P&L'!C27",
+        "baseline": 8.54409,
+        "delta": -0.0412899,
+        "pct": -0.483257,
+        "direction": "falls"
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "cell": "DCF!B7",
+   "value": 0.05,
+   "embedded": false,
+   "formula": null,
+   "label": "Equity risk premium (% per year)",
+   "driver": null,
+   "label_source": "llm",
+   "confirmed": false,
+   "feeds": 19,
+   "outputs": [
+    "DCF!B38",
+    "DCF!B42"
+   ],
+   "check": null,
+   "impact": [],
+   "role": "lever",
+   "search": [
+    "US equity risk premium 2026",
+    "Recommended equity risk premium 2026",
+    "Damodaran equity risk premium 2026"
+   ],
+   "events": [],
+   "graph_summary": {
+    "paths": [
+     "Equity risk premium \u2192 Cost of equity \u2192 WACC \u2192 Terminal value at end of FY2030E (Gordon growth) \u2192 PV of terminal value \u2192 Enterprise value (NPV)",
+     "Equity risk premium \u2192 Cost of equity \u2192 WACC \u2192 Terminal value at end of FY2030E (Gordon growth) \u2192 PV of terminal value \u2192 Enterprise value (NPV) \u2192 Implied EV / FY2026E EBITDA"
+    ],
+    "combined_with": [
+     "Risk-free rate (10-year US Treasury)",
+     "Levered beta",
+     "Size premium"
+    ]
+   }
+  },
+  {
+   "cell": "DCF!B8",
+   "value": 1.15,
+   "embedded": false,
+   "formula": null,
+   "label": "Levered beta (relative to market)",
+   "driver": "levered_beta_relative_to_market",
+   "label_source": "llm",
+   "confirmed": false,
+   "feeds": 19,
+   "outputs": [
+    "DCF!B38",
+    "DCF!B42"
+   ],
+   "check": {
+    "kind": "news",
+    "status": "stale",
+    "live": null,
+    "drift_pct": null,
+    "p_stale": 1.0,
+    "as_of": "2026-10-10",
+    "source_name": null,
+    "source_url": null,
+    "evidence": [],
+    "events": [
+     {
+      "summary": "Peer group construction and benchmarking methodology changes can alter ESG ratings and, by implication, may influence risk perceptions that could affect beta estimates for certain industry sectors. However, no explicit direction or numerical change to beta is stated.",
+      "direction": "unclear",
+      "quote": "Empirical evidence shows that sustainability-related information, including ESG scores, is reflected in stock returns e.g., H\u00fcbel and Scholz (2020). Our study contributes to this by examining how the construction of ESG measures, and specifically the peer groups, affects the financial informativeness and usefulness for investment decision-making.",
+      "url": "https://link.springer.com/article/10.1057/s41260-026-00444-4",
+      "publisher": "Springer Nature Link"
+     },
+     {
+      "summary": "The introduction and continued use of customized peer groups in GRESB benchmarking enhances contextual comparability for real estate (and tangentially for similar benchmarks like beta), but does not change the underlying scores or metrics directly.",
+      "direction": "unclear",
+      "quote": "These peer groups are provided solely for contextual comparison and do not influence an entity\u2019s GRESB Scores.",
+      "url": "https://www.gresb.com/insights/new-customize-peer-group-functionality/",
+      "publisher": "GRESB",
+      "date": "2026-02-02"
+     }
+    ],
+    "effects": [],
+    "assumption": null,
+    "prediction": "There is no evidence that the levered beta should change, so the model's enterprise value (NPV) and implied EV/EBITDA should remain where they are; a 1% rise in beta would have lowered EV by 5.29, but no change is warranted now.",
+    "next_steps": [
+     "Monitor sector beta releases for the most recent levered beta for Home Furnishings (update DCF!B8 and review DCF!B38 if/when a published number appears)."
+    ]
+   },
+   "impact": [],
+   "role": "market",
+   "search": [
+    "Median levered beta furniture industry 2026",
+    "Levered beta listed furniture peers",
+    "S&P Capital IQ levered beta furniture 2026"
+   ],
+   "events": [
+    "Furniture sector stock volatility news 2026",
+    "Peer group beta re-rating events 2026",
+    "Industry-specific beta changes 2026"
+   ],
+   "graph_summary": {
+    "paths": [
+     "Levered beta \u2192 Cost of equity \u2192 WACC \u2192 Terminal value at end of FY2030E (Gordon growth) \u2192 PV of terminal value \u2192 Enterprise value (NPV)",
+     "Levered beta \u2192 Cost of equity \u2192 WACC \u2192 Terminal value at end of FY2030E (Gordon growth) \u2192 PV of terminal value \u2192 Enterprise value (NPV) \u2192 Implied EV / FY2026E EBITDA"
+    ],
+    "combined_with": [
+     "Risk-free rate (10-year US Treasury)",
+     "Equity risk premium",
+     "Size premium"
+    ]
+   },
+   "sensitivity": {
+    "bump": {
+     "from": 1.15,
+     "to": 1.1615,
+     "kind": "relative",
+     "size": 0.01
+    },
+    "effects": [
+     {
+      "output": "DCF!B38",
+      "label": "Enterprise value (NPV)",
+      "baseline": 905.477,
+      "delta": -5.29165,
+      "pct": -0.584405,
+      "direction": "falls",
+      "path": [
+       {
+        "cell": "DCF!B10",
+        "label": "Cost of equity",
+        "col_header": "2026-08-01",
+        "formula": "=B6+B8*B7+B9",
+        "baseline": 0.115,
+        "delta": 0.000575,
+        "pct": 0.5,
+        "direction": "rises"
+       },
+       {
+        "cell": "DCF!B15",
+        "label": "WACC",
+        "col_header": "2026-08-01",
+        "formula": "=B10*(1-B14)+B13*B14",
+        "baseline": 0.0989097,
+        "delta": 0.00043125,
+        "pct": 0.436004,
+        "direction": "rises"
+       },
+       {
+        "cell": "DCF!B36",
+        "label": "Terminal value at end of FY2030E (Gordon growth)",
+        "col_header": "2026-08-01",
+        "formula": "=G27*(1+B16)/(B15-B16)",
+        "baseline": 1019.06,
+        "delta": -5.91155,
+        "pct": -0.580097,
+        "direction": "falls"
+       },
+       {
+        "cell": "DCF!B37",
+        "label": "PV of terminal value",
+        "col_header": "2026-08-01",
+        "formula": "=B36*G31",
+        "baseline": 671.711,
+        "delta": -5.05349,
+        "pct": -0.752332,
+        "direction": "falls"
+       },
+       {
+        "cell": "DCF!B38",
+        "label": "Enterprise value (NPV)",
+        "col_header": "2026-08-01",
+        "formula": "=B35+B37",
+        "baseline": 905.477,
+        "delta": -5.29165,
+        "pct": -0.584405,
+        "direction": "falls"
+       }
+      ]
+     },
+     {
+      "output": "DCF!B42",
+      "label": "Implied EV / FY2026E EBITDA",
+      "baseline": 8.54409,
+      "delta": -0.049932,
+      "pct": -0.584405,
+      "direction": "falls",
+      "path": [
+       {
+        "cell": "DCF!B10",
+        "label": "Cost of equity",
+        "col_header": "2026-08-01",
+        "formula": "=B6+B8*B7+B9",
+        "baseline": 0.115,
+        "delta": 0.000575,
+        "pct": 0.5,
+        "direction": "rises"
+       },
+       {
+        "cell": "DCF!B15",
+        "label": "WACC",
+        "col_header": "2026-08-01",
+        "formula": "=B10*(1-B14)+B13*B14",
+        "baseline": 0.0989097,
+        "delta": 0.00043125,
+        "pct": 0.436004,
+        "direction": "rises"
+       },
+       {
+        "cell": "DCF!B36",
+        "label": "Terminal value at end of FY2030E (Gordon growth)",
+        "col_header": "2026-08-01",
+        "formula": "=G27*(1+B16)/(B15-B16)",
+        "baseline": 1019.06,
+        "delta": -5.91155,
+        "pct": -0.580097,
+        "direction": "falls"
+       },
+       {
+        "cell": "DCF!B37",
+        "label": "PV of terminal value",
+        "col_header": "2026-08-01",
+        "formula": "=B36*G31",
+        "baseline": 671.711,
+        "delta": -5.05349,
+        "pct": -0.752332,
+        "direction": "falls"
+       },
+       {
+        "cell": "DCF!B38",
+        "label": "Enterprise value (NPV)",
+        "col_header": "2026-08-01",
+        "formula": "=B35+B37",
+        "baseline": 905.477,
+        "delta": -5.29165,
+        "pct": -0.584405,
+        "direction": "falls"
+       },
+       {
+        "cell": "DCF!B42",
+        "label": "Implied EV / FY2026E EBITDA",
+        "col_header": "2026-08-01",
+        "formula": "=B38/'P&L'!C27",
+        "baseline": 8.54409,
+        "delta": -0.049932,
+        "pct": -0.584405,
+        "direction": "falls"
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "cell": "DCF!B9",
+   "value": 0.01,
+   "embedded": false,
+   "formula": null,
+   "label": "Size premium (% per year)",
+   "driver": null,
+   "label_source": "llm",
+   "confirmed": false,
+   "feeds": 19,
+   "outputs": [
+    "DCF!B38",
+    "DCF!B42"
+   ],
+   "check": null,
+   "impact": [],
+   "role": "lever",
+   "search": [
+    "Equity size premium 2026",
+    "Recommended size premium for small caps 2026"
+   ],
+   "events": [],
+   "graph_summary": {
+    "paths": [
+     "Size premium \u2192 Cost of equity \u2192 WACC \u2192 Terminal value at end of FY2030E (Gordon growth) \u2192 PV of terminal value \u2192 Enterprise value (NPV)",
+     "Size premium \u2192 Cost of equity \u2192 WACC \u2192 Terminal value at end of FY2030E (Gordon growth) \u2192 PV of terminal value \u2192 Enterprise value (NPV) \u2192 Implied EV / FY2026E EBITDA"
+    ],
+    "combined_with": [
+     "Risk-free rate (10-year US Treasury)",
+     "Equity risk premium",
+     "Levered beta"
+    ]
+   }
+  },
+  {
+   "cell": "DCF!B14",
+   "value": 0.25,
+   "embedded": false,
+   "formula": null,
+   "label": "Target debt-to-total capital ratio (%)",
+   "driver": null,
+   "label_source": "llm",
+   "confirmed": false,
+   "feeds": 18,
+   "outputs": [
+    "DCF!B38",
+    "DCF!B42"
+   ],
+   "check": null,
+   "impact": [],
+   "role": "internal",
+   "search": [],
+   "events": [],
+   "graph_summary": {
+    "paths": [
+     "Target debt / total capital \u2192 WACC \u2192 Terminal value at end of FY2030E (Gordon growth) \u2192 PV of terminal value \u2192 Enterprise value (NPV)",
+     "Target debt / total capital \u2192 WACC \u2192 Terminal value at end of FY2030E (Gordon growth) \u2192 PV of terminal value \u2192 Enterprise value (NPV) \u2192 Implied EV / FY2026E EBITDA"
+    ],
+    "combined_with": [
+     "Cost of equity",
+     "After-tax cost of debt"
+    ]
+   }
+  },
+  {
+   "cell": "DCF!B16",
+   "value": 0.025,
+   "embedded": false,
+   "formula": null,
+   "label": "Terminal growth rate (% per year)",
+   "driver": null,
+   "label_source": "llm",
+   "confirmed": false,
+   "feeds": 6,
+   "outputs": [
+    "DCF!B38",
+    "DCF!B42"
+   ],
+   "check": null,
+   "impact": [],
+   "role": "lever",
+   "search": [
+    "Long-term GDP growth forecast US",
+    "Nominal terminal growth rate assumption 2026"
+   ],
+   "events": [],
+   "graph_summary": {
+    "paths": [
+     "Terminal growth rate \u2192 Terminal value at end of FY2030E (Gordon growth) \u2192 PV of terminal value \u2192 Enterprise value (NPV)",
+     "Terminal growth rate \u2192 Terminal value at end of FY2030E (Gordon growth) \u2192 PV of terminal value \u2192 Enterprise value (NPV) \u2192 Implied EV / FY2026E EBITDA"
+    ],
+    "combined_with": [
+     "WACC",
+     "Unlevered free cash flow"
+    ]
+   }
+  },
+  {
+   "cell": "DCF!C28:G28",
+   "value": 365.0,
+   "embedded": true,
+   "formula": "=MIN(1,(C19-$B$5)/365)",
+   "label": "Unit constant (365)",
+   "driver": null,
+   "label_source": "header",
+   "confirmed": false,
+   "feeds": 20,
+   "outputs": [
+    "DCF!B38",
+    "DCF!B42"
+   ],
+   "check": null,
+   "impact": [],
+   "literal_index": 1,
+   "cells": [
+    "DCF!C28",
+    "DCF!D28",
+    "DCF!E28",
+    "DCF!F28",
+    "DCF!G28"
+   ],
+   "role": "unit",
+   "search": [],
+   "events": [],
+   "graph_summary": {
+    "paths": [
+     "Share of year after valuation date \u2192 Free cash flow to discount \u2192 Present value of free cash flow \u2192 Sum of PV of free cash flow, FY2026E-FY2030E \u2192 Enterprise value (NPV)",
+     "Share of year after valuation date \u2192 Free cash flow to discount \u2192 Present value of free cash flow \u2192 Sum of PV of free cash flow, FY2026E-FY2030E \u2192 Enterprise value (NPV) \u2192 Implied EV / FY2026E EBITDA"
+    ],
+    "combined_with": [
+     "Valuation date",
+     "Fiscal year end"
+    ]
+   }
+  },
+  {
+   "cell": "DCF!C30:G30",
+   "value": 365.0,
+   "embedded": true,
+   "formula": "=(C19-$B$5)/365",
+   "label": "Unit constant (365)",
+   "driver": null,
+   "label_source": "header",
+   "confirmed": false,
+   "feeds": 21,
+   "outputs": [
+    "DCF!B38",
+    "DCF!B42"
+   ],
+   "check": null,
+   "impact": [],
+   "literal_index": 0,
+   "cells": [
+    "DCF!C30",
+    "DCF!D30",
+    "DCF!E30",
+    "DCF!F30",
+    "DCF!G30"
+   ],
+   "role": "unit",
+   "search": [],
+   "events": [],
+   "graph_summary": {
+    "paths": [
+     "Discount period (years) \u2192 Discount factor \u2192 PV of terminal value \u2192 Enterprise value (NPV)",
+     "Discount period (years) \u2192 Discount factor \u2192 PV of terminal value \u2192 Enterprise value (NPV) \u2192 Implied EV / FY2026E EBITDA"
+    ],
+    "combined_with": [
+     "Valuation date",
+     "Fiscal year end"
+    ]
+   }
+  }
+ ],
+ "combined": [
+  {
+   "output": "P&L!C23",
+   "delta": -0.03994363395225459
+  },
+  {
+   "output": "P&L!C27",
+   "delta": -33.73159999999996
+  },
+  {
+   "output": "P&L!C28",
+   "delta": -0.03994363395225459
+  },
+  {
+   "output": "P&L!C39",
+   "delta": -27.133221499999966
+  },
+  {
+   "output": "DCF!B38",
+   "delta": -390.0205141748528
+  },
+  {
+   "output": "DCF!B42",
+   "delta": -1.4092913711044588
+  }
+ ]
+}

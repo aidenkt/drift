@@ -6,6 +6,7 @@ is combined with, and its routes through the dependency graph to the outputs. Ch
 
 import json
 import re
+import threading
 
 from openpyxl.utils import column_index_from_string, get_column_letter
 from openpyxl.utils.cell import coordinate_from_string
@@ -20,10 +21,11 @@ UNIT_LITERALS = {7, 12, 24, 52, 60, 100, 365, 366, 1_000, 1_000_000, 1_000_000_0
 
 SYSTEM = """You label hardcoded numbers in financial models. You are given one number and the text around it.
 Decide what real-world quantity it stands for and its role:
-- market: set by the outside world and can go out of date (prices, rates, market values, industry cost ratios, fees set by third parties).
-- lever: a management decision that has a market reference but is the company's choice (its own prices).
-- internal: company plan, policy, headcount, fleet size, historical fact, internal cost or budget.
+- market: set by the outside world and can go out of date (prices, rates, market values, industry cost ratios, fees set by third parties). The published benchmark itself is market: SOFR, a Treasury yield, an exchange rate, a commodity price, a freight index, a statutory tariff or tax rate.
+- lever: a management decision that has a market reference but is the company's choice: its own prices, and valuation house views (beta, equity risk premium, size premium, terminal growth, target capital structure).
+- internal: company plan, policy, headcount, fleet size, historical fact, internal cost or budget, and the terms of its own contracts: a loan margin or spread over a benchmark ("SOFR + 2.75%": the 2.75% is internal, SOFR is market), amortisation, covenants, contracted volumes.
 - unit: a unit conversion or scaling factor (days per year, months per year, thousands, millions).
+Ask who sets the number: the outside world (market), the company's judgement (lever), or its plan or contract (internal).
 label: a short, specific noun phrase naming the quantity and its unit basis, e.g. "Residual value of an EV at disposal (% of cost)".
 search: for market and lever only, 2 or 3 web search queries that would find published figures for this quantity; otherwise an empty list.
 events: for market only, 2 or 3 web search queries for recent events that would move this quantity (policy decisions, tariffs, supply shocks, price cuts, central bank moves); otherwise an empty list.
@@ -43,7 +45,11 @@ SCHEMA = {
     "additionalProperties": False,
 }
 
+# A margin over a benchmark is a term of the company's own loan, whatever the LLM says; the benchmark is its own cell.
+CONTRACT_TERM = re.compile(r"\bmargin (over|above)\b", re.I)
+
 _cache: dict[str, dict] = {}
+_lock = threading.Lock()  # for _cache: apply can run in several threads
 
 
 def apply(constant: dict, wb, graph=None) -> None:
@@ -51,6 +57,8 @@ def apply(constant: dict, wb, graph=None) -> None:
     graph = graph if graph is not None else _graph(wb)
     clues = describe(constant, wb, graph)
     result = _rule(constant) or _ask(clues) or _fallback(clues)
+    if result["role"] == "market" and CONTRACT_TERM.search(result["label"]):
+        result["role"] = "internal"
     constant["label"] = result["label"]
     constant["role"] = result["role"]
     constant["search"] = result.get("search", []) if result["role"] in ("market", "lever") else []
@@ -101,7 +109,8 @@ def apply_all(constants: list[dict], wb, graph=None) -> None:
         for item in answer.get("items", []):
             i = item.pop("index", None)
             if isinstance(i, int) and 0 <= i < len(chunk):
-                _cache[chunk[i][0]] = item
+                with _lock:
+                    _cache[chunk[i][0]] = item
     for c in constants:
         apply(c, wb, graph)  # cached answers, or a single call / fallback for anything the batch missed
 
@@ -157,13 +166,17 @@ def _compact(clues: dict) -> dict:
 
 def _ask(clues: dict) -> dict | None:
     key = _key(clues)
-    if key not in _cache:
+    with _lock:
+        answer = _cache.get(key)
+    if answer is None:
         user = "Number to label:\n" + json.dumps(_compact(clues), indent=2, default=str)
         try:
-            _cache[key] = chat_json(SYSTEM, user, SCHEMA, "label")
+            answer = chat_json(SYSTEM, user, SCHEMA, "label")  # not under the lock: it is a network call
         except LLMUnavailable:
             return None
-    answer = dict(_cache[key])
+        with _lock:
+            _cache[key] = answer
+    answer = dict(answer)
     if answer.get("role") not in ROLES or not answer.get("label", "").strip():
         return None
     answer["source"] = "llm"

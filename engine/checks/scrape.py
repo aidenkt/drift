@@ -9,6 +9,7 @@ from concurrent.futures import ThreadPoolExecutor
 import json
 import os
 import re
+import threading
 from datetime import date, datetime, timedelta
 from html.parser import HTMLParser
 from pathlib import Path
@@ -16,37 +17,53 @@ from urllib.parse import quote_plus, urlparse
 
 import httpx
 
-from checks.drivers import fred_series_for
+from checks.drivers import fred_series_for, series_scale
 
 BRIGHTDATA_URL = "https://api.brightdata.com/request"
 FRED_URL = "https://api.stlouisfed.org/fred/series/observations"
 CACHE = Path(__file__).parents[1] / ".cache"
-MAX_PER_QUERY = 3
+MAX_PER_QUERY = 3  # hits fetched per query; about half the fetches fail, so the cap comes after fetching
+MAX_PAGES = 8  # web pages per constant given to the LLM: pages that were read before bare search snippets
+FRED_EVENT_QUERIES = 2  # all the web searching done for a constant whose value FRED already gives
+SERP_TIMEOUT = 20  # seconds; an empty answer is tried once more
+PAGE_TIMEOUT = 20  # seconds, tried once: a page this slow is replaced by its search snippet
 WORKERS = 8  # Bright Data requests in flight at once
 EXCERPT_CHARS = 4000
 
+_failed: set[str] = set()  # cache files whose fetch failed in this process: not tried again until restart
+_lock = threading.Lock()  # gather runs in several threads at once
 
-def gather(label: str, search: list[str], built_on: str, as_of: str, events: list[str] = ()) -> list[dict]:
-    """Pages for the LLM: [{id, kind, url, publisher, date, title, text}]. kind is "data" (FRED),
-    "figure" (published values of the quantity) or "event" (news that could move it). Never raises."""
+
+def gather(label: str, search: list[str], built_on: str, as_of: str, events: list[str] = (),
+           value: float | None = None) -> list[dict]:
+    """Pages for the LLM: [{id, kind, url, publisher, date, title, text}]. kind is "data" (FRED, with its
+    observations under "fred"), "figure" (published values of the quantity) or "event" (news that could
+    move it). Never raises. Safe to call from several threads."""
     pages: list[dict] = []
-    fred = _fred_page(" ".join([label, *search]), built_on, as_of)
+    fred = _fred_page(label, built_on, as_of) or _fred_page(" ".join([label, *search]), built_on, as_of)
     if fred:
         pages.append({**fred, "kind": "data"})
     queries = [("figure", q) for q in search[:3]] + [("event", q) for q in list(events)[:3]]
+    if fred and value is not None and series_scale(label, value, fred["fred"]) is not None:
+        # verify takes the value from FRED itself, so only the events are worth searching for
+        queries = [("event", q) for q in list(events)[:FRED_EVENT_QUERIES]]
     with ThreadPoolExecutor(WORKERS) as pool:
         results = list(pool.map(lambda kq: _search(kq[1], built_on, as_of), queries))
         hits, seen = [], set()
-        for (kind, query), found in zip(queries, results):
-            for hit in [h for h in found if h["url"] not in seen][:MAX_PER_QUERY]:
+        for i, found in enumerate(results):
+            for rank, hit in enumerate([h for h in found if h["url"] not in seen][:MAX_PER_QUERY]):
                 seen.add(hit["url"])
-                hits.append((kind, query, hit))
+                hits.append((rank, i, hit))
         texts = list(pool.map(lambda h: _fetch_text(h[2]["url"]), hits))
-    for (kind, query, hit), html_text in zip(hits, texts):
+    found = []  # (only a snippet, rank in its query, query, page)
+    for (rank, i, hit), html_text in zip(hits, texts):
+        kind, query = queries[i]
         snippet = hit.pop("snippet", "")
-        text = _excerpt(html_text, label, query) or snippet
-        if text:
-            pages.append({**hit, "kind": kind, "text": text})
+        excerpt = _excerpt(html_text, label, query)
+        if excerpt or snippet:
+            found.append((not excerpt, rank, i, {**hit, "kind": kind, "text": excerpt or snippet}))
+    keep = sorted(found, key=lambda f: f[:3])[:MAX_PAGES]
+    pages += [f[3] for f in sorted(keep, key=lambda f: (f[2], f[1]))]
     for i, page in enumerate(pages, 1):
         page["id"] = i
     return pages
@@ -89,14 +106,15 @@ def _fetch_text(url: str) -> str:
     zone = os.environ.get("BRIGHTDATA_UNLOCKER_ZONE")
     if not zone:
         return ""
-    return html_to_text(_brightdata(zone, url))
+    return html_to_text(_brightdata(zone, url, timeout=PAGE_TIMEOUT, attempts=1))
 
 
 class BrightDataError(httpx.HTTPError):
     pass
 
 
-def _brightdata(zone: str, url: str, data_format: str | None = None) -> str:
+def _brightdata(zone: str, url: str, data_format: str | None = None,
+                timeout: float = SERP_TIMEOUT, attempts: int = 2) -> str:
     key = os.environ.get("BRIGHTDATA_API_KEY")
     if not key:
         return ""
@@ -106,8 +124,8 @@ def _brightdata(zone: str, url: str, data_format: str | None = None) -> str:
 
     def fetch():
         # Bright Data reports most failures as HTTP 200 with an empty body and an x-brd-error header.
-        for attempt in range(2):
-            r = httpx.post(BRIGHTDATA_URL, json=body, headers={"Authorization": f"Bearer {key}"}, timeout=90)
+        for attempt in range(attempts):
+            r = httpx.post(BRIGHTDATA_URL, json=body, headers={"Authorization": f"Bearer {key}"}, timeout=timeout)
             r.raise_for_status()
             if r.text and not r.headers.get("x-brd-error"):
                 return r.text
@@ -161,6 +179,9 @@ def _fred_page(topic: str, built_on: str, as_of: str) -> dict | None:
         "date": now[0],
         "title": f"FRED {series_id}",
         "text": text,
+        # the same observations as numbers, for verify.fred_live
+        "fred": {"series": series_id, "unit": unit, "then": then[1], "then_date": then[0],
+                 "now": now[1], "now_date": now[0]},
     }
 
 
@@ -236,16 +257,25 @@ def _excerpt(text: str, label: str, query: str) -> str:
 
 
 def _cached(key: tuple, fetch) -> str:
-    """Disk cache so reruns and the demo don't hit the network. Failures are not cached."""
+    """Disk cache so reruns and the demo don't hit the network. Failures are not cached on disk, but timeouts
+    and blocks are remembered while the process lives, so a dead URL costs one timeout, not one per constant."""
     path = CACHE / (hashlib.sha256(json.dumps(key).encode()).hexdigest()[:24] + ".txt")
     if path.exists():
         return path.read_text()
+    with _lock:
+        if str(path) in _failed:
+            return ""
     try:
         body = fetch()
-    except httpx.HTTPError:
+    except httpx.HTTPError as e:
+        if not isinstance(e, httpx.HTTPStatusError):  # a 429 or 503 may pass; a timeout or a block rarely does
+            with _lock:
+                _failed.add(str(path))
         return ""
     CACHE.mkdir(exist_ok=True)
-    path.write_text(body)
+    part = path.with_suffix(f".{threading.get_ident()}.part")
+    part.write_text(body)
+    os.replace(part, path)  # all at once, so another thread never reads half a page
     return body
 
 

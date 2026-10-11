@@ -66,3 +66,37 @@ def test_as_of_defaults_to_env(monkeypatch):
     monkeypatch.setattr(scrape, "gather", lambda *a: [])
     monkeypatch.setenv("DRIFT_AS_OF", "2023-12-04")
     assert news.check(EV, "2022-12-15")["as_of"] == "2023-12-04"
+
+
+def test_scrape_is_told_the_value(monkeypatch):
+    calls = []
+    monkeypatch.setattr(scrape, "gather", lambda *a: calls.append(a) or [])
+    news.check(EV, "2022-12-15", "2023-12-04")
+    assert calls[0][-1] == 0.72  # scrape.gather skips the figure searches when FRED already gives this value
+
+
+def test_threads_sharing_a_driver_scrape_once_and_others_do_not_wait(monkeypatch):
+    import threading
+    import time
+    from concurrent.futures import ThreadPoolExecutor
+
+    active, peak, calls = [0], [0], []
+    lock = threading.Lock()
+
+    def slow_gather(label, *a):
+        with lock:
+            calls.append(label)
+            active[0] += 1
+            peak[0] = max(peak[0], active[0])
+        time.sleep(0.05)
+        with lock:
+            active[0] -= 1
+        return []
+
+    monkeypatch.setattr(scrape, "gather", slow_gather)
+    constants = [{**EV, "cell": f"S!A{i}", "driver": f"driver_{i % 4}", "label": f"label {i % 4}"} for i in range(12)]
+    with ThreadPoolExecutor(12) as pool:
+        checks = list(pool.map(lambda c: news.check(c, "2022-12-15", "2023-12-04"), constants))
+    assert sorted(calls) == ["label 0", "label 1", "label 2", "label 3"]  # once per driver
+    assert peak[0] > 1  # different drivers are scraped at the same time
+    assert all(c["status"] == "unknown" for c in checks)

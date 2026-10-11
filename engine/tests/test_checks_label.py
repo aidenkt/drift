@@ -125,3 +125,26 @@ def test_apply_all_labels_in_one_call(monkeypatch):
     assert calls == ["labels"]  # one batch call; 365 handled by the rule
     assert [c["label_source"] for c in consts] == ["llm", "llm", "llm", "header"]
     assert consts[3]["role"] == "unit"
+
+
+def test_margin_over_a_benchmark_is_a_contract_term(monkeypatch):
+    # the real run: the LLM called the loan margin "market" and it was then checked against SOFR pages
+    llm_returns(monkeypatch, {"label": "Term loan margin over SOFR (%)", "role": "market", "unit": "%",
+                              "search": ["Term loan margin over SOFR 2026"], "events": ["leveraged loan spreads 2026"]})
+    c = constant("Inputs!B17", 0.0275)
+    label.apply(c, Workbook(), Graph())
+    assert c["role"] == "internal"
+    assert c["driver"] is None and c["search"] == [] and c["events"] == []
+
+
+def test_the_benchmark_itself_stays_market(monkeypatch):
+    llm_returns(monkeypatch, {"label": "SOFR reference rate (% per year)", "role": "market", "unit": "%",
+                              "search": ["SOFR rate 2026"], "events": ["Fed decision 2026"]})
+    c = constant("Inputs!B17", 0.0366)
+    label.apply(c, Workbook(), Graph())
+    assert c["role"] == "market" and c["driver"] == "sofr_reference_rate_per_year"
+
+
+def test_prompt_names_what_is_not_market():
+    for words in ("loan margin", "beta", "equity risk premium", "terminal growth", "SOFR", "tariff"):
+        assert words in label.SYSTEM
