@@ -66,7 +66,7 @@ def api(tmp_path, monkeypatch):
     monkeypatch.setattr(label, "apply_all", _apply_all)
     monkeypatch.setattr(news, "check", check)
     monkeypatch.setattr(engine, "UPLOADS", tmp_path / "uploads")
-    monkeypatch.setattr(engine, "REPORTS", {"case-study": engine.REPORTS["case-study"]})
+    monkeypatch.setattr(engine, "REPORTS", {})
     client = TestClient(engine.app)
 
     def upload(data=None, name="model.xlsx", **params):
@@ -143,7 +143,7 @@ def test_a_file_that_is_not_a_workbook_is_refused(api, data):
     response = api.client.post("/models", files={"file": ("notes.xlsx", data)})
     assert response.status_code == 400
     assert "workbook" in response.json()["detail"]
-    assert list(engine.REPORTS) == ["case-study"]
+    assert engine.REPORTS == {}
     assert list(engine.UPLOADS.iterdir()) == []
 
 
@@ -160,10 +160,6 @@ def test_the_uploaded_file_can_be_downloaded(api):
     (engine.UPLOADS / f"{model_id}.xlsx").unlink()
     assert api.client.get(f"/models/{model_id}/file").status_code == 404
 
-    response = api.client.get("/models/case-study/file")
-    assert response.content == engine.CASE_STUDY.read_bytes()
-    assert "case_study_aug2026.xlsx" in response.headers["content-disposition"]
-
 
 def test_unknown_model_is_404(api):
     assert api.client.get("/models/nope").status_code == 404
@@ -173,7 +169,6 @@ def test_model_list_has_status(api):
     api.gate.clear()
     model_id = api.upload()
     summaries = {m["model_id"]: m for m in api.client.get("/models").json()}
-    assert summaries["case-study"]["status"] == "done"
     assert summaries[model_id]["status"] == "checking"
     assert summaries[model_id]["constants"] == 4
 
@@ -181,7 +176,6 @@ def test_model_list_has_status(api):
     api.wait(model_id)
     summaries = {m["model_id"]: m for m in api.client.get("/models").json()}
     assert (summaries[model_id]["status"], summaries[model_id]["stale"]) == ("done", 2)
-    assert "status" not in engine.REPORTS["case-study"]
 
 
 def test_an_edit_recalculates_impact_and_combined(api):

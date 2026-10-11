@@ -1,5 +1,4 @@
 import copy
-import json
 import logging
 import threading
 import uuid
@@ -21,8 +20,6 @@ log = logging.getLogger(__name__)
 
 ROOT = Path(__file__).parent
 UPLOADS = ROOT / "uploads"
-FIXTURE = ROOT.parent / "schema" / "fixtures" / "case_study.json"
-CASE_STUDY = ROOT.parent / "data" / "case_study_aug2026.xlsx"
 XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
 app = FastAPI(title="Since engine")
@@ -31,7 +28,7 @@ app.add_middleware(
 )
 
 # model_id -> report (in memory for the hackathon)
-REPORTS: dict[str, dict] = {"case-study": json.loads(FIXTURE.read_text())}
+REPORTS: dict[str, dict] = {}
 # held for every read and write of REPORTS and of a report: a background thread fills each one in after upload
 LOCK = threading.Lock()
 
@@ -146,4 +143,4 @@ def edit_constant(model_id: str, edit: LabelEdit):
 
 
 def _workbook(model_id: str) -> Path:
-    return CASE_STUDY if model_id == "case-study" else UPLOADS / f"{model_id}.xlsx"
+    return UPLOADS / f"{model_id}.xlsx"
