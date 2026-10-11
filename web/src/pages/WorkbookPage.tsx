@@ -12,7 +12,7 @@ import { apply as applyCells, diff, snapshot, type CellsOp } from "../lib/live";
 import { downloadXlsx, normalizeRef, rawRef, syncSheets, writeRef, xlsxBytes, xlsxName, type Book, type CellUpdate } from "../lib/workbook";
 import { value } from "../lib/format";
 import { assess } from "../lib/resolve";
-import { eventsFromReport } from "../lib/reportTimeline";
+import { eventsFromReport, reading } from "../lib/reportTimeline";
 import type { Constant, Report } from "../types";
 
 export type OpenModel = {
@@ -44,6 +44,8 @@ type Props = {
   /** Signed in, upload to Base44 as soon as it opens (imports, new sheets) rather than on the
    *  first edit (checked models everyone sees, so looking at one doesn't make a copy). */
   uploadOnOpen?: boolean;
+  /** An edit is on its way to the engine to be checked. */
+  rechecking?: boolean;
 };
 
 const PANEL = { timeline: 320 };
@@ -57,7 +59,7 @@ const stored = (key: keyof typeof PANEL) => {
 };
 const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n));
 
-export default function WorkbookPage({ model, onImport, onBack, onRename, onNew, onCopy, onTrash, onCell, onEdited, onShared, uploadOnOpen }: Props) {
+export default function WorkbookPage({ model, onImport, onBack, onRename, onNew, onCopy, onTrash, onCell, onEdited, onShared, uploadOnOpen, rechecking }: Props) {
   // browser tab: "Since · case_study_aug2026", back to "Since" on the home page
   useEffect(() => {
     document.title = `Since · ${model.filename.replace(/\.(xlsx|xlsm|xls)$/i, "")}`;
@@ -69,6 +71,12 @@ export default function WorkbookPage({ model, onImport, onBack, onRename, onNew,
   // every change shown is read from the report, as the engine wrote it
   const checked = useMemo(() => (model.report ? eventsFromReport(model.report) : []), [model.report]);
   const [edits, setEdits] = useState<TimelineEvent[]>([]);
+  // cells edited here that are on their way to the engine: they spin until it answers, then its stages take over
+  const engineChecked = !!model.report && model.report.model_id !== "case-study";
+  const [sent, setSent] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    if (!rechecking) setSent(new Set());
+  }, [rechecking]);
   const [rev, setRev] = useState(0);
 
   /* ---------- stale assumptions: still stale, updated, kept on purpose, or gone ---------- */
@@ -87,9 +95,15 @@ export default function WorkbookPage({ model, onImport, onBack, onRename, onNew,
       if (o.status === "gone") return { ...e, status: "gone", resolution: { note: o.note, ...who } };
       return o.note ? { ...e, resolution: { note: o.note, ...who } } : e;
     });
-    return [...edits, ...checks];
+    // an edit spins while the engine labels or checks the numbers it touched
+    const busy = new Set([
+      ...sent,
+      ...(model.report?.constants ?? []).filter((c) => c.stage === "labeling" || c.stage === "checking").flatMap((c) => (c.cells ?? [c.cell]).map(normalizeRef)),
+    ]);
+    const mark = (e: TimelineEvent) => (e.status !== "checking" && e.cells.some((c) => busy.has(normalizeRef(c))) ? { ...e, busy: true } : e);
+    return [...edits.map(mark), ...checks.map(mark)];
     // rev: re-read the cells after edits, updates and undo
-  }, [edits, checked, kept, touched, rev, model.book]);
+  }, [edits, checked, kept, touched, rev, model.book, model.report, sent]);
 
   // a resolved assumption's cell stops being flagged in the grid and the stale count
   const constants = useMemo(() => {
@@ -446,6 +460,7 @@ export default function WorkbookPage({ model, onImport, onBack, onRename, onNew,
       onEdited?.();
       return;
     }
+    if (engineChecked) setSent((prev) => new Set([...prev, ...changes.map((c) => normalizeRef(c.ref))]));
     const { ref, before, after } = changes[0];
     const many = changes.length > 1;
 
@@ -518,6 +533,11 @@ export default function WorkbookPage({ model, onImport, onBack, onRename, onNew,
         builtOn={model.builtOn}
         stale={model.report ? stale : null}
         total={model.report?.constants.length ?? 0}
+        checking={
+          model.report?.status === "checking" && model.report.constants.some((c) => c.stage === "labeling" || c.stage === "checking")
+            ? (model.report.progress ?? { checked: 0, total: 0 })
+            : null
+        }
         showChanges={showChanges}
         onToggleChanges={toggleChanges}
         onUndo={() => history(false)}
@@ -592,7 +612,7 @@ export default function WorkbookPage({ model, onImport, onBack, onRename, onNew,
             onPointerDown={startResize}
             onDoubleClick={resetWidth}
           />
-          <Timeline events={events} selectedId={openId ?? cellEventId} onSelect={select} viewers={viewers} />
+          <Timeline events={events} selectedId={openId ?? cellEventId} onSelect={select} viewers={viewers} reading={reading(model.report)} />
           <div className="sidebar-detail" inert={!openEvent}>
             {shownLive && (
               <EventDetail

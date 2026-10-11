@@ -69,9 +69,41 @@ function signalsOf(c: Constant, k: Check): Signal[] {
   return said.filter((s, i) => s.look_for && said.findIndex((x) => x.look_for === s.look_for) === i);
 }
 
+// More numbers than this still being read (a fresh upload) show as placeholder rows, not one row each.
+const FEW = 5;
+
+const pending = (c: Constant) => c.stage === "labeling" || c.stage === "checking";
+
+/** How many numbers the engine is still reading, when there are too many to list one by one. */
+export function reading(report: Report | null | undefined): number {
+  const n = (report?.constants ?? []).filter((c) => c.stage === "labeling").length;
+  return n > FEW ? n : 0;
+}
+
+/** A number the engine is still labeling or checking: its name so far and the value in the model. */
+function checkingEvent(report: Report, c: Constant): TimelineEvent {
+  const label = c.label || c.cell;
+  return {
+    id: c.literal_index != null ? `${c.cell}#${c.literal_index}` : c.cell,
+    date: report.checked_on,
+    title: label.replace(/\s*\([^()]*\)$/, ""),
+    kind: "news",
+    status: "checking",
+    cells: c.cells?.length ? c.cells : [c.cell.split(":")[0]],
+    driver: c.driver ?? null,
+    state: { label, unit: unitOf(c, null), model: c.value, live: null, change: null, as_of: "", history: [] },
+    signals: [],
+    sources: [],
+    impact: [],
+  };
+}
+
 export function eventsFromReport(report: Report): TimelineEvent[] {
   const labels = new Map((report.outputs ?? []).map((o) => [o.cell, o.label]));
+  const listed = reading(report) === 0;
   const events = (report.constants ?? []).flatMap((c): TimelineEvent[] => {
+    // still being read or checked: shown now under its temporary name, filled in when its check lands
+    if (pending(c)) return c.stage === "checking" || listed ? [checkingEvent(report, c)] : [];
     const k = c.check;
     if (!k) return [];
     const live = k.live ?? null;
@@ -113,7 +145,8 @@ export function eventsFromReport(report: Report): TimelineEvent[] {
       },
     ];
   });
-  // stale first, then whatever moves an output the most
+  // stale first, then what's still being checked, then whatever moves an output the most
   const size = (e: TimelineEvent) => Math.max(0, ...e.impact.map((i) => Math.abs(i.delta)));
-  return events.sort((a, b) => Number(b.status === "stale") - Number(a.status === "stale") || size(b) - size(a));
+  const rank = (e: TimelineEvent) => (e.status === "stale" ? 2 : e.status === "checking" ? 1 : 0);
+  return events.sort((a, b) => rank(b) - rank(a) || size(b) - size(a));
 }

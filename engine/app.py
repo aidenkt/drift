@@ -92,6 +92,34 @@ def upload_model(file: UploadFile, built_on: str | None = None):
     return {"model_id": model_id}
 
 
+@app.put("/models/{model_id}/file")
+def replace_model(model_id: str, file: UploadFile):
+    """The workbook after an edit in the browser. Unchanged constants keep their labels and checks; new or
+    changed ones are labeled and checked in the background, as after an upload."""
+    if model_id == "case-study":
+        raise HTTPException(409, "the sample model is not checked again")
+    with LOCK:
+        previous = REPORTS.get(model_id)
+    if previous is None:
+        raise HTTPException(404)
+    path = _workbook(model_id)
+    data = file.file.read()
+    staged = path.with_suffix(".next.xlsx")
+    staged.write_bytes(data)
+    try:
+        report = pipeline.start(staged, model_id=model_id, filename=previous["filename"], previous=previous)
+    except Exception:
+        log.warning("edited workbook for %s is not readable", model_id, exc_info=True)
+        staged.unlink(missing_ok=True)
+        raise HTTPException(400, "could not read this file as an Excel workbook (.xlsx)")
+    staged.replace(path)
+    pipeline.remember(model_id, path)
+    with LOCK:
+        REPORTS[model_id] = report  # a check still running on the old report finishes into nothing
+    threading.Thread(target=pipeline.finish, args=(report,), kwargs={"lock": LOCK}, daemon=True).start()
+    return {"model_id": model_id, "changed": sum(c.get("stage") != "done" for c in report["constants"])}
+
+
 class LabelEdit(BaseModel):
     cell: str
     literal_index: int | None = None

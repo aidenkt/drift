@@ -10,6 +10,8 @@ type Props = {
   onSelect: (id: string) => void;
   /** change id -> the other people who have it open */
   viewers?: Map<string, { email: string; name: string }[]>;
+  /** numbers the engine is still reading, too many to list: shown as placeholder rows */
+  reading?: number;
 };
 
 const MARK: Record<TimelineEvent["status"], string> = {
@@ -20,6 +22,7 @@ const MARK: Record<TimelineEvent["status"], string> = {
   updated: "Updated",
   kept: "Kept",
   gone: "Removed",
+  checking: "Checking",
 };
 
 /** A stale assumption that's been dealt with: it moves to the Resolved group. */
@@ -68,7 +71,7 @@ function haystack(e: TimelineEvent): string {
     .toLowerCase();
 }
 
-export default function Timeline({ events, selectedId, onSelect, viewers }: Props) {
+export default function Timeline({ events, selectedId, onSelect, viewers, reading = 0 }: Props) {
   const [query, setQuery] = useState("");
   const [staleOnly, setStaleOnly] = useState(false);
   const staleCount = events.filter((e) => e.status === "stale").length;
@@ -88,8 +91,9 @@ export default function Timeline({ events, selectedId, onSelect, viewers }: Prop
       ),
     [events, parsed, staleOnly],
   );
-  // newest on top; current and resolved collapse at the bottom
-  const open = shown.filter((e) => !resolved(e) && !quiet(e)).sort(newestFirst);
+  // what the engine is still working on on top, then newest; current and resolved collapse at the bottom
+  const working = (e: TimelineEvent) => Number(e.status === "checking" || !!e.busy);
+  const open = shown.filter((e) => !resolved(e) && !quiet(e)).sort((a, b) => working(b) - working(a) || newestFirst(a, b));
   const current = shown.filter(quiet);
   const done = shown.filter(resolved);
   const currentOpen = showCurrent || current.some((e) => e.id === selectedId);
@@ -152,7 +156,10 @@ export default function Timeline({ events, selectedId, onSelect, viewers }: Prop
         <span className="tl-row">
           <span className="tl-title">{e.title}</span>
           <Faces people={viewers?.get(e.id) ?? []} />
-          <span className={`tl-badge ${e.status}`}>{MARK[e.status]}</span>
+          <span className={`tl-badge ${e.status}`}>
+            {(e.status === "checking" || e.busy) && <Spinner />}
+            {MARK[e.status]}
+          </span>
         </span>
         <Delta e={e} />
         {e.resolution && (
@@ -221,7 +228,23 @@ export default function Timeline({ events, selectedId, onSelect, viewers }: Prop
         )}
       </div>
 
-      {events.length === 0 ? (
+      {reading ? (
+        <div className="timeline-scroll">
+          {open.length > 0 && <ol className="timeline-list">{open.map(item)}</ol>}
+          <p className="tl-reading">
+            <Spinner /> Reading <span className="mono">{reading}</span> numbers
+          </p>
+          <ol className="timeline-list" aria-hidden>
+            {[0, 1, 2, 3].map((i) => (
+              <li key={i} className="tl-ghost">
+                <span className="skel" style={{ width: `${68 - i * 9}%` }} />
+                <span className="skel short" />
+                <span className="skel tiny" />
+              </li>
+            ))}
+          </ol>
+        </div>
+      ) : events.length === 0 ? (
         <p className="timeline-empty">Edits and checks on this model show up here.</p>
       ) : shown.length === 0 ? (
         <p className="timeline-empty">
@@ -245,6 +268,11 @@ export default function Timeline({ events, selectedId, onSelect, viewers }: Prop
       )}
     </aside>
   );
+}
+
+/** Turning while the engine works on something. */
+export function Spinner() {
+  return <span className="spin" aria-hidden />;
 }
 
 /** When the change happened, plus who made it for edits made here. */
@@ -274,6 +302,13 @@ function Delta({ e }: { e: TimelineEvent }) {
       </span>
     );
   const s = e.state;
+  if (e.status === "checking")
+    return (
+      <span className="tl-row tl-delta mono">
+        <span className="tl-values">{s && <span className="input">{value(s.model, s.unit)}</span>}</span>
+        <span className="skel short" aria-label="Checking" />
+      </span>
+    );
   const unchanged = s ? s.live === s.model : true;
   return (
     <span className="tl-row tl-delta mono">

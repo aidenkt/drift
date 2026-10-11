@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { analyze, getModel, getModelFile, listModels } from "./api";
+import { analyze, getModel, getModelFile, listModels, recheck } from "./api";
 import { deleteShared, fetchSharedFile, listShared, renameShared, type SharedDoc } from "./lib/collab";
 import { cacheKey, isCache, listFiles, removeFile, saveFile, type StoredFile } from "./lib/library";
 import { loadPlacement, place } from "./lib/folders";
@@ -211,6 +211,20 @@ export default function App() {
     const cell = lastCell.current?.key === openKey ? lastCell.current.cell : undefined;
     if ((readRoute()?.id ?? null) !== (openKey && routeId(openKey))) history.pushState(null, "", openKey ? modelPath(openKey, cell, open?.book) : "/");
   }, [openKey, library === null]);
+  // an edit to a checked model goes to the engine a moment after typing stops; until it answers, the
+  // edit shows a spinner, and what the engine finds streams in through follow
+  const [rechecking, setRechecking] = useState<string | null>(null); // entry key
+  const recheckTimer = useRef<number | undefined>(undefined);
+  const scheduleRecheck = (key: string, id: string, book: Entry["book"], filename: string) => {
+    clearTimeout(recheckTimer.current);
+    setRechecking(key);
+    recheckTimer.current = window.setTimeout(async () => {
+      const ok = await recheck(id, new Blob([xlsxBytes(book)]), filename);
+      setRechecking((k) => (k === key ? null : k));
+      if (ok) void follow(key, id);
+    }, 2000);
+  };
+
   const followCell = (key: string, cell: string) => {
     lastCell.current = { key, cell };
     if (readRoute()?.id === routeId(key)) history.replaceState(null, "", modelPath(key, cell, open?.book));
@@ -382,6 +396,7 @@ export default function App() {
           onCell={(cell) => followCell(open.key, cell)}
           onRename={(name) => renameEntry(open.key, name)}
           uploadOnOpen={!open.key.startsWith("model:")}
+          rechecking={rechecking === open.key}
           onShared={(doc) => sharedEntry(open.key, doc)}
           onNew={() => createBlank(loadPlacement()[open.key] ?? null)}
           onCopy={() => copyEntry(open.key, open.book, open.filename)}
@@ -399,6 +414,7 @@ export default function App() {
             const now = new Date().toISOString();
             const entry = library?.find((x) => x.key === open.key);
             persist(open.key, open.book, open.filename, entry?.added ?? null, entry?.blank, open.report?.model_id);
+            if (open.report && open.report.model_id !== "case-study") scheduleRecheck(open.key, open.report.model_id, open.book, open.filename);
             setLibrary((prev) => prev?.map((x) => (x.key === open.key ? { ...x, edited: now } : x)) ?? null);
           }}
         />

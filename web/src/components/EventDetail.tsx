@@ -4,6 +4,7 @@ import { deltaMoney, money, value } from "../lib/format";
 import { liveUpdates, whatIf, type Book, type CellUpdate } from "../lib/workbook";
 import { Close } from "./icons";
 import { Faces } from "./Presence";
+import { Spinner } from "./Timeline";
 
 type Props = {
   event: TimelineEvent;
@@ -24,6 +25,7 @@ export default function EventDetail({ event: e, book, rev, onShowCell, onApply, 
   const s = e.state;
   const cell = e.cells[0];
   const stale = e.status === "stale";
+  const checking = e.status === "checking";
 
   // the writes that bring the cell up to date, and the outputs recomputed with them
   const updates = useMemo(
@@ -56,6 +58,11 @@ export default function EventDetail({ event: e, book, rev, onShowCell, onApply, 
                 <span className={`ins-done ${e.status}`}>{RESOLVED[e.status]}</span>
               ) : stale ? (
                 <span className="tl-badge stale">Stale</span>
+              ) : checking ? (
+                <span className="tl-badge checking">
+                  <Spinner />
+                  Checking
+                </span>
               ) : (
                 <span className={`tl-badge ${e.status}`}>{e.status}</span>
               )}
@@ -89,15 +96,21 @@ export default function EventDetail({ event: e, book, rev, onShowCell, onApply, 
                 <strong className="input">{value(s.model, s.unit)}</strong>
               </div>
               <div>
-                <span>now · {s.as_of}</span>
-                <strong>{s.live != null ? value(s.live, s.unit) : "—"}</strong>
+                <span>now{s.as_of && ` · ${s.as_of}`}</span>
+                {checking ? <span className="skel value" /> : <strong>{s.live != null ? value(s.live, s.unit) : "—"}</strong>}
               </div>
               <div>
                 <span>change</span>
-                <strong className={e.status === "stale" ? "stale-text" : undefined}>{s.change ?? "—"}</strong>
+                {checking ? (
+                  <span className="skel value short" />
+                ) : (
+                  <strong className={e.status === "stale" ? "stale-text" : undefined}>{s.change ?? "—"}</strong>
+                )}
               </div>
             </div>
           )}
+
+          {checking && <Ghost title="If updated" lines={2} />}
 
           {e.edit && (
             <div className="ins-values mono">
@@ -165,6 +178,7 @@ export default function EventDetail({ event: e, book, rev, onShowCell, onApply, 
         </div>
 
         <div className="ins-side">
+          {checking && <Ghost title="Checks" lines={3} />}
           {e.signals.length > 0 && (
             <div className="ins-section">
               <h3>Checks</h3>
@@ -182,6 +196,21 @@ export default function EventDetail({ event: e, book, rev, onShowCell, onApply, 
             </div>
           )}
         </div>
+
+        {checking && (
+          <div className="ins-section ins-sources-row" aria-hidden>
+            <h3>Sources</h3>
+            <ul className="ins-sources">
+              {[0, 1, 2].map((i) => (
+                <li key={i} className="src-card">
+                  <span className="src-image skel-block" />
+                  <span className="skel" />
+                  <span className="skel short" />
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         {/* sources run the full width under both columns */}
         {e.sources.length > 0 && (
@@ -229,5 +258,19 @@ function SourceCard({ src }: { src: Source }) {
     </a>
   ) : (
     <div className="src-card">{body}</div>
+  );
+}
+
+/** A section still on its way: its heading, and grey lines where its content will be. */
+function Ghost({ title, lines }: { title: string; lines: number }) {
+  return (
+    <div className="ins-section" aria-hidden>
+      <h3>{title}</h3>
+      <div className="ghost-lines">
+        {Array.from({ length: lines }, (_, i) => (
+          <span key={i} className="skel" style={{ width: `${92 - i * 14}%` }} />
+        ))}
+      </div>
+    </div>
   );
 }

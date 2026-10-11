@@ -1269,3 +1269,47 @@ h2 .crumb:not(:only-child) { color: inherit; }
 .ins-resolution { margin: 0; font-size: 13px; color: var(--accent-deep); }
 .ins-resolution.updated { color: var(--fresh); }
 .ins-resolution.kept, .ins-resolution.gone { color: var(--muted); }
+
+/* ---------- still loading: a spinner for work under way, grey shimmer where content will land ---------- */
+
+.spin {
+  display: inline-block;
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border: 1.5px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: spin 700ms linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.tl-badge.checking { display: inline-flex; align-items: center; gap: 5px; border-color: var(--rule); color: var(--muted); }
+.tl-badge .spin { width: 8px; height: 8px; margin-right: 5px; vertical-align: -1px; }
+
+.skel, .skel-block {
+  display: block;
+  height: 10px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #efefef 0%, #f7f7f7 40%, #efefef 80%) 0 0 / 300% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+.skel.short { width: 42%; }
+.skel.tiny { width: 24%; height: 8px; }
+.skel.value { width: 96px; height: 22px; margin-top: 2px; }
+.skel.value.short { width: 64px; }
+.skel-block { height: auto; border-radius: 4px; }
+.tl-delta .skel.short { width: 56px; }
+@keyframes shimmer { from { background-position: 100% 0; } to { background-position: 0 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .spin, .skel, .skel-block { animation: none; }
+}
+
+.tl-ghost { display: grid; gap: 8px; padding: 16px 18px; border-bottom: 1px solid var(--rule); }
+.tl-reading { display: flex; align-items: center; gap: 8px; margin: 0; padding: 12px 18px 4px; font-size: 12.5px; color: var(--muted); }
+.ghost-lines { display: grid; gap: 9px; padding-top: 2px; }
+.ins-sources .src-card .skel { width: 85%; }
+.ins-sources .src-card .skel.short { width: 50%; }
+.doc-status.checking { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); }
+.doc-status.checking .spin { width: 9px; height: 9px; }
+.doc-status.checking::before { display: none; }

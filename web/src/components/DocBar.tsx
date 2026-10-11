@@ -4,12 +4,15 @@ import { Download, Share, Star } from "./icons";
 import { Monogram } from "./Wordmark";
 import Menu from "./Menu";
 import RenameInput from "./RenameInput";
+import { Spinner } from "./Timeline";
 
 type Props = {
   filename: string;
   builtOn: string | null;
   stale: number | null; // null: not checked
   total: number;
+  /** the engine is still working: how many market inputs are checked so far, of how many (0 of 0 while reading) */
+  checking?: { checked: number; total: number } | null;
   showChanges: boolean;
   onToggleChanges: () => void;
   onUndo: () => void;
@@ -69,8 +72,20 @@ export default function DocBar(p: Props) {
         </div>
 
         <div className="docbar-sub">
-          <span className={`doc-status ${p.stale ? "stale" : ""}`}>
-            {p.stale == null ? "Not checked" : p.stale ? `${p.stale} stale of ${p.total}` : `${p.total} current`}
+          <span className={`doc-status ${p.stale ? "stale" : ""} ${p.checking ? "checking" : ""}`}>
+            {p.checking ? (
+              <>
+                <Spinner />
+                {p.checking.total ? `Checking ${p.checking.checked} of ${p.checking.total}` : "Reading numbers"}
+                {p.stale ? ` · ${p.stale} stale` : ""}
+              </>
+            ) : p.stale == null ? (
+              "Not checked"
+            ) : p.stale ? (
+              `${p.stale} stale of ${p.total}`
+            ) : (
+              `${p.total} current`
+            )}
           </span>
           {p.builtOn && <span className="doc-built mono">set {p.builtOn}</span>}
           <nav className="menubar" aria-label="Menu">

@@ -66,6 +66,14 @@
             }
           }
         },
+        "stage": {
+          "enum": ["labeling", "checking", "done"],
+          "description": "How far along: labeling (the label is still its row's own text), checking (a market input whose check is running) or done. Missing means done."
+        },
+        "context_key": {
+          "type": "string",
+          "description": "Its place, number and surrounding text. Unchanged after an edit means its label and check carry over."
+        },
         "impact": {
           "type": "array",
           "description": "Change in each output when only this constant is set to its live value",

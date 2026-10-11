@@ -38,6 +38,9 @@ export type Constant = {
   literal_index?: number;
   role?: "market" | "lever" | "internal" | "unit"; // only market constants are checked
   sensitivity?: unknown;
+  // labeling: the label is still its row's own text; checking: a market input whose check is running.
+  // Missing (the fixture, older reports) means done.
+  stage?: "labeling" | "checking" | "done";
 };
 
 export type Report = {
