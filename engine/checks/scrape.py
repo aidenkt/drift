@@ -13,7 +13,7 @@ import threading
 from datetime import date, datetime, timedelta
 from html.parser import HTMLParser
 from pathlib import Path
-from urllib.parse import quote_plus, urlparse
+from urllib.parse import quote_plus, urljoin, urlparse
 
 import httpx
 
@@ -37,7 +37,7 @@ _lock = threading.Lock()  # gather runs in several threads at once
 
 def gather(label: str, search: list[str], built_on: str, as_of: str, events: list[str] = (),
            value: float | None = None) -> list[dict]:
-    """Pages for the LLM: [{id, kind, url, publisher, date, title, text}]. kind is "data" (FRED, with its
+    """Pages for the LLM: [{id, kind, url, publisher, date, title, text, image?}]. kind is "data" (FRED, with its
     observations under "fred"), "figure" (published values of the quantity) or "event" (news that could
     move it). Never raises. Safe to call from several threads."""
     pages: list[dict] = []
@@ -55,11 +55,14 @@ def gather(label: str, search: list[str], built_on: str, as_of: str, events: lis
             for rank, hit in enumerate([h for h in found if h["url"] not in seen][:MAX_PER_QUERY]):
                 seen.add(hit["url"])
                 hits.append((rank, i, hit))
-        texts = list(pool.map(lambda h: _fetch_text(h[2]["url"]), hits))
+        fetched = list(pool.map(lambda h: _fetch_page(h[2]["url"]), hits))
     found = []  # (only a snippet, rank in its query, query, page)
-    for (rank, i, hit), html_text in zip(hits, texts):
+    for (rank, i, hit), (html_text, image) in zip(hits, fetched):
         kind, query = queries[i]
         snippet = hit.pop("snippet", "")
+        hit = {**hit, "image": image or hit.get("image")}
+        if not hit["image"]:
+            hit.pop("image")
         excerpt = _excerpt(html_text, label, query)
         if excerpt or snippet:
             found.append((not excerpt, rank, i, {**hit, "kind": kind, "text": excerpt or snippet}))
@@ -99,15 +102,19 @@ def _search(query: str, built_on: str, as_of: str) -> list[dict]:
             "date": next((d for d in (_iso_date(e.get("text")) for e in extensions) if d), None),
             "title": item.get("title") or "",
             "snippet": item.get("description") or "",
+            # Google's thumbnail for the result, when it has one: a fallback for the page's own image
+            "image": next((u for u in (item.get("image"), item.get("thumbnail")) if _is_image_url(u)), None),
         })
     return hits
 
 
-def _fetch_text(url: str) -> str:
+def _fetch_page(url: str) -> tuple[str, str | None]:
+    """A page's text, and its preview image (og:image, twitter:image) as an absolute URL."""
     zone = os.environ.get("BRIGHTDATA_UNLOCKER_ZONE")
     if not zone:
-        return ""
-    return html_to_text(_brightdata(zone, url, timeout=PAGE_TIMEOUT, attempts=1))
+        return "", None
+    html = _brightdata(zone, url, timeout=PAGE_TIMEOUT, attempts=1)
+    return html_to_text(html), page_image(html, url)
 
 
 class BrightDataError(httpx.HTTPError):
@@ -176,6 +183,9 @@ def _fred_page(topic: str, built_on: str, as_of: str) -> dict | None:
     )
     return {
         "url": f"https://fred.stlouisfed.org/series/{series_id}",
+        # the API has no images; FRED draws any series as a chart, here over the window checked
+        "image": (f"https://fred.stlouisfed.org/graph/fredgraph.png?id={series_id}"
+                  f"&cosd={params['observation_start']}&coed={as_of}"),
         "publisher": "FRED, Federal Reserve Bank of St. Louis",
         "date": now[0],
         "title": f"FRED {series_id}",
@@ -219,6 +229,45 @@ class _TextParser(HTMLParser):
     def handle_data(self, data):
         if not self.skipping:
             self.parts.append(data)
+
+
+class _ImageParser(HTMLParser):
+    """The share image a page declares in its <head>, best first."""
+    RANK = ["og:image:secure_url", "og:image", "og:image:url", "twitter:image", "twitter:image:src", "image_src"]
+
+    def __init__(self):
+        super().__init__()
+        self.found: dict[str, str] = {}
+
+    def handle_starttag(self, tag, attrs):
+        a = {k.lower(): (v or "").strip() for k, v in attrs}
+        if tag == "meta":
+            key = (a.get("property") or a.get("name") or "").lower()
+            if key in self.RANK and a.get("content"):
+                self.found.setdefault(key, a["content"])
+        elif tag == "link" and "image_src" in a.get("rel", "").lower().split() and a.get("href"):
+            self.found.setdefault("image_src", a["href"])
+
+
+def page_image(html: str, url: str) -> str | None:
+    if not html:
+        return None
+    parser = _ImageParser()
+    try:
+        parser.feed(html[:200_000])  # it's in the <head>
+    except Exception:
+        return None
+    for key in _ImageParser.RANK:
+        src = parser.found.get(key)
+        if src:
+            src = urljoin(url, src.replace("&amp;", "&"))
+            if _is_image_url(src):
+                return src
+    return None
+
+
+def _is_image_url(value) -> bool:
+    return isinstance(value, str) and value.startswith(("https://", "http://")) and len(value) < 2000
 
 
 def html_to_text(html: str) -> str:

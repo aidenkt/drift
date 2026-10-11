@@ -131,9 +131,9 @@ def test_pages_are_fetched_in_parallel(monkeypatch, tmp_path):
         time.sleep(0.05)
         with lock:
             active[0] -= 1
-        return ""
+        return "", None
 
-    monkeypatch.setattr(scrape, "_fetch_text", slow_fetch)
+    monkeypatch.setattr(scrape, "_fetch_page", slow_fetch)
     pages = scrape.gather("EV prices", ["EV prices"], "2026-08-01", "2026-10-10", ["EV tariffs"])
     assert peak[0] > 1
     assert len(pages) == 6  # 3 per query, no URL twice
@@ -171,7 +171,7 @@ def _hits(monkeypatch, readable=lambda url: False):
                 for i in range(3)]
 
     monkeypatch.setattr(scrape, "_search", search)
-    monkeypatch.setattr(scrape, "_fetch_text", lambda url: "EV prices fell 29.5% in June." if readable(url) else "")
+    monkeypatch.setattr(scrape, "_fetch_page", lambda url: ("EV prices fell 29.5% in June." if readable(url) else "", None))
     return searched
 
 
@@ -233,7 +233,7 @@ def test_page_fetch_is_tried_once_with_a_short_timeout(monkeypatch, tmp_path):
             pass
 
     monkeypatch.setattr(scrape.httpx, "post", lambda *a, **kw: timeouts.append(kw["timeout"]) or Empty())
-    assert scrape._fetch_text("https://example.com/slow") == ""
+    assert scrape._fetch_page("https://example.com/slow") == ("", None)
     assert timeouts == [scrape.PAGE_TIMEOUT]
     assert scrape.PAGE_TIMEOUT <= 20
 
@@ -247,3 +247,31 @@ def test_cache_is_written_whole_from_several_threads(monkeypatch, tmp_path):
         got = list(pool.map(lambda i: scrape._cached(("same",), lambda: body), range(32)))
     assert set(got) == {body}
     assert [f.suffix for f in tmp_path.iterdir()] == [".txt"]  # no half-written leftovers
+
+
+def test_page_image_prefers_og_image_and_resolves_relative_urls():
+    html = """<html><head>
+      <meta name="twitter:image" content="https://cdn.example.com/tw.jpg">
+      <meta property="og:image" content="/img/hero.jpg?w=1200&amp;h=630">
+    </head><body>x</body></html>"""
+    assert scrape.page_image(html, "https://news.example.com/a/story") == "https://news.example.com/img/hero.jpg?w=1200&h=630"
+    assert scrape.page_image("<head><meta name='twitter:image' content='https://cdn.example.com/tw.jpg'></head>", "https://x.com") == "https://cdn.example.com/tw.jpg"
+    assert scrape.page_image("<head><title>none</title></head>", "https://x.com") is None
+    assert scrape.page_image("<meta property='og:image' content='data:image/png;base64,AAAA'>", "https://x.com") is None
+
+
+def test_gathered_pages_carry_the_page_image(monkeypatch):
+    _hits(monkeypatch, readable=lambda url: True)
+    monkeypatch.setattr(scrape, "_fred_page", lambda *a: None)
+    monkeypatch.setattr(scrape, "_fetch_page", lambda url: ("EV prices fell 29.5% in June.", f"{url}/og.jpg" if url.endswith("/0") else None))
+    pages = scrape.gather("EV prices", ["EV prices"], "2026-08-01", "2026-10-08")
+    by_url = {p["url"]: p for p in pages}
+    assert by_url["https://example.com/EV prices/0"]["image"] == "https://example.com/EV prices/0/og.jpg"
+    assert "image" not in by_url["https://example.com/EV prices/1"]
+
+
+def test_fred_page_has_a_chart_of_the_window(monkeypatch):
+    monkeypatch.setenv("FRED_API_KEY", "k")
+    monkeypatch.setattr(scrape, "_cached", lambda key, fetch: FRED)
+    page = scrape._fred_page("SOFR reference rate", "2022-12-15", "2023-12-04")
+    assert page["image"] == "https://fred.stlouisfed.org/graph/fredgraph.png?id=SOFR&cosd=2022-10-31&coed=2023-12-04"

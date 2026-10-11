@@ -12,7 +12,7 @@ export type Source = {
   via: "FRED" | "Bright Data" | "Workbook";
   quote?: string;
   value?: string; // the number this source gives, in the cell's units
-  image?: string; // the article's preview image, saved under public/sources
+  image?: string; // the article's preview image: saved under public/sources, or the page's og:image
 };
 
 /** One thing we watch for before calling an assumption changed. */
@@ -131,6 +131,7 @@ export const SAMPLE_TIMELINE: TimelineEvent[] = [
         publisher: "Federal Reserve Bank of St. Louis",
         title: "Market Yield on U.S. Treasury Securities at 10-Year (DGS10)",
         url: "https://fred.stlouisfed.org/series/DGS10",
+        image: "https://fred.stlouisfed.org/graph/fredgraph.png?id=DGS10&cosd=2026-06-17&coed=2026-10-08",
         date: "2026-10-08",
         via: "FRED",
         value: "5.22%",
@@ -167,6 +168,7 @@ export const SAMPLE_TIMELINE: TimelineEvent[] = [
         publisher: "Federal Reserve Bank of St. Louis",
         title: "Crude Oil Prices: Brent - Europe (DCOILBRENTEU)",
         url: "https://fred.stlouisfed.org/series/DCOILBRENTEU",
+        image: "https://fred.stlouisfed.org/graph/fredgraph.png?id=DCOILBRENTEU&cosd=2026-06-17&coed=2026-10-08",
         date: "2026-10-06",
         via: "FRED",
         value: "$125.44",
@@ -215,6 +217,7 @@ export const SAMPLE_TIMELINE: TimelineEvent[] = [
         publisher: "Federal Reserve Bank of St. Louis",
         title: "U.S. Dollars to Euro Spot Exchange Rate (DEXUSEU)",
         url: "https://fred.stlouisfed.org/series/DEXUSEU",
+        image: "https://fred.stlouisfed.org/graph/fredgraph.png?id=DEXUSEU&cosd=2026-06-17&coed=2026-10-08",
         date: "2026-10-02",
         via: "FRED",
         value: "1.1259",
@@ -263,6 +266,7 @@ export const SAMPLE_TIMELINE: TimelineEvent[] = [
         publisher: "Federal Reserve Bank of New York",
         title: "Secured Overnight Financing Rate (SOFR)",
         url: "https://fred.stlouisfed.org/series/SOFR",
+        image: "https://fred.stlouisfed.org/graph/fredgraph.png?id=SOFR&cosd=2026-06-17&coed=2026-10-08",
         date: "2026-10-08",
         via: "FRED",
         value: "3.87%",
@@ -271,6 +275,7 @@ export const SAMPLE_TIMELINE: TimelineEvent[] = [
         publisher: "Federal Reserve Bank of St. Louis",
         title: "Federal Funds Target Range - Upper Limit (DFEDTARU)",
         url: "https://fred.stlouisfed.org/series/DFEDTARU",
+        image: "https://fred.stlouisfed.org/graph/fredgraph.png?id=DFEDTARU&cosd=2026-06-17&coed=2026-10-08",
         date: "2026-09-16",
         via: "FRED",
         value: "4.00%",

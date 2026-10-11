@@ -65,6 +65,8 @@ def build_check(constant: dict, finding: dict, pages: list[dict], as_of: str, bu
             item["publisher"] = p["publisher"]
         if p.get("date"):
             item["date"] = p["date"]
+        if p.get("image"):
+            item["image"] = p["image"]
         evidence.append(item)
     events = verified_events(finding, pages)
 
@@ -209,6 +211,8 @@ def verified_events(finding: dict, pages: list[dict]) -> list[dict]:
                 item["publisher"] = page["publisher"]
             if page.get("date"):
                 item["date"] = page["date"]
+            if page.get("image"):
+                item["image"] = page["image"]
             out.append(item)
     return out[:3]
 

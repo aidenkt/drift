@@ -51,6 +51,7 @@ function sourcesOf(k: Check, liveText: string | null): Source[] {
         via: site === "fred.stlouisfed.org" ? "FRED" : "Bright Data",
         quote: s.quote,
         ...(gives ? { value: gives } : {}),
+        ...(s.image ? { image: s.image } : {}),
       },
     ];
   });

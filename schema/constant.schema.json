@@ -59,7 +59,8 @@
                   "quote": { "type": "string" },
                   "url": { "type": "string" },
                   "publisher": { "type": "string" },
-                  "date": { "type": "string", "format": "date" }
+                  "date": { "type": "string", "format": "date" },
+                  "image": { "type": "string", "description": "the page's preview image (og:image), absolute URL" }
                 }
               }
             }
