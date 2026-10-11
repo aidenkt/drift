@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { analyze, getModel, getModelFile, listModels } from "./api";
 import { deleteShared, fetchSharedFile, listShared, renameShared, type SharedDoc } from "./lib/collab";
-import { listFiles, removeFile, saveFile } from "./lib/library";
+import { cacheKey, isCache, listFiles, removeFile, saveFile, type StoredFile } from "./lib/library";
 import { loadPlacement, place } from "./lib/folders";
 import { modelPath, readRoute, routeCell, routeId } from "./lib/route";
 import { blankBook, downloadXlsx, readXlsx, xlsxBytes } from "./lib/workbook";
@@ -54,27 +54,28 @@ const saveReport = (key: string, id: string | null) => {
   localStorage.setItem(REPORTS, JSON.stringify(all));
 };
 
-/** Workbooks shared with or by you on the engine: matched to local models, or loaded as new cards. */
-async function sharedEntries(local: Entry[]): Promise<Entry[]> {
+/** Your workbooks on Base44. Ones that started in this browser are matched to their cards
+ *  (`onMatch`); the rest arrive one by one (`onEntry`) as they download, all at once, from the
+ *  cached copy when it's still the latest version. */
+async function sharedEntries(local: Entry[], cached: Map<string, StoredFile>, onMatch: (key: string, doc: SharedDoc) => void, onEntry: (e: Entry) => void) {
   const docs = await listShared().catch(() => [] as SharedDoc[]);
   const byDoc = Object.fromEntries(Object.entries(links()).map(([key, id]) => [id, key]));
-  const extra: Entry[] = [];
-  for (const doc of docs) {
-    const mine = local.find((e) => e.key === byDoc[doc.doc_id]);
-    if (mine) {
-      mine.doc = doc;
-      mine.filename = doc.filename; // Base44's name wins over one kept in this browser
-      continue;
-    }
-    try {
-      const book = readXlsx(await fetchSharedFile(doc.doc_id));
-      const edited = new Date(doc.updated * 1000).toISOString();
-      extra.push({ key: `doc:${doc.doc_id}`, filename: doc.filename, builtOn: null, added: edited, edited, book, report: null, doc });
-    } catch {
-      // unreadable or gone: leave it off the home page
-    }
-  }
-  return extra;
+  await Promise.all(
+    docs.map(async (doc) => {
+      const mine = local.find((e) => e.key === byDoc[doc.doc_id]);
+      if (mine) return onMatch(mine.key, doc);
+      try {
+        const copy = cached.get(cacheKey(doc.doc_id));
+        const fresh = copy?.updated === doc.updated;
+        const buf = fresh ? copy!.buf : await fetchSharedFile(doc.doc_id);
+        if (!fresh) void saveFile({ key: cacheKey(doc.doc_id), filename: doc.filename, added: new Date().toISOString(), buf: buf.slice(0), updated: doc.updated }).catch(() => {});
+        const edited = new Date(doc.updated * 1000).toISOString();
+        onEntry({ key: `doc:${doc.doc_id}`, filename: doc.filename, builtOn: null, added: edited, edited, book: readXlsx(buf), report: null, doc });
+      } catch {
+        // unreadable or gone: leave it off the home page
+      }
+    }),
+  );
 }
 
 export default function App() {
@@ -146,7 +147,7 @@ export default function App() {
         )
       ).flat();
       const imported = stored
-        .filter((f) => !f.key.startsWith("model:"))
+        .filter((f) => !f.key.startsWith("model:") && !isCache(f.key))
         .sort((a, b) => b.added.localeCompare(a.added))
         .flatMap((f): Entry[] => {
           try {
@@ -159,18 +160,35 @@ export default function App() {
       // last edited starts as when the file itself was saved (or imported, if it doesn't say)
       const renamed = names();
       const entries = [...checked, ...imported].map((e) => ({ ...e, filename: renamed[e.key] ?? e.filename, edited: e.book.modified ?? e.added }));
-      const shared = await sharedEntries(entries);
       if (!live) return;
-      const all = [...entries, ...shared];
-      setLibrary(all);
+      // the home page shows what's on this device now; Base44 workbooks join as they arrive
+      setLibrary(entries);
       // reports for the files imported here, and for anything the engine is still checking
       const known = new Set(summaries.map((m) => m.model_id));
       for (const e of imported) if (known.has(linked[e.key])) void follow(e.key, linked[e.key]);
       for (const e of checked) if (e.report?.status === "checking") void follow(e.key, e.report.model_id);
-      // a reload reopens the model and sheet in the path
+      // a reload reopens the model and sheet in the path, once it's here
       const route = readRoute();
-      const entry = route && all.find((e) => routeId(e.key) === route.id);
-      if (entry) openEntry(entry, undefined, routeCell(route, entry.book));
+      const reopen = (e: Entry) => {
+        if (!awaitingRoute.current || !route || routeId(e.key) !== route.id) return;
+        awaitingRoute.current = false;
+        openEntry(e, undefined, routeCell(route, e.book));
+      };
+      if (!route) awaitingRoute.current = false;
+      entries.forEach(reopen);
+      await sharedEntries(
+        entries,
+        saved,
+        (key, doc) => {
+          if (live) sharedEntry(key, doc); // Base44's name and access win over this browser's
+        },
+        (e) => {
+          if (!live) return;
+          setLibrary((prev) => (prev?.some((x) => x.key === e.key) ? prev : [...(prev ?? []), e]));
+          reopen(e);
+        },
+      );
+      awaitingRoute.current = false; // the path named nothing we have
     })();
     return () => {
       live = false;
@@ -186,8 +204,10 @@ export default function App() {
   // the sheet reports its cell before this effect runs (child effects first), so it waits here
   const openKey = open?.key ?? null;
   const lastCell = useRef<{ key: string; cell: string } | null>(null);
+  // a reload's path may name a Base44 workbook still downloading: keep the path until it opens
+  const awaitingRoute = useRef(true);
   useEffect(() => {
-    if (library === null) return; // still loading; the path may name a model about to open
+    if (library === null || (awaitingRoute.current && !openKey)) return; // the path may name a model about to open
     const cell = lastCell.current?.key === openKey ? lastCell.current.cell : undefined;
     if ((readRoute()?.id ?? null) !== (openKey && routeId(openKey))) history.pushState(null, "", openKey ? modelPath(openKey, cell, open?.book) : "/");
   }, [openKey, library === null]);
