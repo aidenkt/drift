@@ -143,6 +143,8 @@ def test_fred_page_carries_its_observations(monkeypatch):
     monkeypatch.setenv("FRED_API_KEY", "k")
     monkeypatch.setattr(scrape, "_cached", lambda key, fetch: FRED)
     page = scrape._fred_page("SOFR reference rate", "2022-12-15", "2023-12-04")
+    recent = page["fred"].pop("then_recent")
+    assert recent[-1] == 4.3 and len(recent) <= scrape.THEN_RECENT  # the prints up to built_on, latest last
     assert page["fred"] == {"series": "SOFR", "unit": "percent", "then": 4.3, "then_date": "2022-12-14",
                             "now": 5.31, "now_date": "2023-12-04"}
 
