@@ -460,3 +460,35 @@ def test_a_page_dated_before_the_model_cannot_make_it_stale():
     f = finding(p_stale=1.0, events=[event])
     for date, status in ((None, "unknown"), ("2026-06-08", "unknown"), ("2026-09-08", "stale")):
         assert build_check(VIETNAM, f, [reuters, {**opinion, "date": date}], "2026-10-10", "2026-08-01")["status"] == status
+
+
+# --- more FRED series, and a model built from the close before built_on ---------------------------
+
+
+@pytest.mark.parametrize("label, series", [
+    ("USD/JPY exchange rate (yen per $)", "DEXJPUS"),
+    ("USD/CAD exchange rate, 27-Feb-2026 (C$ per $)", "DEXCAUS"),
+    ("USD/MXN exchange rate", "DEXMXUS"),
+    ("USD/BRL exchange rate used for dry-mill costs", "DEXBZUS"),
+    ("US Gulf Coast kerosene-type jet fuel spot price ($/gal)", "DJFUELUSGULF"),
+    ("On-highway diesel, US average retail ($/gal)", "GASDESW"),
+    ("Natural gas, Henry Hub spot ($/MMBtu)", "DHHNGSP"),
+    ("Arabica coffee, other mild arabicas (cents/lb)", "PCOFFOTMUSDM"),
+    ("30-year fixed mortgage rate (%)", "MORTGAGE30US"),
+    ("Brent crude oil price ($/bbl)", "DCOILBRENTEU"),
+])
+def test_label_maps_to_its_fred_series(label, series):
+    from checks.drivers import fred_series_for
+
+    assert fred_series_for(label)[0] == series
+
+
+def test_anchor_accepts_the_close_before_built_on():
+    from checks.drivers import series_scale
+
+    obs = {"series": "DGS10", "unit": "percent", "then": 4.23, "then_recent": [4.34, 4.38, 4.37, 4.23], "now": 5.22}
+    label = "Risk-free rate, 10-year US Treasury yield (%)"
+    assert series_scale(label, 0.0437, obs) == 0.01  # set at the 31-Jul close, built_on is 1-Aug
+    assert series_scale(label, 0.0437, {**obs, "then_recent": [4.23]}) is None
+    assert series_scale(label, 0.0437, {k: v for k, v in obs.items() if k != "then_recent"}) is None
+    assert series_scale(label, 0.0641, obs) is None  # a rate plus a margin is not the series

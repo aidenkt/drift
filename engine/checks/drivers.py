@@ -18,6 +18,24 @@ FRED_SERIES = [
     (("brent",), "DCOILBRENTEU", "Brent crude oil, $/bbl", "level"),  # before "crude": Brent crude is not WTI
     (("wti",), "DCOILWTICO", "WTI crude oil, $/bbl", "level"),
     (("crude",), "DCOILWTICO", "WTI crude oil, $/bbl", "level"),
+    # exchange rates as FRED quotes them; a model holding the inverse fails the anchor test and is left alone
+    (("jpy",), "DEXJPUS", "Japanese yen to one US dollar", "level"),
+    (("yen",), "DEXJPUS", "Japanese yen to one US dollar", "level"),
+    (("cad",), "DEXCAUS", "Canadian dollars to one US dollar", "level"),
+    (("canadian dollar",), "DEXCAUS", "Canadian dollars to one US dollar", "level"),
+    (("mxn",), "DEXMXUS", "Mexican pesos to one US dollar", "level"),
+    (("peso",), "DEXMXUS", "Mexican pesos to one US dollar", "level"),
+    (("brl",), "DEXBZUS", "Brazilian reais to one US dollar", "level"),
+    (("brazilian real",), "DEXBZUS", "Brazilian reais to one US dollar", "level"),
+    (("gbp",), "DEXUSUK", "US dollars to one British pound", "level"),
+    (("cny",), "DEXCHUS", "Chinese yuan to one US dollar", "level"),
+    (("yuan",), "DEXCHUS", "Chinese yuan to one US dollar", "level"),
+    (("jet fuel",), "DJFUELUSGULF", "Kerosene-type jet fuel, US Gulf Coast, $/gal", "level"),
+    (("diesel",), "GASDESW", "US on-highway diesel, $/gal", "level"),
+    (("henry hub",), "DHHNGSP", "Henry Hub natural gas spot, $/MMBtu", "level"),
+    (("natural gas",), "DHHNGSP", "Henry Hub natural gas spot, $/MMBtu", "level"),
+    (("arabica",), "PCOFFOTMUSDM", "Coffee, other mild arabicas, cents/lb", "level"),
+    (("30", "mortgage"), "MORTGAGE30US", "30-year fixed mortgage rate", "percent"),
     (("cpi",), "CPIAUCSL", "CPI, all urban consumers", "level"),
     (("inflation",), "CPIAUCSL", "CPI, all urban consumers", "level"),
     (("used car",), "CUSR0000SETA02", "CPI: used cars and trucks", "level"),
@@ -52,7 +70,8 @@ def series_scale(label: str, value: float, obs: dict) -> float | None:
     series = fred_series_for(label)
     if not value or not series or series[0] != obs["series"] or PRICED_OFF.search(label):
         return None
+    # a model dated the 1st usually took the previous close, so any of the last few prints may be its source
     for scale in (1, 0.01) if obs["unit"] == "percent" else (1,):
-        if abs(obs["then"] * scale - value) <= FRED_ANCHOR * abs(value):
+        if any(abs(then * scale - value) <= FRED_ANCHOR * abs(value) for then in obs.get("then_recent") or [obs["then"]]):
             return scale
     return None

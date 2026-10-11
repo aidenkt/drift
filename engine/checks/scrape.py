@@ -29,6 +29,7 @@ SERP_TIMEOUT = 20  # seconds; an empty answer is tried once more
 PAGE_TIMEOUT = 20  # seconds, tried once: a page this slow is replaced by its search snippet
 WORKERS = 8  # Bright Data requests in flight at once
 EXCERPT_CHARS = 4000
+THEN_RECENT = 5  # prints up to built_on that a model may have been built from
 
 _failed: set[str] = set()  # cache files whose fetch failed in this process: not tried again until restart
 _lock = threading.Lock()  # gather runs in several threads at once
@@ -181,6 +182,7 @@ def _fred_page(topic: str, built_on: str, as_of: str) -> dict | None:
         "text": text,
         # the same observations as numbers, for verify.fred_live
         "fred": {"series": series_id, "unit": unit, "then": then[1], "then_date": then[0],
+                 "then_recent": [v for d, v in obs if d <= built_on][-THEN_RECENT:],
                  "now": now[1], "now_date": now[0]},
     }
 
