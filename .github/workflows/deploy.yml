@@ -19,7 +19,13 @@ jobs:
     steps:
       # without a key the CLI waits for a browser login that never comes
       - name: Check secrets
-        run: test -n "$BASE44_API_KEY" || { echo "::error::Set the BASE44_API_KEY repo secret (a Base44 workspace API key, b44k_...)"; exit 1; }
+        # the CLI only takes workspace keys (b44k_...); anything else falls through to a browser login
+        run: |
+          case "$BASE44_API_KEY" in
+            b44k_*) echo "BASE44_API_KEY is a workspace key" ;;
+            "") echo "::error::Set the BASE44_API_KEY repo secret (a Base44 workspace API key, b44k_...)"; exit 1 ;;
+            *) echo "::error::BASE44_API_KEY starts with '${BASE44_API_KEY:0:5}', not 'b44k_'. Create a workspace key: workspace name > Settings > Secrets > Create API Key"; exit 1 ;;
+          esac
         env:
           BASE44_API_KEY: ${{ secrets.BASE44_API_KEY }}
       - uses: actions/checkout@v4
