@@ -6,7 +6,7 @@ import ShareDialog from "../components/ShareDialog";
 import { Panel } from "../components/icons";
 import Spreadsheet, { type CellChange } from "../components/Spreadsheet";
 import Timeline, { reviewOrder } from "../components/Timeline";
-import { SAMPLE_TIMELINE, type TimelineEvent } from "../data/timeline";
+import type { TimelineEvent } from "../data/timeline";
 import { colorFor, createShared, joinPresence, me, saveShared, signedIn, type Me, type Person, type SharedDoc } from "../lib/collab";
 import { apply as applyCells, diff, snapshot, type CellsOp } from "../lib/live";
 import { downloadXlsx, normalizeRef, rawRef, syncSheets, writeRef, xlsxBytes, xlsxName, type Book, type CellUpdate } from "../lib/workbook";
@@ -68,9 +68,8 @@ export default function WorkbookPage({ model, onImport, onBack, onRename, onNew,
     };
   }, [model.filename]);
 
-  // The case study keeps the sample timeline; any other report is read as the engine wrote it.
-  const sample = model.report?.model_id === "case-study";
-  const checked = useMemo(() => (sample ? SAMPLE_TIMELINE : model.report ? eventsFromReport(model.report) : []), [sample, model.report]);
+  // every change shown is read from the report, as the engine wrote it
+  const checked = useMemo(() => (model.report ? eventsFromReport(model.report) : []), [model.report]);
   const [edits, setEdits] = useState<TimelineEvent[]>([]);
   // cells edited here that are on their way to the engine: they spin until it answers, then its stages take over
   const engineChecked = !!model.report && !sample;

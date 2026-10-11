@@ -6,7 +6,6 @@ import ShareDialog from "../components/ShareDialog";
 import SheetThumb from "../components/SheetThumb";
 import Wordmark from "../components/Wordmark";
 import { Folder as FolderIcon, Plus, Table } from "lucide-react";
-import { SAMPLE_TIMELINE } from "../data/timeline";
 import { deltaMoney, editedAt, shortDate, value } from "../lib/format";
 import { eventsFromReport } from "../lib/reportTimeline";
 import { xlsxBytes, xlsxName, type Book } from "../lib/workbook";
@@ -177,7 +176,7 @@ export default function ModelList({ entries, onOpen, onImport, onRemove, onRenam
     // the case study keeps the sample timeline; any other report is read as the engine wrote it
     return (entries ?? [])
       .flatMap((entry) =>
-        (entry.report?.model_id === "case-study" ? SAMPLE_TIMELINE : entry.report ? eventsFromReport(entry.report) : []).map((ev) => ({ ev, entry })),
+        (entry.report ? eventsFromReport(entry.report) : []).map((ev) => ({ ev, entry })),
       )
       .filter(({ ev }) => ev.status === "stale" && ev.state && ev.impact.length)
       .map(({ ev, entry }) => ({
