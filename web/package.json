@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@base44/sdk": "^0.8.53",
     "@clerk/react": "^6.17.8",
     "hyperformula": "^3.5.0",
     "lucide-react": "^1.55.0",
