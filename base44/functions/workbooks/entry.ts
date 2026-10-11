@@ -64,7 +64,8 @@ async function clerkUser(token: string): Promise<User> {
   const cached = emails.get(sub);
   if (cached) return cached;
 
-  const key = await secret("CLERK_SECRET_KEY");
+  // either case: Base44 keeps secret names as typed
+  const key = (await secret("CLERK_SECRET_KEY")) ?? (await secret("clerk_secret_key"));
   if (!key) throw new Fail(401, "Can't tell who you are: set CLERK_SECRET_KEY, or add an `email` claim to Clerk's session token.");
   const r = await fetch(`https://api.clerk.com/v1/users/${sub}`, { headers: { Authorization: `Bearer ${key}` } });
   if (!r.ok) throw new Fail(401, "Couldn't look up your Clerk account");
