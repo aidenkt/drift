@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { getModel, listModels } from "./api";
 import { fetchSharedFile, listShared, type SharedDoc } from "./lib/collab";
 import { listFiles, removeFile, saveFile } from "./lib/library";
-import { place } from "./lib/folders";
+import { loadPlacement, place } from "./lib/folders";
 import { blankBook, downloadXlsx, readXlsx, xlsxBytes } from "./lib/workbook";
 import caseStudyUrl from "../../data/case_study_aug2026.xlsx?url";
 import ModelList, { type Entry } from "./pages/ModelList";
@@ -161,6 +161,25 @@ export default function App() {
     }, 800);
   };
 
+  /** A model was shared (uploaded) or its access changed: remember the link and show it. */
+  const sharedEntry = (key: string, doc: SharedDoc) => {
+    if (!key.startsWith("doc:")) localStorage.setItem(LINKS, JSON.stringify({ ...links(), [key]: doc.doc_id }));
+    setLibrary((prev) => prev?.map((x) => (x.key === key ? { ...x, doc } : x)) ?? null);
+    setOpen((o) => (o && o.key === key ? { ...o, doc } : o));
+  };
+
+  /** A copy of the workbook as it stands, saved in this browser and opened. Checks stay with the original. */
+  const copyEntry = (key: string, book: Entry["book"], filename: string) => {
+    const added = new Date().toISOString();
+    const buf = xlsxBytes(book);
+    const entry: Entry = { key: `file:${Date.now()}`, filename: `Copy of ${filename}`, builtOn: null, added, edited: added, book: readXlsx(buf.slice(0)), report: null };
+    void saveFile({ key: entry.key, filename: entry.filename, added, buf }).catch(() => {});
+    const folder = loadPlacement()[key];
+    if (folder) place(entry.key, folder);
+    setLibrary((prev) => [entry, ...(prev ?? [])]);
+    openEntry(entry);
+  };
+
   const removeEntry = (e: Entry) => {
     place(e.key, null);
     saveName(e.key, null);
@@ -200,11 +219,19 @@ export default function App() {
           onImport={importFile}
           onBack={() => setOpen(null)}
           onRename={(name) => renameEntry(open.key, name)}
-          onShared={(doc) => {
-            if (!open.key.startsWith("doc:")) localStorage.setItem(LINKS, JSON.stringify({ ...links(), [open.key]: doc.doc_id }));
-            setLibrary((prev) => prev?.map((x) => (x.key === open.key ? { ...x, doc } : x)) ?? null);
-            setOpen((o) => (o ? { ...o, doc } : o));
-          }}
+          onShared={(doc) => sharedEntry(open.key, doc)}
+          onNew={() => createBlank(loadPlacement()[open.key] ?? null)}
+          onCopy={() => copyEntry(open.key, open.book, open.filename)}
+          onTrash={
+            open.key.startsWith("file:")
+              ? () => {
+                  const entry = library?.find((x) => x.key === open.key);
+                  if (!entry || !confirm(`Move "${open.filename}" to trash? It's removed from this browser.`)) return;
+                  removeEntry(entry);
+                  setOpen(null);
+                }
+              : undefined
+          }
           onEdited={() => {
             const now = new Date().toISOString();
             const entry = library?.find((x) => x.key === open.key);
@@ -221,6 +248,7 @@ export default function App() {
           onRename={(e, name) => renameEntry(e.key, name)}
           onDownload={(e) => downloadXlsx(e.book, e.filename)}
           onNewBlank={createBlank}
+          onShared={(e, doc) => sharedEntry(e.key, doc)}
         />
       )}
       {error && (

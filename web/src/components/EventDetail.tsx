@@ -17,7 +17,7 @@ type Props = {
 
 const RESOLVED: Partial<Record<TimelineEvent["status"], string>> = { updated: "Updated", kept: "Kept as is", gone: "No longer in model" };
 
-/** Inspector for one change, docked beside the sheet: the numbers, what updating does, and why. */
+/** One change, laid over the sheet: the numbers and what updating does on the left, the evidence on the right. */
 export default function EventDetail({ event: e, book, rev, onShowCell, onApply, onKeep, onClose }: Props) {
   const s = e.state;
   const cell = e.cells[0];
@@ -43,143 +43,149 @@ export default function EventDetail({ event: e, book, rev, onShowCell, onApply, 
         </button>
       </header>
 
-      <div className="ins-head">
-        <div className="ins-status">
-          {RESOLVED[e.status] ? (
-            <span className={`ins-done ${e.status}`}>{RESOLVED[e.status]}</span>
-          ) : stale ? (
-            <Stamp status="stale" />
-          ) : (
-            <span className="muted">{e.status}</span>
+      <div className="ins-body">
+        <div className="ins-main">
+          <div className="ins-head">
+            <div className="ins-status">
+              {RESOLVED[e.status] ? (
+                <span className={`ins-done ${e.status}`}>{RESOLVED[e.status]}</span>
+              ) : stale ? (
+                <Stamp status="stale" />
+              ) : (
+                <span className="muted">{e.status}</span>
+              )}
+            </div>
+            {e.resolution && (
+              <p className={`ins-resolution ${e.status}`}>
+                {e.resolution.note}
+                {e.resolution.at && (
+                  <span className="muted">
+                    {" "}
+                    · {e.resolution.by === "You" ? "you" : e.resolution.by} · {new Date(e.resolution.at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
+                  </span>
+                )}
+              </p>
+            )}
+            <h2 className="ins-label">{s?.label ?? e.title}</h2>
+            <div className="ins-cells">
+              {e.cells.map((c) => (
+                <button key={c} className="cell-chip mono" onClick={() => onShowCell(c)} title="Show in sheet">
+                  {c}
+                </button>
+              ))}
+              {s && <span className="muted">{s.unit}</span>}
+            </div>
+          </div>
+
+          {s && (
+            <div className="ins-values mono">
+              <div>
+                <span>in model</span>
+                <strong className="input">{value(s.model, s.unit)}</strong>
+              </div>
+              <div>
+                <span>now · {s.as_of}</span>
+                <strong>{s.live != null ? value(s.live, s.unit) : "—"}</strong>
+              </div>
+              <div>
+                <span>change</span>
+                <strong className={e.status === "stale" ? "stale-text" : undefined}>{s.change ?? "—"}</strong>
+              </div>
+            </div>
+          )}
+
+          {e.edit && (
+            <div className="ins-values mono">
+              <div>
+                <span>before</span>
+                <strong>{e.edit.before || "empty"}</strong>
+              </div>
+              <div>
+                <span>after</span>
+                <strong>{e.edit.after || "empty"}</strong>
+              </div>
+            </div>
+          )}
+
+          {effects.length > 0 && (
+            <div className="ins-section">
+              <h3>If updated</h3>
+              <table className="ins-table mono">
+                <thead>
+                  <tr>
+                    <th />
+                    <th>now</th>
+                    <th>after</th>
+                    <th>change</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {effects.map((x) => {
+                    const label = e.impact.find((i) => i.output === x.output)?.label ?? x.output;
+                    const d = x.before != null && x.after != null ? x.after - x.before : null;
+                    return (
+                      <tr key={x.output}>
+                        <td className="sans">{label}</td>
+                        <td className="muted">{x.before != null ? money(x.before) : "—"}</td>
+                        <td>{x.after != null ? money(x.after) : "—"}</td>
+                        <td className={`num ${d != null && d < 0 ? "adverse" : ""}`}>{d != null ? deltaMoney(d) : "—"}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {updates.length > 0 && s?.live != null && (
+            <div className="ins-actions">
+              <button className="btn ins-apply" onClick={() => onApply(e, updates)}>
+                Update {target} to {value(s.live, s.unit)}
+              </button>
+              <button className="ins-keep" onClick={() => onKeep(e, true)} title="Keep the model's number on purpose and stop flagging it">
+                Keep as is
+              </button>
+            </div>
+          )}
+          {e.status === "kept" && (
+            <button className="ins-keep" onClick={() => onKeep(e, false)}>
+              Undo keep
+            </button>
           )}
         </div>
-        {e.resolution && (
-          <p className={`ins-resolution ${e.status}`}>
-            {e.resolution.note}
-            {e.resolution.at && (
-              <span className="muted">
-                {" "}
-                · {e.resolution.by === "You" ? "you" : e.resolution.by} · {new Date(e.resolution.at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
-              </span>
-            )}
-          </p>
-        )}
-        <h2 className="ins-label">{s?.label ?? e.title}</h2>
-        <div className="ins-cells">
-          {e.cells.map((c) => (
-            <button key={c} className="cell-chip mono" onClick={() => onShowCell(c)} title="Show in sheet">
-              {c}
-            </button>
-          ))}
-          {s && <span className="muted">{s.unit}</span>}
+
+        <div className="ins-side">
+          {e.sources.length > 0 && (
+            <div className="ins-section">
+              <h3>Sources</h3>
+              <ul className="ins-sources">
+                {e.sources.map((src) => (
+                  <li key={src.title + src.url}>
+                    <SourceCard src={src} />
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {e.signals.length > 0 && (
+            <div className="ins-section">
+              <h3>Checks</h3>
+              <ul className="ins-checks">
+                {e.signals.map((sig) => (
+                  <li key={sig.look_for} className={sig.met ? "met" : ""}>
+                    <span className="sig-mark" aria-label={sig.met ? "Seen" : "Not seen"}>
+                      {sig.met ? "●" : "○"}
+                    </span>
+                    <span>{sig.look_for}</span>
+                    <span className="sig-seen mono">{sig.observed}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       </div>
-
-      {s && (
-        <div className="ins-values mono">
-          <div>
-            <span>in model</span>
-            <strong className="input">{value(s.model, s.unit)}</strong>
-          </div>
-          <div>
-            <span>now · {s.as_of}</span>
-            <strong>{s.live != null ? value(s.live, s.unit) : "—"}</strong>
-          </div>
-          <div>
-            <span>change</span>
-            <strong className={e.status === "stale" ? "stale-text" : undefined}>{s.change ?? "—"}</strong>
-          </div>
-        </div>
-      )}
-
-      {e.edit && (
-        <div className="ins-values mono">
-          <div>
-            <span>before</span>
-            <strong>{e.edit.before || "empty"}</strong>
-          </div>
-          <div>
-            <span>after</span>
-            <strong>{e.edit.after || "empty"}</strong>
-          </div>
-        </div>
-      )}
-
-      {effects.length > 0 && (
-        <div className="ins-section">
-          <h3>If updated</h3>
-          <table className="ins-table mono">
-            <thead>
-              <tr>
-                <th />
-                <th>now</th>
-                <th>after</th>
-                <th>change</th>
-              </tr>
-            </thead>
-            <tbody>
-              {effects.map((x) => {
-                const label = e.impact.find((i) => i.output === x.output)?.label ?? x.output;
-                const d = x.before != null && x.after != null ? x.after - x.before : null;
-                return (
-                  <tr key={x.output}>
-                    <td className="sans">{label}</td>
-                    <td className="muted">{x.before != null ? money(x.before) : "—"}</td>
-                    <td>{x.after != null ? money(x.after) : "—"}</td>
-                    <td className={`num ${d != null && d < 0 ? "adverse" : ""}`}>{d != null ? deltaMoney(d) : "—"}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {updates.length > 0 && s?.live != null && (
-        <div className="ins-actions">
-          <button className="btn ins-apply" onClick={() => onApply(e, updates)}>
-            Update {target} to {value(s.live, s.unit)}
-          </button>
-          <button className="ins-keep" onClick={() => onKeep(e, true)} title="Keep the model's number on purpose and stop flagging it">
-            Keep as is
-          </button>
-        </div>
-      )}
-      {e.status === "kept" && (
-        <button className="ins-keep" onClick={() => onKeep(e, false)}>
-          Undo keep
-        </button>
-      )}
-
-      {e.signals.length > 0 && (
-        <div className="ins-section">
-          <h3>Checks</h3>
-          <ul className="ins-checks">
-            {e.signals.map((sig) => (
-              <li key={sig.look_for} className={sig.met ? "met" : ""}>
-                <span className="sig-mark" aria-label={sig.met ? "Seen" : "Not seen"}>
-                  {sig.met ? "●" : "○"}
-                </span>
-                <span>{sig.look_for}</span>
-                <span className="sig-seen mono">{sig.observed}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {e.sources.length > 0 && (
-        <div className="ins-section">
-          <h3>Sources</h3>
-          <ul className="ins-sources">
-            {e.sources.map((src) => (
-              <li key={src.title + src.url}>
-                <SourceCard src={src} />
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
     </section>
   );
 }

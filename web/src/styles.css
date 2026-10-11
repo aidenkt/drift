@@ -493,17 +493,16 @@ body {
 
 .workspace {
   --timeline-w: 320px;
-  --detail-w: 380px;
   flex: 1;
   min-height: 0;
   display: flex;
 }
-.workspace-sheet { flex: 1; display: flex; min-width: 0; min-height: 0; overflow: hidden; }
+.workspace-sheet { position: relative; flex: 1; display: flex; min-width: 0; min-height: 0; overflow: hidden; }
 .workspace-sheet > .sheet { flex: 1; min-width: 0; }
 
-/* the panel's width animates; its columns keep fixed widths and are pinned
-   right, so they slide in from the edge rather than squash */
-.sidebar, .sidebar-detail {
+/* the panel's width animates; the list keeps a fixed width and is pinned
+   right, so it slides in from the edge rather than squashes */
+.sidebar {
   flex: none;
   display: flex;
   justify-content: flex-end;
@@ -513,12 +512,25 @@ body {
   transition: width 280ms cubic-bezier(0.2, 0.7, 0.2, 1);
 }
 .sidebar.open { width: var(--timeline-w); }
-.sidebar.open.inspecting { width: calc(var(--timeline-w) + var(--detail-w)); }
 .sidebar > .timeline { flex: none; width: var(--timeline-w); }
-.sidebar.inspecting .sidebar-detail { width: var(--detail-w); }
-.sidebar-detail > .inspector { flex: none; width: var(--detail-w); }
+
+/* an open change lies over the sheet, fading up from just below */
+.sheet-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  opacity: 0;
+  transform: translateY(8px);
+  pointer-events: none;
+  transition: opacity 180ms, transform 220ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.sheet-overlay.open { opacity: 1; transform: none; pointer-events: auto; }
+.sheet-overlay > .inspector { flex: 1; padding: 0 40px 48px; border-left: 0; }
+.sheet-overlay .ins-bar { margin: 0 -40px; padding: 14px 40px 10px; }
+.sheet-overlay .ins-sources { margin: 0; padding: 2px 0 10px; scroll-padding: 0; }
 @media (prefers-reduced-motion: reduce) {
-  .sidebar, .sidebar-detail { transition: none; }
+  .sidebar, .sheet-overlay { transition: none; }
 }
 
 /* dividers: a wide invisible grab area with a hairline that shows on hover and while dragging */
@@ -534,7 +546,6 @@ body {
   touch-action: none;
 }
 .panel-resize.edge { left: 0; }
-.panel-resize.split { left: var(--timeline-w); }
 .panel-resize::after {
   content: "";
   position: absolute;
@@ -548,7 +559,7 @@ body {
 }
 .panel-resize:hover::after, .workspace.resizing .panel-resize:active::after { opacity: 0.18; }
 .workspace.resizing { cursor: col-resize; user-select: none; }
-.workspace.resizing .sidebar, .workspace.resizing .sidebar-detail { transition: none; }
+.workspace.resizing .sidebar { transition: none; }
 
 .timeline {
   display: flex;
@@ -664,8 +675,7 @@ body {
 .tl-badge.updated { border-color: var(--fresh); color: var(--fresh); }
 .tl-badge.kept, .tl-badge.gone { border-color: var(--rule); color: var(--muted); }
 .tl-delta { font-size: 13px; color: var(--ink); }
-.tl-values { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 8px; min-width: 0; }
-.tl-cell { margin-right: 6px; color: var(--muted); }
+.tl-values { display: flex; align-items: baseline; gap: 0 8px; min-width: 0; white-space: nowrap; overflow: hidden; }
 .tl-arrow { color: var(--muted); }
 .tl-change { flex-shrink: 0; color: var(--muted); }
 .tl-change.stale { color: var(--accent-deep); }
@@ -752,6 +762,21 @@ body {
 .stale-text { color: var(--accent); }
 .adverse { color: var(--accent-deep); }
 
+/* numbers and the decision on the left, evidence on the right; one column when narrow */
+.ins-body {
+  display: grid;
+  grid-template-columns: minmax(0, 440px) minmax(0, 1fr);
+  gap: 22px 48px;
+  align-items: start;
+  width: 100%;
+  max-width: 1120px;
+  margin: 0 auto;
+}
+.ins-main, .ins-side { display: grid; gap: 22px; min-width: 0; }
+.ins-main > *, .ins-side > * { min-width: 0; }
+@media (max-width: 1100px) {
+  .ins-body { grid-template-columns: minmax(0, 1fr); max-width: 560px; }
+}
 .ins-section h3 { margin: 0 0 8px; font: 600 12px var(--sans); color: var(--muted); }
 .ins-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .ins-table td { padding: 7px 0; border-bottom: 1px solid var(--rule); white-space: nowrap; }
@@ -831,12 +856,9 @@ a.src-card:hover .src-title { text-decoration: underline; }
 
 @media (max-width: 900px) {
   .workspace { flex-direction: column; }
-  .sidebar, .sidebar.open, .sidebar.open.inspecting { width: auto; max-height: 0; transition: max-height 280ms cubic-bezier(0.2, 0.7, 0.2, 1); }
+  .sidebar, .sidebar.open { width: auto; max-height: 0; transition: max-height 280ms cubic-bezier(0.2, 0.7, 0.2, 1); }
   .sidebar.open { max-height: 45vh; }
-  .sidebar > .timeline, .sidebar-detail, .sidebar-detail > .inspector { width: auto; flex: 1; }
-  .sidebar-detail { display: none; transition: none; }
-  .sidebar.inspecting > .timeline { display: none; }
-  .sidebar.inspecting > .sidebar-detail { display: flex; }
+  .sidebar > .timeline { width: auto; flex: 1; }
   .timeline, .inspector { border-left: 0; border-top: 1px solid var(--rule); }
 }
 

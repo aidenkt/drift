@@ -28,14 +28,18 @@ type Props = {
   onImport: (file: File) => void;
   onBack: () => void;
   onRename: (name: string) => void;
+  onNew: () => void;
+  onCopy: () => void;
+  /** Only for files kept in this browser; checked and shared models can't be trashed from here. */
+  onTrash?: () => void;
   /** Any cell edit, so the home page can show when the model was last edited. */
   onEdited?: () => void;
   /** The workbook was uploaded for sharing, or its access list changed. */
   onShared?: (doc: SharedDoc) => void;
 };
 
-const PANEL = { timeline: 320, detail: 380 };
-const LIMITS = { timeline: [240, 560], detail: [300, 640] } as const;
+const PANEL = { timeline: 320 };
+const LIMITS = { timeline: [240, 560] } as const;
 const SHEET_MIN = 360;
 const stored = (key: keyof typeof PANEL) => {
   const n = Number(localStorage.getItem(`since.panel.${key}`));
@@ -43,7 +47,7 @@ const stored = (key: keyof typeof PANEL) => {
 };
 const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n));
 
-export default function WorkbookPage({ model, onImport, onBack, onRename, onEdited, onShared }: Props) {
+export default function WorkbookPage({ model, onImport, onBack, onRename, onNew, onCopy, onTrash, onEdited, onShared }: Props) {
   // browser tab: "Since · case_study_aug2026", back to "Since" on the home page
   useEffect(() => {
     document.title = `Since · ${model.filename.replace(/\.(xlsx|xlsm|xls)$/i, "")}`;
@@ -101,38 +105,25 @@ export default function WorkbookPage({ model, onImport, onBack, onRename, onEdit
 
   const [openId, setOpenId] = useState<string | null>(model.startEvent ?? null);
   const [showChanges, setShowChanges] = useState(true);
-  const [widths, setWidths] = useState(() => ({ timeline: stored("timeline"), detail: stored("detail") }));
+  const [widths, setWidths] = useState(() => ({ timeline: stored("timeline") }));
   const [resizing, setResizing] = useState(false);
   useEffect(() => {
     localStorage.setItem("since.panel.timeline", String(widths.timeline));
-    localStorage.setItem("since.panel.detail", String(widths.detail));
   }, [widths]);
 
-  /** Drag a divider. "edge" is the panel's left edge; "split" sits between the list and the open change. */
-  const startResize = (e: PointerEvent<HTMLDivElement>, which: "edge" | "split") => {
+  /** Drag the panel's left edge. */
+  const startResize = (e: PointerEvent<HTMLDivElement>) => {
     if (e.button !== 0) return;
     e.preventDefault();
     const handle = e.currentTarget;
     handle.setPointerCapture(e.pointerId);
     const x0 = e.clientX;
     const start = widths;
-    const inspecting = !!openEvent;
     const room = window.innerWidth - SHEET_MIN; // keep the sheet usable
     setResizing(true);
     const onMove = (ev: globalThis.PointerEvent) => {
       const dx = ev.clientX - x0;
-      setWidths(() => {
-        if (which === "split") {
-          const timeline = clamp(start.timeline + dx, LIMITS.timeline[0], Math.min(LIMITS.timeline[1], start.timeline + start.detail - LIMITS.detail[0]));
-          return { timeline, detail: clamp(start.detail - (timeline - start.timeline), ...LIMITS.detail) };
-        }
-        // the left edge grows the panel; with a change open, the open change takes the extra width
-        if (inspecting) {
-          const detail = clamp(start.detail - dx, LIMITS.detail[0], Math.min(LIMITS.detail[1], room - start.timeline));
-          return { ...start, detail };
-        }
-        return { ...start, timeline: clamp(start.timeline - dx, LIMITS.timeline[0], Math.min(LIMITS.timeline[1], room)) };
-      });
+      setWidths({ timeline: clamp(start.timeline - dx, LIMITS.timeline[0], Math.min(LIMITS.timeline[1], room)) });
     };
     const onUp = () => {
       setResizing(false);
@@ -144,8 +135,7 @@ export default function WorkbookPage({ model, onImport, onBack, onRename, onEdit
     handle.addEventListener("pointerup", onUp);
     handle.addEventListener("pointercancel", onUp);
   };
-  const resetWidth = (which: "edge" | "split") =>
-    setWidths((w) => (which === "split" || openEvent ? { ...w, timeline: PANEL.timeline, detail: PANEL.detail } : { ...w, timeline: PANEL.timeline }));
+  const resetWidth = () => setWidths({ timeline: PANEL.timeline });
 
   /* ---------- sharing and presence ---------- */
   const [doc, setDoc] = useState<SharedDoc | null>(model.doc ?? null);
@@ -201,7 +191,7 @@ export default function WorkbookPage({ model, onImport, onBack, onRename, onEdit
     setShowChanges((v) => !v);
   };
 
-  // opening a change keeps the sheet in view and moves the selection to its cell
+  // opening a change moves the selection to its cell, so closing it lands there
   const select = (id: string) => {
     const cell = events.find((e) => e.id === id)?.cells[0];
     setOpenId(id);
@@ -209,6 +199,11 @@ export default function WorkbookPage({ model, onImport, onBack, onRename, onEdit
     if (cell) setFocus({ ref: cell, nonce: Date.now() });
   };
   const close = () => setOpenId(null);
+  // a cell chip in the open change closes it to show that cell in the sheet
+  const closeToCell = (ref: string) => {
+    close();
+    showCell(ref);
+  };
 
   // clicking a cell picks out its latest change in the list; an open change follows along
   // shared workbooks save themselves a moment after each change, for editors and the owner
@@ -242,12 +237,16 @@ export default function WorkbookPage({ model, onImport, onBack, onRename, onEdit
   }, [openId]);
 
   const download = () => downloadXlsx(model.book, model.filename);
-  // ⌘S / Ctrl+S saves a copy instead of the browser's "save page"
+  // ⌘S / Ctrl+S saves a copy instead of the browser's "save page"; ⌘O goes to all models, as File › Open
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "s") {
         e.preventDefault();
         downloadXlsx(model.book, model.filename);
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "o") {
+        e.preventDefault();
+        onBack();
       }
     };
     window.addEventListener("keydown", onKey);
@@ -262,14 +261,15 @@ export default function WorkbookPage({ model, onImport, onBack, onRename, onEdit
     onEdit([{ ref: cell, before, after: rawRef(model.book, cell) }]);
   };
 
-  /** moved: how many cells a cut-and-paste carried (its changes also list the emptied source). */
-  const onEdit = (changes: CellChange[], moved?: number) => {
+  /** moved: how many cells a cut-and-paste carried (its changes also list the emptied source).
+   *  title: set for edits that aren't cell writes, like inserting rows. */
+  const onEdit = (changes: CellChange[], moved?: number, title?: string) => {
     if (!changes.length) return;
     const { ref, before, after } = changes[0];
     const many = changes.length > 1;
 
     // editing a stale assumption's cell resolves (or re-checks) that entry rather than adding one
-    const check = !many && !moved && SAMPLE_TIMELINE.find((e) => sample && e.status === "stale" && e.cells.some((c) => normalizeRef(c) === normalizeRef(ref)));
+    const check = !many && !moved && !title && SAMPLE_TIMELINE.find((e) => sample && e.status === "stale" && e.cells.some((c) => normalizeRef(c) === normalizeRef(ref)));
     if (check) {
       setTouched((prev) => new Map(prev).set(check.id, { at: new Date().toISOString(), by: "You" }));
       setKept((prev) => (prev.has(check.id) ? new Map([...prev].filter(([id]) => id !== check.id)) : prev));
@@ -280,19 +280,19 @@ export default function WorkbookPage({ model, onImport, onBack, onRename, onEdit
     const label = constants.get(normalizeRef(ref))?.label;
     const today = new Date().toISOString().slice(0, 10);
     const cleared = changes.every((c) => c.after === "");
-    const title = moved
+    const heading = title ?? (moved
       ? `${moved} ${moved === 1 ? "cell" : "cells"} moved`
       : many
         ? `${changes.length} cells ${cleared ? "cleared" : "pasted"}`
       : after === ""
         ? `${label ?? ref} cleared`
-        : `${label ?? ref} set to ${after}`;
+        : `${label ?? ref} set to ${after}`);
     const event: TimelineEvent = {
       id: `edit-${Date.now()}`,
       date: today,
       at: new Date().toISOString(),
       by: "You",
-      title,
+      title: heading,
       kind: "edit",
       status: "edited",
       cells: changes.map((c) => c.ref),
@@ -301,7 +301,7 @@ export default function WorkbookPage({ model, onImport, onBack, onRename, onEdit
       sources: [],
       impact: [],
       // a multi-cell change lists its cells; before/after only reads well for one
-      edit: many ? undefined : { before, after },
+      edit: many || title ? undefined : { before, after },
     };
     setEdits((prev) => [event, ...prev]);
     onEdited?.();
@@ -322,6 +322,9 @@ export default function WorkbookPage({ model, onImport, onBack, onRename, onEdit
         onDownload={download}
         onHome={onBack}
         onRename={onRename}
+        onNew={onNew}
+        onCopy={onCopy}
+        onTrash={onTrash}
         onShare={() => setSharing(true)}
         presence={doc && people.length > 0 ? <Presence people={people} onJump={showCell} /> : null}
       />
@@ -339,7 +342,7 @@ export default function WorkbookPage({ model, onImport, onBack, onRename, onEdit
 
       <div
         className={`workspace${resizing ? " resizing" : ""}`}
-        style={{ "--timeline-w": `${widths.timeline}px`, "--detail-w": `${widths.detail}px` } as CSSProperties}
+        style={{ "--timeline-w": `${widths.timeline}px` } as CSSProperties}
       >
         <div className="workspace-sheet">
           <Spreadsheet
@@ -364,41 +367,32 @@ export default function WorkbookPage({ model, onImport, onBack, onRename, onEdit
               </button>
             }
           />
-        </div>
-        {/* slides in from the right; opening a change widens it, the list stays on its left */}
-        <div className={`sidebar ${showChanges ? "open" : ""} ${openEvent ? "inspecting" : ""}`} inert={!showChanges}>
-          <div
-            className="panel-resize edge"
-            role="separator"
-            aria-orientation="vertical"
-            aria-label="Resize changes panel"
-            onPointerDown={(e) => startResize(e, "edge")}
-            onDoubleClick={() => resetWidth("edge")}
-          />
-          {openEvent && (
-            <div
-              className="panel-resize split"
-              role="separator"
-              aria-orientation="vertical"
-              aria-label="Resize change details"
-              onPointerDown={(e) => startResize(e, "split")}
-              onDoubleClick={() => resetWidth("split")}
-            />
-          )}
-          <Timeline events={events} selectedId={openId ?? cellEventId} onSelect={select} />
-          <div className="sidebar-detail" inert={!openEvent}>
+          {/* an open change covers the sheet, so only the list and the change compete for the eye */}
+          <div className={`sheet-overlay ${openEvent ? "open" : ""}`} inert={!openEvent}>
             {shownLive && (
               <EventDetail
                 event={shownLive}
                 book={model.book}
                 rev={rev}
-                onShowCell={showCell}
+                onShowCell={closeToCell}
                 onApply={apply}
                 onKeep={keep}
                 onClose={close}
               />
             )}
           </div>
+        </div>
+        {/* slides in from the right */}
+        <div className={`sidebar ${showChanges ? "open" : ""}`} inert={!showChanges}>
+          <div
+            className="panel-resize edge"
+            role="separator"
+            aria-orientation="vertical"
+            aria-label="Resize changes panel"
+            onPointerDown={startResize}
+            onDoubleClick={resetWidth}
+          />
+          <Timeline events={events} selectedId={openId ?? cellEventId} onSelect={select} />
         </div>
       </div>
     </div>
