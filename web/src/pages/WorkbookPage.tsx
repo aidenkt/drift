@@ -11,6 +11,7 @@ import { colorFor, createShared, joinPresence, me, saveShared, type Person, type
 import { downloadXlsx, normalizeRef, rawRef, syncSheets, writeRef, xlsxBytes, xlsxName, type Book, type CellUpdate } from "../lib/workbook";
 import { value } from "../lib/format";
 import { assess } from "../lib/resolve";
+import { eventsFromReport } from "../lib/reportTimeline";
 import type { Constant, Report } from "../types";
 
 export type OpenModel = {
@@ -56,8 +57,9 @@ export default function WorkbookPage({ model, onImport, onBack, onRename, onNew,
     };
   }, [model.filename]);
 
-  // The case study gets the sample timeline until the engine produces one.
+  // The case study keeps the sample timeline; any other report is read as the engine wrote it.
   const sample = model.report?.model_id === "case-study";
+  const checked = useMemo(() => (sample ? SAMPLE_TIMELINE : model.report ? eventsFromReport(model.report) : []), [sample, model.report]);
   const [edits, setEdits] = useState<TimelineEvent[]>([]);
   const [rev, setRev] = useState(0);
 
@@ -67,7 +69,7 @@ export default function WorkbookPage({ model, onImport, onBack, onRename, onNew,
   // the last edit to each stale assumption's cell: it resolves that entry instead of adding a row
   const [touched, setTouched] = useState<Map<string, { at: string; by: string }>>(new Map());
   const events = useMemo(() => {
-    const checks = (sample ? SAMPLE_TIMELINE : []).map((e): TimelineEvent => {
+    const checks = checked.map((e): TimelineEvent => {
       if (e.status !== "stale" || !e.state) return e;
       const who = touched.get(e.id);
       if (kept.has(e.id))
@@ -79,7 +81,7 @@ export default function WorkbookPage({ model, onImport, onBack, onRename, onNew,
     });
     return [...edits, ...checks];
     // rev: re-read the cells after edits, updates and undo
-  }, [edits, sample, kept, touched, rev, model.book]);
+  }, [edits, checked, kept, touched, rev, model.book]);
 
   // a resolved assumption's cell stops being flagged in the grid and the stale count
   const constants = useMemo(() => {
@@ -87,13 +89,21 @@ export default function WorkbookPage({ model, onImport, onBack, onRename, onNew,
       events.filter((e) => ["updated", "kept", "gone"].includes(e.status)).flatMap((e) => e.cells.map(normalizeRef)),
     );
     const map = new Map<string, Constant>();
+    // two numbers in one formula share a cell: the checked one shows, a stale one first
+    const rank = (c: Constant) => (c.check?.status === "stale" ? 2 : c.check ? 1 : 0);
     for (const c of model.report?.constants ?? []) {
-      const key = normalizeRef(c.cell);
-      map.set(key, resolved.has(key) && c.check ? { ...c, check: { ...c.check, status: "current" } } : c);
+      // a number copied across a row is one constant, flagged in every cell that holds it
+      for (const cell of c.cells ?? [c.cell]) {
+        const key = normalizeRef(cell);
+        const prev = map.get(key);
+        if (prev && rank(prev) > rank(c)) continue;
+        map.set(key, resolved.has(key) && c.check ? { ...c, check: { ...c.check, status: "current" } } : c);
+      }
     }
     return map;
   }, [model.report, events]);
-  const stale = [...constants.values()].filter((c) => c.check?.status === "stale").length;
+  // counted once each, however many cells a constant covers
+  const stale = new Set([...constants.values()].filter((c) => c.check?.status === "stale").map((c) => `${c.cell}#${c.literal_index}`)).size;
 
   const keep = (e: TimelineEvent, on: boolean) =>
     setKept((prev) => {
@@ -268,8 +278,9 @@ export default function WorkbookPage({ model, onImport, onBack, onRename, onNew,
     const { ref, before, after } = changes[0];
     const many = changes.length > 1;
 
-    // editing a stale assumption's cell resolves (or re-checks) that entry rather than adding one
-    const check = !many && !moved && !title && SAMPLE_TIMELINE.find((e) => sample && e.status === "stale" && e.cells.some((c) => normalizeRef(c) === normalizeRef(ref)));
+    // editing a stale assumption's cell resolves (or re-checks) that entry rather than adding one;
+    // with no live value to compare against there's nothing to resolve, so the edit is logged as usual
+    const check = !many && !moved && !title && checked.find((e) => e.status === "stale" && e.state?.live != null && e.cells.some((c) => normalizeRef(c) === normalizeRef(ref)));
     if (check) {
       setTouched((prev) => new Map(prev).set(check.id, { at: new Date().toISOString(), by: "You" }));
       setKept((prev) => (prev.has(check.id) ? new Map([...prev].filter(([id]) => id !== check.id)) : prev));

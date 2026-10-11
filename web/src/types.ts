@@ -10,6 +10,12 @@ export type Check = {
   source_name: string | null;
   source_url: string | null;
   evidence: { quote: string; url: string; publisher?: string; date?: string }[];
+  // news behind the move, and the checker's reading of it
+  events?: { summary: string; direction: "raises" | "lowers" | "unclear"; quote: string; url: string; publisher?: string; date?: string }[];
+  effects?: { output: string; direction: "up" | "down" | "unclear" }[]; // output is a label here, not a cell
+  assumption?: string | null;
+  prediction?: string | null;
+  next_steps?: string[];
 };
 
 export type Constant = {
@@ -25,6 +31,12 @@ export type Constant = {
   outputs: string[];
   check: Check | null;
   impact: { output: string; delta: number }[];
+  // embedded only: a number in a formula copied across a row is one constant. `cell` is then
+  // a range ("P&L!C35:G35"), `cells` every formula cell, `literal_index` which number (0-based)
+  cells?: string[];
+  literal_index?: number;
+  role?: "market" | "lever" | "internal" | "unit"; // only market constants are checked
+  sensitivity?: unknown;
 };
 
 export type Report = {
@@ -34,6 +46,9 @@ export type Report = {
   checked_on: string;
   outputs: { cell: string; label: string; value: number }[];
   constants: Constant[];
+  combined?: { output: string; delta: number }[]; // every live value applied at once
+  status?: "checking" | "done" | "failed"; // missing (the fixture) means done
+  progress?: { checked: number; total: number };
 };
 
 export type ModelSummary = {
@@ -42,4 +57,5 @@ export type ModelSummary = {
   built_on: string;
   stale: number;
   constants: number;
+  status?: Report["status"];
 };

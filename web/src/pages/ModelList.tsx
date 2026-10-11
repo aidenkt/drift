@@ -8,6 +8,7 @@ import Wordmark from "../components/Wordmark";
 import { Folder as FolderIcon, Plus, Table } from "lucide-react";
 import { SAMPLE_TIMELINE } from "../data/timeline";
 import { deltaMoney, editedAt, shortDate, value } from "../lib/format";
+import { eventsFromReport } from "../lib/reportTimeline";
 import { xlsxBytes, xlsxName, type Book } from "../lib/workbook";
 import { colorFor, createShared, initials, me, type SharedDoc } from "../lib/collab";
 import { createFolder, deleteFolder, loadFolders, loadPlacement, moveFolder, pathTo, place, renameFolder, type Folder } from "../lib/folders";
@@ -167,13 +168,16 @@ export default function ModelList({ entries, onOpen, onImport, onRemove, onRenam
 
   // the stale assumptions with the biggest dollar effect, across checked models
   const attention = useMemo(() => {
-    const caseStudy = entries?.find((e) => e.report?.model_id === "case-study");
-    if (!caseStudy) return [];
-    return SAMPLE_TIMELINE.filter((ev) => ev.status === "stale" && ev.state && ev.impact.length)
-      .map((ev) => ({
+    // the case study keeps the sample timeline; any other report is read as the engine wrote it
+    return (entries ?? [])
+      .flatMap((entry) =>
+        (entry.report?.model_id === "case-study" ? SAMPLE_TIMELINE : entry.report ? eventsFromReport(entry.report) : []).map((ev) => ({ ev, entry })),
+      )
+      .filter(({ ev }) => ev.status === "stale" && ev.state && ev.impact.length)
+      .map(({ ev, entry }) => ({
         ev,
         top: [...ev.impact].sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta))[0],
-        entry: caseStudy,
+        entry,
       }))
       .sort((a, b) => Math.abs(b.top.delta) - Math.abs(a.top.delta))
       .slice(0, 3);
@@ -263,7 +267,7 @@ export default function ModelList({ entries, onOpen, onImport, onRemove, onRenam
             </div>
             <div className="attention-row">
               {attention.map(({ ev, top, entry }) => (
-                <button key={ev.id} className="attn-card" onClick={() => onOpen(entry, ev.id)}>
+                <button key={`${entry.key}:${ev.id}`} className="attn-card" onClick={() => onOpen(entry, ev.id)}>
                   <span className="attn-label">{ev.state!.label}</span>
                   <span className="attn-values mono">
                     <span className="input">{value(ev.state!.model, ev.state!.unit)}</span>
