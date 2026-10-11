@@ -100,7 +100,10 @@ def test_start_lists_constants_before_anything_is_checked(model, monkeypatch):
     json.dumps(report, allow_nan=False)
     assert (report["status"], report["progress"]) == ("checking", {"checked": 0, "total": 0})
     assert [c["cell"] for c in report["constants"]] == ["Model!B1", "Model!B2", "Model!B3"]
-    assert all((c["label"], c["driver"], c["check"], c["impact"]) == ("", None, None, []) for c in report["constants"])
+    # each starts with its row's text as a temporary label, before the labeler names it
+    assert [c["label"] for c in report["constants"]] == ["EUR/USD rate", "Units", "EBITDA"]
+    assert all(c["stage"] == "labeling" for c in report["constants"])
+    assert all((c["driver"], c["check"], c["impact"]) == (None, None, []) for c in report["constants"])
     assert report["outputs"] == [{"cell": "Model!B3", "label": "EBITDA", "value": 62.5}]
     assert report["combined"] == []
     assert report["built_on"] == report["checked_on"] == dt.date.today().isoformat()
@@ -235,3 +238,43 @@ def test_built_on_comes_from_the_workbook_when_not_given(tmp_path, monkeypatch):
     wb.save(path)
     assert pipeline.run(path, model_id="m2", filename="dated.xlsx")["built_on"] == "2025-06-30"
     assert pipeline.run(path, model_id="m2", filename="dated.xlsx", built_on="2024-01-01")["built_on"] == "2024-01-01"
+
+
+def test_an_edit_checks_only_the_constants_it_touched(model, tmp_path, monkeypatch):
+    calls = _stub_checks(monkeypatch)
+    first = pipeline.start(model, model_id="m2", filename="model.xlsx")
+    pipeline.finish(first)
+    assert all(c["stage"] == "done" for c in first["constants"])
+    assert len(calls) == 1  # the one market constant
+
+    # the units change and the rate's row is untouched: only the units are labeled again
+    wb = openpyxl.load_workbook(model)
+    wb.active["B2"] = 120
+    edited = tmp_path / "edited.xlsx"
+    wb.save(edited)
+    calls.clear()
+    second = pipeline.start(edited, model_id="m2", filename="model.xlsx", previous=first)
+    stages = {c["cell"]: c["stage"] for c in second["constants"]}
+    assert stages == {"Model!B1": "done", "Model!B2": "labeling", "Model!B3": "done"}
+    rate = next(c for c in second["constants"] if c["cell"] == "Model!B1")
+    assert rate["check"]["live"] == 1.5 and rate["driver"] == "eurusd"
+    pipeline.finish(second)
+    assert calls == []  # the rate's check carried over; nothing else is a market input
+    assert second["status"] == "done"
+    assert next(c for c in second["constants"] if c["cell"] == "Model!B1")["impact"]  # measured again
+
+
+def test_renaming_a_row_labels_and_checks_its_number_again(model, tmp_path, monkeypatch):
+    calls = _stub_checks(monkeypatch)
+    first = pipeline.start(model, model_id="m3", filename="model.xlsx")
+    pipeline.finish(first)
+    wb = openpyxl.load_workbook(model)
+    wb.active["A1"] = "GBP/USD rate"
+    edited = tmp_path / "renamed.xlsx"
+    wb.save(edited)
+    calls.clear()
+    second = pipeline.start(edited, model_id="m3", filename="model.xlsx", previous=first)
+    rate = next(c for c in second["constants"] if c["cell"] == "Model!B1")
+    assert (rate["label"], rate["stage"]) == ("GBP/USD rate", "labeling")
+    pipeline.finish(second)
+    assert [c["cell"] for c in calls] == ["Model!B1"]
