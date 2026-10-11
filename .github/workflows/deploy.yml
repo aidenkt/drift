@@ -15,7 +15,13 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
+      # without a key the CLI waits for a browser login that never comes
+      - name: Check secrets
+        run: test -n "$BASE44_API_KEY" || { echo "::error::Set the BASE44_API_KEY repo secret (a Base44 workspace API key, b44k_...)"; exit 1; }
+        env:
+          BASE44_API_KEY: ${{ secrets.BASE44_API_KEY }}
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
