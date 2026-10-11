@@ -115,6 +115,8 @@ body {
 .seg button { padding: 4px 12px; border: 0; background: var(--paper); color: var(--muted); font: 13px var(--sans); cursor: pointer; }
 .seg button + button { border-left: 1px solid var(--rule); }
 .seg button[aria-pressed="true"] { background: var(--chrome); color: var(--ink); font-weight: 600; }
+.seg-count { margin-left: 6px; font-size: 11.5px; color: var(--muted); }
+.models-head .seg + .seg { margin-left: 8px; }
 
 .model-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 16px; }
 .model-card {
@@ -272,15 +274,6 @@ body {
 .tip-label { font-weight: 550; color: var(--ink); }
 .tip-values { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
 .tip-foot { display: flex; flex-wrap: wrap; gap: 2px 12px; font-size: 11.5px; color: var(--muted); }
-
-.stamp { font-family: var(--sans); font-size: 12px; color: var(--muted); }
-.stamp-stale {
-  font-family: var(--serif);
-  font-size: 15px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  color: var(--accent);
-}
 
 .grid {
   flex: 1;
@@ -501,36 +494,27 @@ body {
 .workspace-sheet > .sheet { flex: 1; min-width: 0; }
 
 /* the panel's width animates; the list keeps a fixed width and is pinned
-   right, so it slides in from the edge rather than squashes */
+   left inside it. Opening a change widens the panel over the whole sheet. */
 .sidebar {
   flex: none;
   display: flex;
-  justify-content: flex-end;
+  justify-content: flex-start;
   width: 0;
   min-height: 0;
   overflow: hidden;
   transition: width 280ms cubic-bezier(0.2, 0.7, 0.2, 1);
 }
 .sidebar.open { width: var(--timeline-w); }
+.sidebar.open.inspecting { width: var(--open-w, 95%); box-shadow: -12px 0 32px rgba(14, 14, 14, 0.08); }
+.sheet-scrim { position: absolute; inset: 0; z-index: 20; background: rgba(14, 14, 14, 0.06); cursor: pointer; animation: scrim-in 200ms ease-out; }
+@keyframes scrim-in { from { opacity: 0; } }
 .sidebar > .timeline { flex: none; width: var(--timeline-w); }
-
-/* an open change lies over the sheet, fading up from just below */
-.sheet-overlay {
-  position: absolute;
-  inset: 0;
-  z-index: 20;
-  display: flex;
-  opacity: 0;
-  transform: translateY(8px);
-  pointer-events: none;
-  transition: opacity 180ms, transform 220ms cubic-bezier(0.2, 0.7, 0.2, 1);
-}
-.sheet-overlay.open { opacity: 1; transform: none; pointer-events: auto; }
-.sheet-overlay > .inspector { flex: 1; padding: 0 40px 48px; border-left: 0; }
-.sheet-overlay .ins-bar { margin: 0 -40px; padding: 14px 40px 10px; }
-.sheet-overlay .ins-sources { margin: 0; padding: 2px 0 10px; scroll-padding: 0; }
+.sidebar-detail { flex: 1; display: flex; min-width: 0; }
+.sidebar-detail > .inspector { flex: 1; min-width: 0; padding: 0 40px 48px; }
+.sidebar-detail .ins-bar { margin: 0 -40px; padding: 14px 40px 10px; }
+.sidebar-detail .ins-sources { margin: 0; padding: 2px 0 10px; scroll-padding: 0; }
 @media (prefers-reduced-motion: reduce) {
-  .sidebar, .sheet-overlay { transition: none; }
+  .sidebar { transition: none; }
 }
 
 /* dividers: a wide invisible grab area with a hairline that shows on hover and while dragging */
@@ -856,10 +840,13 @@ a.src-card:hover .src-title { text-decoration: underline; }
 
 @media (max-width: 900px) {
   .workspace { flex-direction: column; }
-  .sidebar, .sidebar.open { width: auto; max-height: 0; transition: max-height 280ms cubic-bezier(0.2, 0.7, 0.2, 1); }
+  .sidebar, .sidebar.open, .sidebar.open.inspecting { width: auto; max-height: 0; transition: max-height 280ms cubic-bezier(0.2, 0.7, 0.2, 1); }
   .sidebar.open { max-height: 45vh; }
-  .sidebar > .timeline { width: auto; flex: 1; }
-  .timeline, .inspector { border-left: 0; border-top: 1px solid var(--rule); }
+  .sidebar > .timeline, .sidebar-detail > .inspector { width: auto; flex: 1; }
+  .sidebar-detail { display: none; }
+  .sidebar.inspecting > .timeline { display: none; }
+  .sidebar.inspecting > .sidebar-detail { display: flex; }
+  .timeline, .inspector { border-left: 0; border-right: 0; border-top: 1px solid var(--rule); }
 }
 
 /* ---------- document bar (Concord-style header) ---------- */
@@ -1238,7 +1225,9 @@ h2 .crumb:not(:only-child) { color: inherit; }
   font: 12.5px var(--sans);
   cursor: pointer;
 }
-.ins-actions .ins-keep { align-self: center; }
+/* keeping the model's number is a square ×, as tall as the update button */
+.ins-actions .ins-apply { height: 40px; padding-block: 0; }
+.ins-actions .ins-keep { display: grid; place-items: center; width: 40px; height: 40px; padding: 0; align-self: center; }
 .ins-keep:hover { border-color: #cfcfcf; color: var(--ink); background: var(--chrome); }
 .ins-done.kept, .ins-done.gone { color: var(--muted); }
 .ins-resolution { margin: 0; font-size: 13px; color: var(--accent-deep); }

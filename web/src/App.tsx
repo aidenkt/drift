@@ -3,10 +3,12 @@ import { getModel, listModels } from "./api";
 import { fetchSharedFile, listShared, type SharedDoc } from "./lib/collab";
 import { listFiles, removeFile, saveFile } from "./lib/library";
 import { loadPlacement, place } from "./lib/folders";
+import { modelPath, readRoute } from "./lib/route";
 import { blankBook, downloadXlsx, readXlsx, xlsxBytes } from "./lib/workbook";
 import caseStudyUrl from "../../data/case_study_aug2026.xlsx?url";
 import ModelList, { type Entry } from "./pages/ModelList";
 import WorkbookPage, { type OpenModel } from "./pages/WorkbookPage";
+import type { Report } from "./types";
 
 const ACCEPT = /\.(xlsx|xlsm|xls)$/i;
 
@@ -64,6 +66,7 @@ export default function App() {
   const [dragging, setDragging] = useState(false);
   // checked models plus every workbook imported in this browser; null while loading
   const [library, setLibrary] = useState<Entry[] | null>(null);
+  const reportsRef = useRef<Report[]>([]);
 
   useEffect(() => {
     let live = true;
@@ -75,20 +78,21 @@ export default function App() {
         fetch(caseStudyUrl).then((r) => r.arrayBuffer()),
       ]);
       const reports = await Promise.all(summaries.map((m) => getModel(m.model_id)));
-      const checked: Entry[] = reports.map((r) => ({
-        key: `model:${r.model_id}`,
-        filename: r.filename,
-        builtOn: r.built_on,
-        added: null,
-        edited: null,
-        book: readXlsx(buf),
-        report: r,
-      }));
+      reportsRef.current = reports;
+      const saved = new Map(stored.map((f) => [f.key, f]));
+      // checked models open from their saved copy once edited, else from the original file
+      const checked: Entry[] = reports.map((r) => {
+        const key = `model:${r.model_id}`;
+        const own = saved.get(key);
+        return { key, filename: r.filename, builtOn: r.built_on, added: null, edited: null, book: readXlsx(own?.buf ?? buf), report: r };
+      });
       const imported = stored
+        .filter((f) => !f.key.startsWith("model:"))
         .sort((a, b) => b.added.localeCompare(a.added))
         .flatMap((f): Entry[] => {
           try {
-            return [{ key: f.key, filename: f.filename, builtOn: null, added: f.added, edited: null, book: readXlsx(f.buf), report: null, blank: f.blank }];
+            const report = reports.find((r) => r.model_id === f.report) ?? null;
+            return [{ key: f.key, filename: f.filename, builtOn: report?.built_on ?? null, added: f.added, edited: null, book: readXlsx(f.buf), report, blank: f.blank }];
           } catch {
             return [];
           }
@@ -96,18 +100,50 @@ export default function App() {
       // last edited starts as when the file itself was saved (or imported, if it doesn't say)
       const renamed = names();
       const entries = [...checked, ...imported].map((e) => ({ ...e, filename: renamed[e.key] ?? e.filename, edited: e.book.modified ?? e.added }));
-      const shared = await sharedEntries(entries);
-      if (live) setLibrary([...entries, ...shared]);
+      const shared = (await sharedEntries(entries)).map((e) => ({ ...e, filename: renamed[e.key] ?? e.filename }));
+      if (!live) return;
+      const all = [...entries, ...shared];
+      setLibrary(all);
+      // a reload reopens the model and sheet in the path
+      const route = readRoute();
+      const entry = route && all.find((e) => e.key === route.key);
+      if (entry) openEntry(entry, undefined, route.cell);
     })();
     return () => {
       live = false;
     };
   }, []);
 
-  const openEntry = (e: Entry, startEvent?: string) => {
-    setOpen({ id: Date.now(), key: e.key, filename: e.filename, builtOn: e.builtOn, book: e.book, report: e.report, startEvent, doc: e.doc });
+  const openEntry = (e: Entry, startEvent?: string, startCell?: string) => {
+    setOpen({ id: Date.now(), key: e.key, filename: e.filename, builtOn: e.builtOn, book: e.book, report: e.report, startEvent, startCell, doc: e.doc });
     setError(null);
   };
+
+  // the path follows the open model: opening one adds a history entry, so Back returns home
+  // the sheet reports its cell before this effect runs (child effects first), so it waits here
+  const openKey = open?.key ?? null;
+  const lastCell = useRef<{ key: string; cell: string } | null>(null);
+  useEffect(() => {
+    if (library === null) return; // still loading; the path may name a model about to open
+    const cell = lastCell.current?.key === openKey ? lastCell.current.cell : undefined;
+    if ((readRoute()?.key ?? null) !== openKey) history.pushState(null, "", openKey ? modelPath(openKey, cell) : "/");
+  }, [openKey, library === null]);
+  const followCell = (key: string, cell: string) => {
+    lastCell.current = { key, cell };
+    if (readRoute()?.key === key) history.replaceState(null, "", modelPath(key, cell));
+  };
+  const libraryRef = useRef(library);
+  libraryRef.current = library;
+  useEffect(() => {
+    const onPop = () => {
+      const route = readRoute();
+      const entry = route && libraryRef.current?.find((e) => e.key === route.key);
+      if (!entry) return setOpen(null);
+      setOpen((o) => (o?.key === entry.key ? o : { id: Date.now(), key: entry.key, filename: entry.filename, builtOn: entry.builtOn, book: entry.book, report: entry.report, startCell: route.cell, doc: entry.doc }));
+    };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
 
   const importFile = useCallback(async (file: File) => {
     if (!ACCEPT.test(file.name)) return setError(`${file.name} isn't a spreadsheet. Since opens .xlsx, .xlsm and .xls files.`);
@@ -141,6 +177,18 @@ export default function App() {
     setOpen((o) => (o && o.key === key ? { ...o, filename: rename(o.filename) } : o));
   };
 
+  /** A fresh copy of the example model, with its checks, saved in this browser and opened. */
+  const createExample = async (folder: string | null) => {
+    const report = reportsRef.current.find((r) => r.model_id === "case-study") ?? null;
+    const buf = await fetch(caseStudyUrl).then((r) => r.arrayBuffer());
+    const added = new Date().toISOString();
+    const entry: Entry = { key: `file:${Date.now()}`, filename: "Example model.xlsx", builtOn: report?.built_on ?? null, added, edited: added, book: readXlsx(buf.slice(0)), report };
+    void saveFile({ key: entry.key, filename: entry.filename, added, buf, report: report?.model_id }).catch(() => {});
+    if (folder) place(entry.key, folder);
+    setLibrary((prev) => [entry, ...(prev ?? [])]);
+    openEntry(entry);
+  };
+
   /** A new empty spreadsheet, saved in this browser and opened straight away. */
   const createBlank = (folder: string | null) => {
     const added = new Date().toISOString();
@@ -151,13 +199,14 @@ export default function App() {
     openEntry(entry);
   };
 
-  // files in this browser keep their edits: write the workbook back a moment after each change
+  // every model keeps its edits in this browser: write the workbook back a moment after each change.
+  // Shared workbooks save to Base44 from the workbook page instead.
   const pending = useRef<number | undefined>(undefined);
-  const persist = (key: string, book: Entry["book"], filename: string, added: string | null, blank?: boolean) => {
-    if (!key.startsWith("file:")) return;
+  const persist = (key: string, book: Entry["book"], filename: string, added: string | null, blank?: boolean, report?: string) => {
+    if (key.startsWith("doc:")) return;
     clearTimeout(pending.current);
     pending.current = window.setTimeout(() => {
-      void saveFile({ key, filename, added: added ?? new Date().toISOString(), buf: xlsxBytes(book), blank }).catch(() => {});
+      void saveFile({ key, filename, added: added ?? new Date().toISOString(), buf: xlsxBytes(book), blank, report }).catch(() => {});
     }, 800);
   };
 
@@ -218,6 +267,7 @@ export default function App() {
           model={open}
           onImport={importFile}
           onBack={() => setOpen(null)}
+          onCell={(cell) => followCell(open.key, cell)}
           onRename={(name) => renameEntry(open.key, name)}
           onShared={(doc) => sharedEntry(open.key, doc)}
           onNew={() => createBlank(loadPlacement()[open.key] ?? null)}
@@ -235,7 +285,7 @@ export default function App() {
           onEdited={() => {
             const now = new Date().toISOString();
             const entry = library?.find((x) => x.key === open.key);
-            persist(open.key, open.book, open.filename, entry?.added ?? null, entry?.blank);
+            persist(open.key, open.book, open.filename, entry?.added ?? null, entry?.blank, open.report?.model_id);
             setLibrary((prev) => prev?.map((x) => (x.key === open.key ? { ...x, edited: now } : x)) ?? null);
           }}
         />
@@ -248,6 +298,7 @@ export default function App() {
           onRename={(e, name) => renameEntry(e.key, name)}
           onDownload={(e) => downloadXlsx(e.book, e.filename)}
           onNewBlank={createBlank}
+          onNewExample={(folder) => void createExample(folder)}
           onShared={(e, doc) => sharedEntry(e.key, doc)}
         />
       )}

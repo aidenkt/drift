@@ -1,6 +1,7 @@
 /** Imported workbooks kept in the browser (IndexedDB) so they stay on the home page across reloads. */
 
-export type StoredFile = { key: string; filename: string; added: string; buf: ArrayBuffer; blank?: boolean };
+/** report: the model_id whose checks travel with the file, for copies of the example model. */
+export type StoredFile = { key: string; filename: string; added: string; buf: ArrayBuffer; blank?: boolean; report?: string };
 
 const DB = "since";
 const STORE = "files";

@@ -34,6 +34,8 @@ type Props = {
   onRename: (e: Entry, name: string) => void;
   onDownload: (e: Entry) => void;
   onNewBlank: (folder: string | null) => void;
+  /** A fresh copy of the example model, with its checks. */
+  onNewExample: (folder: string | null) => void;
   /** Shared from the home page: uploaded for the first time, or its access changed. */
   onShared: (e: Entry, doc: SharedDoc) => void;
 };
@@ -51,9 +53,10 @@ const title = (filename: string) => filename.replace(/\.(xlsx|xlsm|xls)$/i, "");
 const DRAG_KEY = "text/x-since-model";
 const DRAG_FOLDER = "text/x-since-folder";
 
-export default function ModelList({ entries, onOpen, onImport, onRemove, onRename, onDownload, onNewBlank, onShared }: Props) {
+export default function ModelList({ entries, onOpen, onImport, onRemove, onRename, onDownload, onNewBlank, onNewExample, onShared }: Props) {
   const [query, setQuery] = useState("");
   const [layout, setLayout] = useState<"grid" | "list">("grid");
+  const [owner, setOwner] = useState<"all" | "mine" | "shared">("all");
   const file = useRef<HTMLInputElement>(null);
   const [menu, setMenu] = useState<{ x: number; y: number; entry: Entry } | null>(null);
   const closeMenu = useCallback(() => setMenu(null), []);
@@ -153,15 +156,18 @@ export default function ModelList({ entries, onOpen, onImport, onRemove, onRenam
     />
   );
 
-  // searching looks in every folder; otherwise show what's in the folder you're in
+  // searching looks in every folder; otherwise show what's in the folder you're in.
+  // Shared with me lists everything others shared, wherever you've filed it.
   const q = query.trim().toLowerCase();
-  const shown = (entries ?? []).filter((e) =>
-    q ? e.filename.toLowerCase().includes(q) : folderOf(e.key) === current && !(current === null && incoming(e) && !placement[e.key]),
-  );
-  // shared with you and not filed in one of your folders: its own section on the home page
-  const sharedWithMe = (entries ?? []).filter((e) => incoming(e) && !folderOf(e.key));
+  const sharedCount = (entries ?? []).filter(incoming).length;
+  const shown = (entries ?? []).filter((e) => {
+    if (q && !e.filename.toLowerCase().includes(q)) return false;
+    if (owner === "shared") return incoming(e);
+    if (owner === "mine" && incoming(e)) return false;
+    return q ? true : folderOf(e.key) === current;
+  });
   const shownFolders = folders
-    .filter((f) => (q ? f.name.toLowerCase().includes(q) : f.parent === current))
+    .filter((f) => owner !== "shared" && (q ? f.name.toLowerCase().includes(q) : f.parent === current))
     .sort((a, b) => a.name.localeCompare(b.name));
   const stale = (entries ?? []).reduce((n, e) => n + staleCount(e), 0);
 
@@ -281,22 +287,6 @@ export default function ModelList({ entries, onOpen, onImport, onRemove, onRenam
           </section>
         )}
 
-        {current === null && !q && entries !== null && (
-          <section aria-labelledby="shared-h">
-            <div className="models-head">
-              <h2 id="shared-h">Shared with me</h2>
-              {sharedWithMe.length > 0 && <span className="mono muted">{sharedWithMe.length}</span>}
-            </div>
-            {sharedWithMe.length ? (
-              <div className="model-grid">{sharedWithMe.map(card)}</div>
-            ) : (
-              <p className="hint shared-empty">
-                Nothing yet. When someone shares a model with <span className="mono">{me().email}</span>, it shows up here.
-              </p>
-            )}
-          </section>
-        )}
-
         <section aria-labelledby="models-h">
           <div className="models-head">
             <nav className="crumbs" aria-label="Folder">
@@ -323,6 +313,17 @@ export default function ModelList({ entries, onOpen, onImport, onRemove, onRenam
               {q && <span className="muted crumb-note">· results in all folders</span>}
             </nav>
             <span className="bar-spacer" />
+            <div className="seg" role="group" aria-label="Owner">
+              <button aria-pressed={owner === "all"} onClick={() => setOwner("all")}>
+                All
+              </button>
+              <button aria-pressed={owner === "mine"} onClick={() => setOwner("mine")}>
+                Mine
+              </button>
+              <button aria-pressed={owner === "shared"} onClick={() => setOwner("shared")}>
+                Shared with me{sharedCount > 0 && <span className="mono seg-count">{sharedCount}</span>}
+              </button>
+            </div>
             <div className="seg" role="group" aria-label="Layout">
               <button aria-pressed={layout === "grid"} onClick={() => setLayout("grid")}>
                 Grid
@@ -335,6 +336,10 @@ export default function ModelList({ entries, onOpen, onImport, onRemove, onRenam
 
           {entries === null ? (
             <p className="hint">Loading models…</p>
+          ) : owner === "shared" && shown.length === 0 ? (
+            <p className="hint shared-empty">
+              {q ? `Nothing shared with you matches "${query}".` : <>Nothing yet. When someone shares a model with <span className="mono">{me().email}</span>, it shows up here.</>}
+            </p>
           ) : layout === "grid" ? (
             <>
               {shownFolders.length > 0 && (
@@ -373,7 +378,7 @@ export default function ModelList({ entries, onOpen, onImport, onRemove, onRenam
                 </div>
               )}
               <div className="model-grid">
-                {!q && (
+                {!q && owner !== "shared" && (
                   <button className="model-card add-card" onClick={() => onNewBlank(current)}>
                     <span className="add-plus" aria-hidden>
                       +
@@ -490,6 +495,7 @@ export default function ModelList({ entries, onOpen, onImport, onRemove, onRenam
           onClose={() => setNewMenu(null)}
           items={[
             { label: "Blank spreadsheet", onSelect: () => onNewBlank(current) },
+            { label: "Example model", onSelect: () => onNewExample(current) },
             { label: "Folder", onSelect: newFolder },
             "divider",
             { label: "Import .xlsx…", onSelect: () => file.current?.click() },
