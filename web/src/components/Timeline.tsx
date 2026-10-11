@@ -32,6 +32,11 @@ function topEffect(e: TimelineEvent) {
   return moved.find((i) => i.label === "Enterprise value") ?? moved.reduce((a, b) => (Math.abs(b.delta) > Math.abs(a.delta) ? b : a));
 }
 
+/** Stale changes in the order the list shows them: biggest dollar effect first. */
+export function reviewOrder(events: TimelineEvent[]): TimelineEvent[] {
+  return events.filter((e) => e.status === "stale").sort((a, b) => Math.abs(topEffect(b)?.delta ?? 0) - Math.abs(topEffect(a)?.delta ?? 0));
+}
+
 /** Everything a search can match: title, cells, driver, values, sources and dates. */
 function haystack(e: TimelineEvent): string {
   return [

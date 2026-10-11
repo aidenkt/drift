@@ -3,7 +3,6 @@ import type { Source, TimelineEvent } from "../data/timeline";
 import { deltaMoney, money, value } from "../lib/format";
 import { liveUpdates, whatIf, type Book, type CellUpdate } from "../lib/workbook";
 import { Close } from "./icons";
-import Stamp from "./Stamp";
 
 type Props = {
   event: TimelineEvent;
@@ -50,9 +49,9 @@ export default function EventDetail({ event: e, book, rev, onShowCell, onApply, 
               {RESOLVED[e.status] ? (
                 <span className={`ins-done ${e.status}`}>{RESOLVED[e.status]}</span>
               ) : stale ? (
-                <Stamp status="stale" />
+                <span className="tl-badge stale">Stale</span>
               ) : (
-                <span className="muted">{e.status}</span>
+                <span className={`tl-badge ${e.status}`}>{e.status}</span>
               )}
             </div>
             {e.resolution && (
@@ -142,8 +141,13 @@ export default function EventDetail({ event: e, book, rev, onShowCell, onApply, 
               <button className="btn ins-apply" onClick={() => onApply(e, updates)}>
                 Update {target} to {value(s.live, s.unit)}
               </button>
-              <button className="ins-keep" onClick={() => onKeep(e, true)} title="Keep the model's number on purpose and stop flagging it">
-                Keep as is
+              <button
+                className="ins-keep"
+                onClick={() => onKeep(e, true)}
+                aria-label="Keep as is"
+                title="Keep as is: the model's number is on purpose, stop flagging it"
+              >
+                <Close />
               </button>
             </div>
           )}

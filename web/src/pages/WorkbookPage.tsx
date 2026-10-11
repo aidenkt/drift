@@ -5,7 +5,7 @@ import Presence from "../components/Presence";
 import ShareDialog from "../components/ShareDialog";
 import { Panel } from "../components/icons";
 import Spreadsheet, { type CellChange } from "../components/Spreadsheet";
-import Timeline from "../components/Timeline";
+import Timeline, { reviewOrder } from "../components/Timeline";
 import { SAMPLE_TIMELINE, type TimelineEvent } from "../data/timeline";
 import { colorFor, createShared, joinPresence, me, saveShared, type Person, type SharedDoc } from "../lib/collab";
 import { downloadXlsx, normalizeRef, rawRef, syncSheets, writeRef, xlsxBytes, xlsxName, type Book, type CellUpdate } from "../lib/workbook";
@@ -20,6 +20,7 @@ export type OpenModel = {
   book: Book;
   report: Report | null;
   startEvent?: string; // open with this change selected
+  startCell?: string; // or on this cell, e.g. from the path after a reload
   doc?: SharedDoc; // set once the workbook is shared through the engine
 };
 
@@ -32,6 +33,8 @@ type Props = {
   onCopy: () => void;
   /** Only for files kept in this browser; checked and shared models can't be trashed from here. */
   onTrash?: () => void;
+  /** The active cell ("P&L!C18") whenever it moves, so the path can follow it. */
+  onCell?: (cell: string) => void;
   /** Any cell edit, so the home page can show when the model was last edited. */
   onEdited?: () => void;
   /** The workbook was uploaded for sharing, or its access list changed. */
@@ -41,13 +44,15 @@ type Props = {
 const PANEL = { timeline: 320 };
 const LIMITS = { timeline: [240, 560] } as const;
 const SHEET_MIN = 360;
+// an open change takes this share of the width, so a strip of sheet stays visible to click back to
+const OPEN = { default: 0.95, max: 0.95, detailMin: 420 };
 const stored = (key: keyof typeof PANEL) => {
   const n = Number(localStorage.getItem(`since.panel.${key}`));
   return n ? clamp(n, LIMITS[key][0], LIMITS[key][1]) : PANEL[key];
 };
 const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n));
 
-export default function WorkbookPage({ model, onImport, onBack, onRename, onNew, onCopy, onTrash, onEdited, onShared }: Props) {
+export default function WorkbookPage({ model, onImport, onBack, onRename, onNew, onCopy, onTrash, onCell, onEdited, onShared }: Props) {
   // browser tab: "Since · case_study_aug2026", back to "Since" on the home page
   useEffect(() => {
     document.title = `Since · ${model.filename.replace(/\.(xlsx|xlsm|xls)$/i, "")}`;
@@ -95,23 +100,36 @@ export default function WorkbookPage({ model, onImport, onBack, onRename, onNew,
   }, [model.report, events]);
   const stale = [...constants.values()].filter((c) => c.check?.status === "stale").length;
 
-  const keep = (e: TimelineEvent, on: boolean) =>
+  const keep = (e: TimelineEvent, on: boolean) => {
     setKept((prev) => {
       const next = new Map(prev);
       if (on) next.set(e.id, new Date().toISOString());
       else next.delete(e.id);
       return next;
     });
+    if (on) advance(e.id);
+  };
+
+  // after a stale change is dealt with, open the next one down the list; none left closes the change
+  const advance = (fromId: string) => {
+    const order = reviewOrder(events);
+    const at = order.findIndex((e) => e.id === fromId);
+    const next = [...order.slice(at + 1), ...order.slice(0, Math.max(at, 0))].find((e) => e.id !== fromId);
+    if (next) select(next.id);
+    else close();
+  };
 
   const [openId, setOpenId] = useState<string | null>(model.startEvent ?? null);
   const [showChanges, setShowChanges] = useState(true);
   const [widths, setWidths] = useState(() => ({ timeline: stored("timeline") }));
+  const [openShare, setOpenShare] = useState(() => clamp(Number(localStorage.getItem("since.panel.open")) || OPEN.default, 0.3, OPEN.max));
   const [resizing, setResizing] = useState(false);
   useEffect(() => {
     localStorage.setItem("since.panel.timeline", String(widths.timeline));
-  }, [widths]);
+    localStorage.setItem("since.panel.open", String(openShare));
+  }, [widths, openShare]);
 
-  /** Drag the panel's left edge. */
+  /** Drag the panel's left edge: the list's width, or with a change open, the whole panel's share. */
   const startResize = (e: PointerEvent<HTMLDivElement>) => {
     if (e.button !== 0) return;
     e.preventDefault();
@@ -120,10 +138,14 @@ export default function WorkbookPage({ model, onImport, onBack, onRename, onNew,
     const x0 = e.clientX;
     const start = widths;
     const room = window.innerWidth - SHEET_MIN; // keep the sheet usable
+    const total = handle.closest(".workspace")!.getBoundingClientRect().width;
+    const panel0 = handle.parentElement!.getBoundingClientRect().width;
+    const inspecting = !!openEvent;
     setResizing(true);
     const onMove = (ev: globalThis.PointerEvent) => {
       const dx = ev.clientX - x0;
-      setWidths({ timeline: clamp(start.timeline - dx, LIMITS.timeline[0], Math.min(LIMITS.timeline[1], room)) });
+      if (inspecting) setOpenShare(clamp((panel0 - dx) / total, Math.min(OPEN.max, (start.timeline + OPEN.detailMin) / total), OPEN.max));
+      else setWidths({ timeline: clamp(start.timeline - dx, LIMITS.timeline[0], Math.min(LIMITS.timeline[1], room)) });
     };
     const onUp = () => {
       setResizing(false);
@@ -135,7 +157,7 @@ export default function WorkbookPage({ model, onImport, onBack, onRename, onNew,
     handle.addEventListener("pointerup", onUp);
     handle.addEventListener("pointercancel", onUp);
   };
-  const resetWidth = () => setWidths({ timeline: PANEL.timeline });
+  const resetWidth = () => (openEvent ? setOpenShare(OPEN.default) : setWidths({ timeline: PANEL.timeline }));
 
   /* ---------- sharing and presence ---------- */
   const [doc, setDoc] = useState<SharedDoc | null>(model.doc ?? null);
@@ -175,7 +197,7 @@ export default function WorkbookPage({ model, onImport, onBack, onRename, onNew,
     }
   };
   const [focus, setFocus] = useState<{ ref: string; nonce: number } | null>(() => {
-    const cell = events.find((e) => e.id === model.startEvent)?.cells[0];
+    const cell = events.find((e) => e.id === model.startEvent)?.cells[0] ?? model.startCell;
     return cell ? { ref: cell, nonce: 0 } : null;
   });
   const openEvent = events.find((e) => e.id === openId) ?? null;
@@ -221,6 +243,7 @@ export default function WorkbookPage({ model, onImport, onBack, onRename, onNew,
 
   const onSelectCell = (ref: string) => {
     room.current?.setCell(ref);
+    onCell?.(ref);
     const key = normalizeRef(ref);
     if (openEvent?.cells.some((c) => normalizeRef(c) === key)) return;
     const hit = events.find((e) => e.kind !== "baseline" && e.cells.some((c) => normalizeRef(c) === key));
@@ -259,6 +282,7 @@ export default function WorkbookPage({ model, onImport, onBack, onRename, onNew,
     model.book.hf.batch(() => updates.forEach((u) => writeRef(model.book, u.cell, u.text)));
     setRev((r) => r + 1);
     onEdit([{ ref: cell, before, after: rawRef(model.book, cell) }]);
+    advance(event.id);
   };
 
   /** moved: how many cells a cut-and-paste carried (its changes also list the emptied source).
@@ -342,9 +366,11 @@ export default function WorkbookPage({ model, onImport, onBack, onRename, onNew,
 
       <div
         className={`workspace${resizing ? " resizing" : ""}`}
-        style={{ "--timeline-w": `${widths.timeline}px` } as CSSProperties}
+        style={{ "--timeline-w": `${widths.timeline}px`, "--open-w": `${openShare * 100}%` } as CSSProperties}
       >
         <div className="workspace-sheet">
+          {/* the strip of sheet left beside an open change: clicking it closes the change */}
+          {openEvent && <div className="sheet-scrim" onClick={close} aria-hidden />}
           <Spreadsheet
             book={model.book}
             constants={constants}
@@ -367,8 +393,20 @@ export default function WorkbookPage({ model, onImport, onBack, onRename, onNew,
               </button>
             }
           />
-          {/* an open change covers the sheet, so only the list and the change compete for the eye */}
-          <div className={`sheet-overlay ${openEvent ? "open" : ""}`} inert={!openEvent}>
+        </div>
+        {/* the list, on the right; opening a change widens the panel over the whole sheet,
+            the list keeps its column on the left and the change fills the rest */}
+        <div className={`sidebar ${showChanges ? "open" : ""} ${openEvent ? "inspecting" : ""}`} inert={!showChanges}>
+          <div
+            className="panel-resize edge"
+            role="separator"
+            aria-orientation="vertical"
+            aria-label="Resize changes panel"
+            onPointerDown={startResize}
+            onDoubleClick={resetWidth}
+          />
+          <Timeline events={events} selectedId={openId ?? cellEventId} onSelect={select} />
+          <div className="sidebar-detail" inert={!openEvent}>
             {shownLive && (
               <EventDetail
                 event={shownLive}
@@ -381,18 +419,6 @@ export default function WorkbookPage({ model, onImport, onBack, onRename, onNew,
               />
             )}
           </div>
-        </div>
-        {/* slides in from the right */}
-        <div className={`sidebar ${showChanges ? "open" : ""}`} inert={!showChanges}>
-          <div
-            className="panel-resize edge"
-            role="separator"
-            aria-orientation="vertical"
-            aria-label="Resize changes panel"
-            onPointerDown={startResize}
-            onDoubleClick={resetWidth}
-          />
-          <Timeline events={events} selectedId={openId ?? cellEventId} onSelect={select} />
         </div>
       </div>
     </div>
