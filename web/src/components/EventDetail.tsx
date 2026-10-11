@@ -3,6 +3,7 @@ import type { Source, TimelineEvent } from "../data/timeline";
 import { deltaMoney, money, value } from "../lib/format";
 import { liveUpdates, whatIf, type Book, type CellUpdate } from "../lib/workbook";
 import { Close } from "./icons";
+import { Faces } from "./Presence";
 
 type Props = {
   event: TimelineEvent;
@@ -12,12 +13,14 @@ type Props = {
   onApply: (event: TimelineEvent, updates: CellUpdate[]) => void;
   onKeep: (event: TimelineEvent, keep: boolean) => void;
   onClose: () => void;
+  /** Other people with this change open. */
+  viewers?: { email: string; name: string }[];
 };
 
 const RESOLVED: Partial<Record<TimelineEvent["status"], string>> = { updated: "Updated", kept: "Kept as is", gone: "No longer in model" };
 
 /** One change, laid over the sheet: the numbers and what updating does on the left, the evidence on the right. */
-export default function EventDetail({ event: e, book, rev, onShowCell, onApply, onKeep, onClose }: Props) {
+export default function EventDetail({ event: e, book, rev, onShowCell, onApply, onKeep, onClose, viewers = [] }: Props) {
   const s = e.state;
   const cell = e.cells[0];
   const stale = e.status === "stale";
@@ -37,6 +40,9 @@ export default function EventDetail({ event: e, book, rev, onShowCell, onApply, 
     <section className="inspector" aria-label={s?.label ?? e.title}>
       <header className="ins-bar">
         <span className="mono muted">{e.date}</span>
+        <span className="ins-viewers">
+          <Faces people={viewers} />
+        </span>
         <button className="ins-close" onClick={onClose} aria-label="Close" title="Close (Esc)">
           <Close />
         </button>
@@ -159,19 +165,6 @@ export default function EventDetail({ event: e, book, rev, onShowCell, onApply, 
         </div>
 
         <div className="ins-side">
-          {e.sources.length > 0 && (
-            <div className="ins-section">
-              <h3>Sources</h3>
-              <ul className="ins-sources">
-                {e.sources.map((src) => (
-                  <li key={src.title + src.url}>
-                    <SourceCard src={src} />
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-
           {e.signals.length > 0 && (
             <div className="ins-section">
               <h3>Checks</h3>
@@ -189,6 +182,20 @@ export default function EventDetail({ event: e, book, rev, onShowCell, onApply, 
             </div>
           )}
         </div>
+
+        {/* sources run the full width under both columns */}
+        {e.sources.length > 0 && (
+          <div className="ins-section ins-sources-row">
+            <h3>Sources</h3>
+            <ul className="ins-sources">
+              {e.sources.map((src) => (
+                <li key={src.title + src.url}>
+                  <SourceCard src={src} />
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
     </section>
   );

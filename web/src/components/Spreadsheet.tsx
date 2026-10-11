@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type CSSProperties, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
+import * as XLSX from "xlsx";
 import type { Constant } from "../types";
 import {
   addSheet,
@@ -47,13 +48,13 @@ type Props = {
   focus?: { ref: string; nonce: number } | null;
   /** Every write, one call per user action (a paste or a range clear arrives as one batch). */
   onEdit?: (changes: CellChange[], moved?: number, title?: string) => void;
-  /** The active cell, whenever it changes. */
-  onSelectCell?: (ref: string) => void;
+  /** The active cell, whenever it changes, and the highlighted range when it's more than one cell. */
+  onSelectCell?: (ref: string, range?: string) => void;
   /** Bumped by the page after undo/redo from the menu bar, to re-render. */
   rev?: number;
   toolbarEnd?: ReactNode;
-  /** Other people's active cells, outlined in their colour. */
-  peers?: { cell: string; color: string; name: string }[];
+  /** Other people's active cells, outlined in their colour, and what they've highlighted, tinted. */
+  peers?: { cell: string; range: string | null; color: string; name: string }[];
   /** After undo or redo from the keyboard, so the page can re-read the cells. */
   onHistory?: () => void;
 };
@@ -115,6 +116,19 @@ export default function Spreadsheet({ book, constants, focus, onEdit, onSelectCe
   const tableWidth = ROW_HEAD + widths.reduce((a, b) => a + b, 0);
 
   const peerAt = useMemo(() => new Map((peers ?? []).map((p) => [normalizeRef(p.cell), p])), [peers]);
+  // "r:c" -> whose highlighted range covers the cell, on this sheet
+  const peerRange = useMemo(() => {
+    const at = new Map<string, { color: string; name: string }>();
+    for (const p of peers ?? []) {
+      if (!p.range) continue;
+      const i = p.range.lastIndexOf("!");
+      if (p.range.slice(0, i) !== sheet.name) continue;
+      const { s: a, e: b } = XLSX.utils.decode_range(p.range.slice(i + 1));
+      for (let r = a.r; r <= Math.min(b.r, a.r + 500); r++)
+        for (let c = a.c; c <= Math.min(b.c, a.c + 100); c++) if (!at.has(`${r}:${c}`)) at.set(`${r}:${c}`, p);
+    }
+    return at;
+  }, [peers, sheet.name]);
 
   const staleBySheet = useMemo(() => {
     const counts = new Map<string, number>();
@@ -596,7 +610,8 @@ export default function Spreadsheet({ book, constants, focus, onEdit, onSelectCe
     setVersion((v) => v + 1);
     focusGrid();
   };
-  useEffect(() => onSelectCell?.(selRef), [selRef]);
+  const rangeRef = multi ? `${sheet.name}!${rangeLabel}` : undefined;
+  useEffect(() => onSelectCell?.(selRef, rangeRef), [selRef, rangeRef]);
 
   // hovering a checked constant shows its card beside the cell
   const [tip, setTip] = useState<{ ref: string; left: number; top: number; bottom: number } | null>(null);
@@ -724,6 +739,7 @@ export default function Spreadsheet({ book, constants, focus, onEdit, onSelectCe
                 {Array.from({ length: cols }, (_, c) => {
                   const isSel = r === sel.r && c === sel.c;
                   const peer = peerAt.get(ref(sheet.name, r, c));
+                  const peerIn = peerRange.get(`${r}:${c}`);
                   const hit = multi && inRange(r, c);
                   const v = view(book, sheet, r, c);
                   const constant = constants.get(ref(sheet.name, r, c));
@@ -739,6 +755,7 @@ export default function Spreadsheet({ book, constants, focus, onEdit, onSelectCe
                     hit && c === range.c0 && "rl",
                     hit && c === range.c1 && "rr",
                     peer && "peer",
+                    peerIn && !hit && !isSel && "peer-range",
                   ]
                     .filter(Boolean)
                     .join(" ");
@@ -748,7 +765,7 @@ export default function Spreadsheet({ book, constants, focus, onEdit, onSelectCe
                       data-cell={`${r}:${c}`}
                       className={cls}
                       title={peer ? peer.name : v.text.length > 14 ? v.text : undefined}
-                      style={peer ? ({ "--peer": peer.color } as CSSProperties) : undefined}
+                      style={peer || peerIn ? ({ "--peer": (peer ?? peerIn)!.color } as CSSProperties) : undefined}
                       data-peer={peer?.name.split(" ")[0]}
                       onMouseDown={(e) => {
                         if (isSel && edit?.from === "cell") return; // clicks inside the editor
