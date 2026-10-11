@@ -1,0 +1,35 @@
+// A shared workbook: who owns it and who it's shared with. Only the `workbooks` function reads
+// or writes it (as service role), after checking the caller's Clerk session; nobody gets
+// direct access, so every rule below is admin-only.
+{
+  "name": "Workbook",
+  "type": "object",
+  "properties": {
+    "filename": { "type": "string" },
+    "owner_email": { "type": "string", "format": "email" },
+    "owner_name": { "type": "string" },
+    "members": {
+      "type": "array",
+      "description": "People it's shared with",
+      "items": {
+        "type": "object",
+        "properties": {
+          "email": { "type": "string", "format": "email" },
+          "role": { "type": "string", "enum": ["editor", "viewer"] }
+        },
+        "required": ["email", "role"]
+      }
+    },
+    "member_emails": { "type": "array", "items": { "type": "string" }, "description": "members[].email, for lookups" },
+    "updated": { "type": "number", "description": "Unix seconds of the last save" },
+    "updated_by": { "type": "string" },
+    "file_uri": { "type": "string", "description": "The .xlsx, a private upload; read through a signed URL" }
+  },
+  "required": ["filename", "owner_email", "members", "member_emails", "updated", "file_uri"],
+  "rls": {
+    "create": { "user_condition": { "role": "admin" } },
+    "read": { "user_condition": { "role": "admin" } },
+    "update": { "user_condition": { "role": "admin" } },
+    "delete": { "user_condition": { "role": "admin" } }
+  }
+}

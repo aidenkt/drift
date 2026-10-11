@@ -7,7 +7,6 @@ from fastapi import FastAPI, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-import collab
 import pipeline
 from checks import label as labeler, news
 
@@ -19,7 +18,6 @@ FIXTURE = ROOT.parent / "schema" / "fixtures" / "case_study.json"
 
 app = FastAPI(title="Since engine")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
-app.include_router(collab.router)
 
 # model_id -> report (in memory for the hackathon)
 REPORTS: dict[str, dict] = {"case-study": json.loads(FIXTURE.read_text())}

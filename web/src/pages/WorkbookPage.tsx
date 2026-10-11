@@ -217,7 +217,9 @@ export default function WorkbookPage({ model, onImport, onBack, onRename, onEdit
     if (!doc || !canSave || (saved.current.rev === rev && saved.current.edits === edits)) return;
     const t = window.setTimeout(() => {
       saved.current = { rev, edits };
-      saveShared(doc.doc_id, xlsxBytes(model.book), xlsxName(model.filename)).catch((e) => setNotice(`Couldn't save: ${e.message}`));
+      saveShared(doc.doc_id, xlsxBytes(model.book))
+        .then(() => room.current?.saved())
+        .catch((e) => setNotice(`Couldn't save: ${e.message}`));
     }, 1500);
     return () => clearTimeout(t);
   }, [rev, edits, doc, canSave]);

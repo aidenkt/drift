@@ -122,9 +122,6 @@ export default function ShareDialog({ filename, doc, ensureDoc, onChange, onClos
           </li>
         ))}
       </ul>
-      <p className="share-foot muted small">
-        People you add see this model on their home page when they sign in with that email. No email is sent.
-      </p>
     </dialog>
   );
 }

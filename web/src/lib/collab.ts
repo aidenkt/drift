@@ -1,6 +1,9 @@
-/** Shared workbooks on the engine: who you are, who a workbook is shared with, who has it open. */
+/** Shared workbooks on Base44: who you are, who a workbook is shared with, who has it open.
+ *  Sign-in stays with Clerk: every call carries the Clerk session token, and the `workbooks`
+ *  function and WorkbookRoom actor (see /base44) check it. */
+import { createClient } from "@base44/sdk";
 
-const ENGINE = import.meta.env.VITE_ENGINE_URL ?? "http://localhost:8000";
+const base44 = createClient({ appId: import.meta.env.VITE_BASE44_APP_ID ?? "6acaab66ecbcf0974bea29c3" });
 
 export type Role = "owner" | "editor" | "viewer";
 export type Me = { email: string; name: string };
@@ -35,99 +38,73 @@ function guest(): Me {
 
 export const me = (): Me => clerk?.me ?? guest();
 
-async function authHeaders(): Promise<Record<string, string>> {
-  if (clerk) {
-    const t = await clerk.token();
-    return t ? { Authorization: `Bearer ${t}` } : {};
-  }
-  const g = guest();
-  return { "X-Dev-User": g.email, "X-Dev-Name": g.name };
+/** Who's asking: the Clerk session token. Without Clerk (local dev) there's none, and sharing
+ *  answers "Sign in to share". */
+async function credentials(): Promise<{ token?: string }> {
+  return clerk ? { token: (await clerk.token()) ?? undefined } : {};
 }
 
 /* ---------- workbooks and access ---------- */
 
-async function call<T>(path: string, init: RequestInit = {}): Promise<T> {
-  let res: Response;
+async function call<T>(action: string, args: Record<string, unknown> = {}): Promise<T> {
   try {
-    res = await fetch(`${ENGINE}${path}`, { ...init, headers: { ...(init.headers ?? {}), ...(await authHeaders()) } });
-  } catch {
-    throw new Error(`Sharing needs the engine running at ${ENGINE}.`);
+    const res = await base44.functions.invoke("workbooks", { action, ...args, ...(await credentials()) });
+    return res.data as T;
+  } catch (e) {
+    const err = e as { response?: { data?: { detail?: string } }; message?: string };
+    throw new Error(err.response?.data?.detail ?? err.message ?? "Sharing is unavailable right now.");
   }
-  if (!res.ok) {
-    const detail = await res.json().then((b) => b.detail, () => null);
-    throw new Error(typeof detail === "string" ? detail : `${res.status} ${res.statusText}`);
-  }
-  return res.headers.get("content-type")?.includes("json") ? res.json() : (res.arrayBuffer() as Promise<T>);
 }
 
-const form = (bytes: ArrayBuffer, filename: string) => {
-  const f = new FormData();
-  f.append("file", new Blob([bytes]), filename);
-  return f;
+// workbook files travel as base64
+const toBase64 = (bytes: ArrayBuffer) => {
+  let s = "";
+  const view = new Uint8Array(bytes);
+  for (let i = 0; i < view.length; i += 0x8000) s += String.fromCharCode(...view.subarray(i, i + 0x8000));
+  return btoa(s);
 };
+const fromBase64 = (b64: string) => Uint8Array.from(atob(b64), (c) => c.charCodeAt(0)).buffer;
 
-export const listShared = () => call<SharedDoc[]>("/workbooks");
-export const createShared = (bytes: ArrayBuffer, filename: string) =>
-  call<SharedDoc>("/workbooks", { method: "POST", body: form(bytes, filename) });
-export const getShared = (id: string) => call<SharedDoc>(`/workbooks/${id}`);
-export const fetchSharedFile = (id: string) => call<ArrayBuffer>(`/workbooks/${id}/file`);
-export const saveShared = (id: string, bytes: ArrayBuffer, filename: string) =>
-  call<{ updated: number }>(`/workbooks/${id}/file`, { method: "PUT", body: form(bytes, filename) });
-export const shareWith = (id: string, email: string, role: "editor" | "viewer") =>
-  call<SharedDoc>(`/workbooks/${id}/members`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, role }),
-  });
-export const unshare = (id: string, email: string) =>
-  call<SharedDoc>(`/workbooks/${id}/members/${encodeURIComponent(email)}`, { method: "DELETE" });
+export const listShared = () => call<SharedDoc[]>("list");
+export const createShared = (bytes: ArrayBuffer, filename: string) => call<SharedDoc>("create", { filename, data: toBase64(bytes) });
+export const getShared = (id: string) => call<SharedDoc>("get", { id });
+export const fetchSharedFile = (id: string) => call<{ data: string }>("file", { id }).then((r) => fromBase64(r.data));
+export const saveShared = (id: string, bytes: ArrayBuffer) => call<{ updated: number }>("save", { id, data: toBase64(bytes) });
+export const shareWith = (id: string, email: string, role: "editor" | "viewer") => call<SharedDoc>("share", { id, email, role });
+export const unshare = (id: string, email: string) => call<SharedDoc>("unshare", { id, email });
 
 /* ---------- presence ---------- */
 
 type Handlers = { onPeople: (p: Person[]) => void; onSaved: (by: { email: string; name: string }) => void; onError: (msg: string) => void };
 
-/** Joins a workbook's presence room. Reconnects if the connection drops. */
+/** Joins a workbook's WorkbookRoom. The room asks who we are on every (re)connect. */
 export function joinPresence(id: string, h: Handlers) {
-  let ws: WebSocket | null = null;
-  let closed = false;
+  const room = base44.actors.WorkbookRoom(id).connect();
   let cell: string | null = null;
-  let retry: number | undefined;
-
-  const open = async () => {
-    const q = new URLSearchParams();
-    if (clerk) {
-      const t = await clerk.token();
-      if (t) q.set("token", t);
-    } else {
-      const g = guest();
-      q.set("dev", g.email);
-      q.set("name", g.name);
-    }
-    if (closed) return;
-    ws = new WebSocket(`${ENGINE.replace(/^http/, "ws")}/workbooks/${id}/presence?${q}`);
-    ws.onopen = () => cell && ws?.send(JSON.stringify({ type: "cell", cell }));
-    ws.onmessage = (e) => {
-      const msg = JSON.parse(e.data);
-      if (msg.type === "presence") h.onPeople(msg.people);
-      if (msg.type === "saved") h.onSaved({ email: msg.by, name: msg.name ?? msg.by });
-    };
-    ws.onclose = (e) => {
-      if (closed) return;
-      if (e.code === 4401 || e.code === 4403) return h.onError(e.reason || "No access to this workbook");
-      retry = window.setTimeout(open, 2000);
-    };
-  };
-  void open();
+  const sub = room.subscribe((data) => {
+    const msg = data as { type: string; people?: Person[]; by?: string; name?: string; detail?: string };
+    if (msg.type === "hello?")
+      void credentials().then((c) => {
+        room.send({ type: "hello", ...c });
+        if (cell) room.send({ type: "cell", cell });
+      });
+    if (msg.type === "presence") h.onPeople(msg.people ?? []);
+    if (msg.type === "saved") h.onSaved({ email: msg.by ?? "", name: msg.name ?? msg.by ?? "" });
+    if (msg.type === "error") h.onError(msg.detail ?? "No access to this workbook");
+  });
 
   return {
     setCell(next: string) {
       cell = next;
-      if (ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: "cell", cell }));
+      room.send({ type: "cell", cell });
+    },
+    /** Tell the others a new version was saved. */
+    saved() {
+      room.send({ type: "saved" });
     },
     close() {
-      closed = true;
-      clearTimeout(retry);
-      ws?.close();
+      sub.unsubscribe();
+      room.close();
     },
   };
 }

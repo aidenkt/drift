@@ -1077,15 +1077,29 @@ a.src-card:hover .src-title { text-decoration: underline; }
 .share-add input {
   flex: 1;
   min-width: 0;
-  padding: 9px 12px;
+  height: 38px;
+  padding: 0 12px;
   border: 1px solid var(--rule);
   border-radius: 8px;
   font: 14px var(--sans);
   color: var(--ink);
 }
 .share-add input:focus { outline: none; border-color: var(--input); box-shadow: 0 0 0 3px rgba(31, 71, 184, 0.12); }
-.share-dialog select { padding: 8px 6px; border: 1px solid var(--rule); border-radius: 8px; background: var(--paper); font: 13px var(--sans); color: var(--ink); }
-.share-add .btn { padding-inline: 16px; }
+.share-dialog select {
+  appearance: none;
+  height: 38px;
+  padding: 0 30px 0 12px;
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  background: var(--paper) url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="10" height="6" viewBox="0 0 10 6"><path d="M1 1l4 4 4-4" fill="none" stroke="%236b6b6b" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>') right 12px center / 10px 6px no-repeat;
+  font: 13.5px var(--sans);
+  color: var(--ink);
+  cursor: pointer;
+}
+.share-dialog select:hover { border-color: #cfcfcf; }
+.share-dialog select:focus { outline: none; }
+.share-dialog select:focus-visible { border-color: var(--input); box-shadow: 0 0 0 3px rgba(31, 71, 184, 0.12); }
+.share-add .btn { height: 38px; padding-inline: 16px; }
 .share-add .btn:disabled { opacity: 0.5; cursor: default; }
 .share-error { margin: 10px 0 0; padding: 8px 10px; border-radius: 6px; background: var(--accent-wash); color: var(--accent-deep); font-size: 13px; }
 .share-note { margin: 0; color: var(--muted); font-size: 13px; }
@@ -1094,9 +1108,8 @@ a.src-card:hover .src-title { text-decoration: underline; }
 .share-people .avatar { width: 32px; height: 32px; border: 0; }
 .share-who { display: grid; flex: 1; min-width: 0; }
 .share-who > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.share-people select { border-color: transparent; }
+.share-people select { height: 32px; border-color: transparent; background-color: transparent; text-align: right; text-align-last: right; }
 .share-people select:hover { border-color: var(--rule); }
-.share-foot { margin: 14px 0 0; }
 
 .card-shared { grid-column: 2; font-size: 11.5px; color: var(--input); }
 

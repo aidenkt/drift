@@ -1,0 +1,7 @@
+// Base44's built-in User entity, kept so `entities push` doesn't drop it. Since signs in with
+// Clerk, so it adds no fields; the built-ins (full_name, email, role) are managed by Base44.
+{
+  "name": "User",
+  "type": "object",
+  "properties": {}
+}
