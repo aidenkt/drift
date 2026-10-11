@@ -290,9 +290,13 @@ export function removeSheet(book: Book, ix: number) {
   const sheet = book.sheets[ix];
   if (!sheet || book.sheets.length < 2) return;
   book.hf.removeSheet(sheet.id);
-  rekeyFormats(book, sheet.name, null);
-  book.sheets.splice(ix, 1);
+  syncSheets(book);
 }
+
+/** Sheets that left the engine, kept so undo brings each back where it was, as it was:
+ *  the engine restores the cells, but not the tab's place, column widths or number formats. */
+type Gone = { meta: SheetMeta; ix: number; formats: [string, string][] };
+const goneSheets = new WeakMap<Book, Map<number, Gone>>();
 
 /**
  * Insert (count > 0) or delete (count < 0) whole rows or columns at `at`. Formulas that
@@ -330,6 +334,17 @@ export function shiftLines(book: Book, sheet: SheetMeta, axis: "row" | "col", at
 
 /** After undo/redo, which can add, remove or rename sheets, match `book.sheets` to the engine. */
 export function syncSheets(book: Book) {
+  const gone = goneSheets.get(book) ?? new Map<number, Gone>();
+  goneSheets.set(book, gone);
+  const live = new Set(book.hf.getSheetNames().map((name) => book.hf.getSheetId(name)!));
+  book.sheets.forEach((meta, ix) => {
+    if (live.has(meta.id)) return;
+    const prefix = `${meta.name}!`;
+    const formats = [...book.formats].filter(([key]) => key.startsWith(prefix));
+    gone.set(meta.id, { meta, ix, formats });
+    rekeyFormats(book, meta.name, null);
+  });
+
   const byId = new Map(book.sheets.map((s) => [s.id, s]));
   const next = book.hf.getSheetNames().map((name) => {
     const id = book.hf.getSheetId(name)!;
@@ -341,7 +356,19 @@ export function syncSheets(book: Book) {
     }
     return meta;
   });
-  book.sheets.splice(0, book.sheets.length, ...next);
+  // the engine lists a sheet it brought back last; put it back in its old place, with its formats
+  const kept = next.filter((m) => byId.has(m.id));
+  for (const m of next.filter((m) => !byId.has(m.id))) {
+    const was = gone.get(m.id);
+    gone.delete(m.id);
+    if (!was || was.meta.name !== m.name) {
+      kept.push(m);
+      continue;
+    }
+    for (const [key, fmt] of was.formats) book.formats.set(key, fmt);
+    kept.splice(Math.min(was.ix, kept.length), 0, was.meta);
+  }
+  book.sheets.splice(0, book.sheets.length, ...kept);
 }
 
 /* ---------- export ---------- */
