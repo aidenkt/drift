@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { getModel, listModels } from "./api";
+import { analyze, getModel, getModelFile, listModels } from "./api";
 import { fetchSharedFile, listShared, type SharedDoc } from "./lib/collab";
 import { listFiles, removeFile, saveFile } from "./lib/library";
 import { loadPlacement, place } from "./lib/folders";
@@ -38,6 +38,22 @@ const links = (): Record<string, string> => {
   }
 };
 
+// imported files the engine has checked, by entry key -> engine model id, so a reload finds the report again
+const REPORTS = "since.reports";
+const reportLinks = (): Record<string, string> => {
+  try {
+    return JSON.parse(localStorage.getItem(REPORTS) ?? "{}");
+  } catch {
+    return {};
+  }
+};
+const saveReport = (key: string, id: string | null) => {
+  const all = reportLinks();
+  if (id) all[key] = id;
+  else delete all[key];
+  localStorage.setItem(REPORTS, JSON.stringify(all));
+};
+
 /** Workbooks shared with or by you on the engine: matched to local models, or loaded as new cards. */
 async function sharedEntries(local: Entry[]): Promise<Entry[]> {
   const docs = await listShared().catch(() => [] as SharedDoc[]);
@@ -68,30 +84,72 @@ export default function App() {
   const [library, setLibrary] = useState<Entry[] | null>(null);
   const reportsRef = useRef<Report[]>([]);
 
+  // leaving the app stops asking the engine for reports
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
+
+  /** Put the engine's report on an entry, and on the open model if it's that one, again every 2 s while it's still checking. */
+  const follow = async (key: string, id: string) => {
+    let shown = "";
+    while (mounted.current) {
+      const report = await getModel(id).catch(() => undefined);
+      if (!mounted.current || report === undefined) return; // engine unreachable: keep what's shown
+      if (report === null) return saveReport(key, null); // the engine restarted and forgot the model
+      // most polls bring nothing new: only a changed report redraws the page
+      const text = JSON.stringify(report);
+      if (text !== shown) {
+        shown = text;
+        setLibrary((prev) => prev?.map((x) => (x.key === key ? { ...x, report, builtOn: report.built_on } : x)) ?? null);
+        setOpen((o) => (o && o.key === key ? { ...o, report, builtOn: report.built_on } : o));
+      }
+      if (report.status !== "checking") return;
+      await new Promise((r) => setTimeout(r, 2000));
+    }
+  };
+
   useEffect(() => {
     let live = true;
     (async () => {
-      // Until the engine returns uploaded workbooks, each report opens the case-study workbook.
+      // An engine model opens the workbook that was uploaded; the fixture has none, so it opens the case study.
       const [summaries, stored, buf] = await Promise.all([
-        listModels(),
+        listModels().catch(() => []),
         listFiles().catch(() => []),
         fetch(caseStudyUrl).then((r) => r.arrayBuffer()),
       ]);
-      const reports = await Promise.all(summaries.map((m) => getModel(m.model_id)));
+      // a model checked from a file imported here already has that file's card
+      const linked = reportLinks();
+      const mine = new Set(Object.values(linked));
+      const reports = (await Promise.all(summaries.map((m) => getModel(m.model_id).catch(() => null)))).filter((r): r is Report => r !== null);
       reportsRef.current = reports;
       const saved = new Map(stored.map((f) => [f.key, f]));
       // checked models open from their saved copy once edited, else from the original file
-      const checked: Entry[] = reports.map((r) => {
-        const key = `model:${r.model_id}`;
-        const own = saved.get(key);
-        return { key, filename: r.filename, builtOn: r.built_on, added: null, edited: null, book: readXlsx(own?.buf ?? buf), report: r };
-      });
+      const checked = (
+        await Promise.all(
+          reports
+            .filter((r) => !mine.has(r.model_id))
+            .map(async (r): Promise<Entry[]> => {
+              const key = `model:${r.model_id}`;
+              try {
+                const own = saved.get(key);
+                const book = readXlsx(own?.buf ?? (r.model_id === "case-study" ? buf : await getModelFile(r.model_id)));
+                return [{ key, filename: r.filename, builtOn: r.built_on, added: null, edited: null, book, report: r }];
+              } catch {
+                return []; // no workbook to show it on: leave it off the home page
+              }
+            }),
+        )
+      ).flat();
       const imported = stored
         .filter((f) => !f.key.startsWith("model:"))
         .sort((a, b) => b.added.localeCompare(a.added))
         .flatMap((f): Entry[] => {
           try {
-            const report = reports.find((r) => r.model_id === f.report) ?? null;
+            const report = reports.find((r) => r.model_id === (f.report ?? linked[f.key])) ?? null;
             return [{ key: f.key, filename: f.filename, builtOn: report?.built_on ?? null, added: f.added, edited: null, book: readXlsx(f.buf), report, blank: f.blank }];
           } catch {
             return [];
@@ -104,6 +162,10 @@ export default function App() {
       if (!live) return;
       const all = [...entries, ...shared];
       setLibrary(all);
+      // reports for the files imported here, and for anything the engine is still checking
+      const known = new Set(summaries.map((m) => m.model_id));
+      for (const e of imported) if (known.has(linked[e.key])) void follow(e.key, linked[e.key]);
+      for (const e of checked) if (e.report?.status === "checking") void follow(e.key, e.report.model_id);
       // a reload reopens the model and sheet in the path
       const route = readRoute();
       const entry = route && all.find((e) => routeId(e.key) === route.id);
@@ -163,6 +225,12 @@ export default function App() {
       setLibrary((prev) => [entry, ...(prev ?? [])]);
       setOpen({ id: Date.now(), key: entry.key, filename: entry.filename, builtOn: null, book: entry.book, report: null });
       setError(null);
+      // the engine checks it in the background; the report lands on this entry as it fills in
+      void analyze(file, file.name).then((id) => {
+        if (!id) return;
+        saveReport(entry.key, id);
+        void follow(entry.key, id);
+      });
     } catch {
       setError(`Couldn't read ${file.name}. Re-save it from Excel as .xlsx and import it again.`);
     }
