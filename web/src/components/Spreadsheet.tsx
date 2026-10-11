@@ -424,8 +424,11 @@ export default function Spreadsheet({ book, constants, focus, onEdit, onSelectCe
     };
   }, []);
 
+  // Enter or Tab commits, then the editor's blur fires with the same edit: write it once
+  const committed = useRef<Edit | null>(null);
   const commit = (dr = 0, dc = 0) => {
-    if (edit) writeCell(sel.r, sel.c, edit.text);
+    if (edit && committed.current !== edit) writeCell(sel.r, sel.c, edit.text);
+    committed.current = edit;
     setEdit(null);
     // Enter/Tab commit, then the editor's blur commits again with the old selection: only
     // an actual move may select, or the blur would snap the cursor back
