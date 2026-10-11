@@ -201,7 +201,14 @@ export default function WorkbookPage({ model, onImport, onBack, onRename, onNew,
   useEffect(() => void (uploadOnOpen && upload()), []);
 
   /* ---------- live edits: what changed in the cells goes to everyone with the workbook open ---------- */
-  type Op = { cells?: CellsOp; event?: TimelineEvent; kept?: { id: string; at: string | null }; touched?: { id: string; at: string }; filename?: string };
+  type Op = {
+    cells?: CellsOp;
+    event?: TimelineEvent;
+    unevent?: string; // an edit taken back with undo
+    kept?: { id: string; at: string | null };
+    touched?: { id: string; at: string | null };
+    filename?: string;
+  };
   const send = (op: Op) => room.current?.send(op);
   const live = useRef<{ snap: ReturnType<typeof snapshot> | null; applying: boolean; timer?: number }>({ snap: null, applying: false });
   const dirty = useRef(false); // changed here since the last save; others' edits are theirs to save
@@ -235,14 +242,16 @@ export default function WorkbookPage({ model, onImport, onBack, onRename, onNew,
         live.current.applying = false;
       }
       live.current.snap = snapshot(model.book);
+      steps.current = { undo: [], redo: [] }; // applying their cells cleared the engine's undo
       setRev((r) => r + 1);
     }
     if (op.event) {
       const ev = { ...op.event, by: by.name };
       setEdits((prev) => (prev.some((e) => e.id === ev.id) ? prev : [ev, ...prev]));
     }
+    if (op.unevent) removeEdit(op.unevent);
     if (op.kept) setKeep(op.kept.id, op.kept.at);
-    if (op.touched) setTouched((prev) => new Map(prev).set(op.touched!.id, { at: op.touched!.at, by: by.name }));
+    if (op.touched) setTouch(op.touched.id, op.touched.at ? { at: op.touched.at, by: by.name } : undefined);
     // renamed by someone else: Base44 already has it, so only the title changes here
     if (op.filename && doc) updateDoc({ ...doc, filename: op.filename });
   };
@@ -277,11 +286,61 @@ export default function WorkbookPage({ model, onImport, onBack, onRename, onNew,
     const o = opened.current;
     if (o.rev !== rev || o.edits !== edits || o.kept !== kept || o.touched !== touched) upload();
   }, [rev, edits, kept, touched]);
+
+  /* ---------- undo and redo take the list back with the cells ---------- */
+  // one step per step on the engine's undo stack: the entry an edit added, or the stale
+  // assumption it resolved; null for steps with nothing in the list, like a new sheet
+  type Touch = { at: string; by: string } | undefined;
+  type Step = { event: TimelineEvent } | { check: string; touched: [Touch, Touch]; kept: [string | undefined, string | undefined] } | null;
+  const steps = useRef<{ undo: Step[]; redo: Step[] }>({ undo: [], redo: [] });
+  const pushStep = (step: Step) => {
+    const s = steps.current;
+    s.undo.push(step);
+    // the engine forgets its oldest steps past its limit; so does this
+    if (s.undo.length > model.book.hf.getConfig().undoLimit) s.undo.shift();
+    s.redo = [];
+  };
+  const setTouch = (id: string, t: Touch) =>
+    setTouched((prev) => {
+      const next = new Map(prev);
+      if (t) next.set(id, t);
+      else next.delete(id);
+      return next;
+    });
+  const removeEdit = (id: string) => {
+    setEdits((prev) => prev.filter((e) => e.id !== id));
+    setOpenId((open) => (open === id ? null : open));
+  };
+  /** After the engine undid (or redid) a step, do the same to the list, here and for everyone else. */
+  const stepped = (redo: boolean) => {
+    const s = steps.current;
+    const step = (redo ? s.redo : s.undo).pop();
+    if (step === undefined) return;
+    (redo ? s.undo : s.redo).push(step);
+    if (!step) return;
+    if ("event" in step) {
+      if (redo) {
+        setEdits((prev) => [step.event, ...prev]);
+        send({ event: step.event });
+      } else {
+        removeEdit(step.event.id);
+        send({ unevent: step.event.id });
+      }
+      return;
+    }
+    const i = redo ? 1 : 0;
+    const t = step.touched[i];
+    const k = step.kept[i] ?? null;
+    setTouch(step.check, t);
+    setKeep(step.check, k);
+    send({ touched: { id: step.check, at: t?.at ?? null }, kept: { id: step.check, at: k } });
+  };
   const history = (redo: boolean) => {
     const hf = model.book.hf;
     if (redo ? hf.isThereSomethingToRedo() : hf.isThereSomethingToUndo()) {
       redo ? hf.redo() : hf.undo();
       syncSheets(model.book);
+      stepped(redo);
       setRev((r) => r + 1);
     }
   };
@@ -377,9 +436,16 @@ export default function WorkbookPage({ model, onImport, onBack, onRename, onNew,
   };
 
   /** moved: how many cells a cut-and-paste carried (its changes also list the emptied source).
-   *  title: set for edits that aren't cell writes, like inserting rows. */
+   *  title: set for edits that aren't cell writes, like inserting rows.
+   *  No changes: an undo step with nothing to list, like adding a sheet. */
   const onEdit = (changes: CellChange[], moved?: number, title?: string) => {
-    if (!changes.length) return;
+    if (!changes.length) {
+      // still a change to the workbook: re-read it, and save it
+      pushStep(null);
+      setRev((r) => r + 1);
+      onEdited?.();
+      return;
+    }
     const { ref, before, after } = changes[0];
     const many = changes.length > 1;
 
@@ -388,9 +454,10 @@ export default function WorkbookPage({ model, onImport, onBack, onRename, onNew,
     const check = !many && !moved && !title && checked.find((e) => e.status === "stale" && e.state?.live != null && e.cells.some((c) => normalizeRef(c) === normalizeRef(ref)));
     if (check) {
       const at = new Date().toISOString();
-      setTouched((prev) => new Map(prev).set(check.id, { at, by: "You" }));
+      pushStep({ check: check.id, touched: [touched.get(check.id), { at, by: "You" }], kept: [kept.get(check.id), undefined] });
+      setTouch(check.id, { at, by: "You" });
       send({ touched: { id: check.id, at } });
-      setKept((prev) => (prev.has(check.id) ? new Map([...prev].filter(([id]) => id !== check.id)) : prev));
+      setKeep(check.id, null);
       setRev((r) => r + 1);
       onEdited?.();
       return;
@@ -421,6 +488,7 @@ export default function WorkbookPage({ model, onImport, onBack, onRename, onNew,
       // a multi-cell change lists its cells; before/after only reads well for one
       edit: many || title ? undefined : { before, after },
     };
+    pushStep({ event });
     setEdits((prev) => [event, ...prev]);
     send({ event });
     onEdited?.();
@@ -491,8 +559,12 @@ export default function WorkbookPage({ model, onImport, onBack, onRename, onNew,
             constants={constants}
             focus={focus}
             onEdit={onEdit}
+            canDeleteSheets={!doc || doc.role === "owner"}
             onSelectCell={onSelectCell}
-            onHistory={() => setRev((r) => r + 1)}
+            onHistory={(redo) => {
+              stepped(redo);
+              setRev((r) => r + 1);
+            }}
             peers={others
               .filter((p) => p.cell)
               .map((p) => ({ cell: p.cell!, range: p.range, color: colorFor(p.email), name: p.name }))}

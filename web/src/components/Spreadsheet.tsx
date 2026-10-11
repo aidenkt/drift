@@ -46,7 +46,8 @@ type Props = {
   constants: Map<string, Constant>;
   /** Jump to a cell; nonce lets the same ref be focused twice. */
   focus?: { ref: string; nonce: number } | null;
-  /** Every write, one call per user action (a paste or a range clear arrives as one batch). */
+  /** Every write, one call per user action (a paste or a range clear arrives as one batch).
+   *  Called with no changes for other steps undo can take back, like a new sheet. */
   onEdit?: (changes: CellChange[], moved?: number, title?: string) => void;
   /** The active cell, whenever it changes, and the highlighted range when it's more than one cell. */
   onSelectCell?: (ref: string, range?: string) => void;
@@ -55,11 +56,13 @@ type Props = {
   toolbarEnd?: ReactNode;
   /** Other people's active cells, outlined in their colour, and what they've highlighted, tinted. */
   peers?: { cell: string; range: string | null; color: string; name: string }[];
-  /** After undo or redo from the keyboard, so the page can re-read the cells. */
-  onHistory?: () => void;
+  /** Only the owner of a shared workbook may delete its sheets; editors can't. */
+  canDeleteSheets?: boolean;
+  /** After undo or redo from the keyboard or toolbar, so the page can re-read the cells and the list. */
+  onHistory?: (redo: boolean) => void;
 };
 
-export default function Spreadsheet({ book, constants, focus, onEdit, onSelectCell, toolbarEnd, peers, onHistory }: Props) {
+export default function Spreadsheet({ book, constants, focus, onEdit, onSelectCell, toolbarEnd, peers, onHistory, canDeleteSheets = true }: Props) {
   const [sheetIx, setSheetIx] = useState(0);
   // sel is the active cell; ext is the other corner of the highlighted range
   const [sel, setSel] = useState<Pos>({ r: 0, c: 0 });
@@ -392,7 +395,7 @@ export default function Spreadsheet({ book, constants, focus, onEdit, onSelectCe
     const changes = [...touched]
       .map(([k, t]) => ({ ref: k, before: before.get(k)!, after: raw(book, t.s, t.r, t.c) }))
       .filter((ch) => ch.before !== ch.after);
-    if (changes.length) onEdit?.(changes, h * w);
+    onEdit?.(changes, h * w); // even with nothing changed, the paste is a step to undo
   };
 
   // copy/cut/paste events land on the document, since the grid isn't an editable element
@@ -446,7 +449,7 @@ export default function Spreadsheet({ book, constants, focus, onEdit, onSelectCe
       redo ? book.hf.redo() : book.hf.undo();
       syncSheets(book);
       setVersion((v) => v + 1);
-      onHistory?.();
+      onHistory?.(redo);
     }
   };
 
@@ -589,16 +592,22 @@ export default function Spreadsheet({ book, constants, focus, onEdit, onSelectCe
     focusGrid();
   };
 
-  const newSheet = () => switchSheet(addSheet(book));
+  const newSheet = () => {
+    switchSheet(addSheet(book));
+    onEdit?.([]);
+  };
   const commitRename = () => {
-    if (renaming) renameSheet(book, renaming.ix, renaming.text);
+    if (renaming && renameSheet(book, renaming.ix, renaming.text)) onEdit?.([]);
     setRenaming(null);
     setVersion((v) => v + 1);
   };
   const deleteSheet = (ix: number) => {
+    if (!canDeleteSheets) return;
     const name = book.sheets[ix].name;
     if (!confirm(`Delete "${name}"? Formulas that point at it will show #REF!.`)) return;
+    const count = book.sheets.length;
     removeSheet(book, ix);
+    if (book.sheets.length < count) onEdit?.([]);
     switchSheet(Math.max(0, Math.min(ix, book.sheets.length - 1)));
     setVersion((v) => v + 1);
   };
@@ -876,7 +885,8 @@ export default function Spreadsheet({ book, constants, focus, onEdit, onSelectCe
           </button>
           <button
             role="menuitem"
-            disabled={book.sheets.length < 2}
+            disabled={book.sheets.length < 2 || !canDeleteSheets}
+            title={canDeleteSheets ? undefined : "Only the owner can delete sheets"}
             onClick={() => {
               setTabMenu(null);
               deleteSheet(tabMenu.ix);
