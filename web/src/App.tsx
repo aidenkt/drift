@@ -3,7 +3,7 @@ import { getModel, listModels } from "./api";
 import { fetchSharedFile, listShared, type SharedDoc } from "./lib/collab";
 import { listFiles, removeFile, saveFile } from "./lib/library";
 import { loadPlacement, place } from "./lib/folders";
-import { modelPath, readRoute } from "./lib/route";
+import { modelPath, readRoute, routeCell, routeId } from "./lib/route";
 import { blankBook, downloadXlsx, readXlsx, xlsxBytes } from "./lib/workbook";
 import caseStudyUrl from "../../data/case_study_aug2026.xlsx?url";
 import ModelList, { type Entry } from "./pages/ModelList";
@@ -106,8 +106,8 @@ export default function App() {
       setLibrary(all);
       // a reload reopens the model and sheet in the path
       const route = readRoute();
-      const entry = route && all.find((e) => e.key === route.key);
-      if (entry) openEntry(entry, undefined, route.cell);
+      const entry = route && all.find((e) => routeId(e.key) === route.id);
+      if (entry) openEntry(entry, undefined, routeCell(route, entry.book));
     })();
     return () => {
       live = false;
@@ -126,20 +126,20 @@ export default function App() {
   useEffect(() => {
     if (library === null) return; // still loading; the path may name a model about to open
     const cell = lastCell.current?.key === openKey ? lastCell.current.cell : undefined;
-    if ((readRoute()?.key ?? null) !== openKey) history.pushState(null, "", openKey ? modelPath(openKey, cell) : "/");
+    if ((readRoute()?.id ?? null) !== (openKey && routeId(openKey))) history.pushState(null, "", openKey ? modelPath(openKey, cell, open?.book) : "/");
   }, [openKey, library === null]);
   const followCell = (key: string, cell: string) => {
     lastCell.current = { key, cell };
-    if (readRoute()?.key === key) history.replaceState(null, "", modelPath(key, cell));
+    if (readRoute()?.id === routeId(key)) history.replaceState(null, "", modelPath(key, cell, open?.book));
   };
   const libraryRef = useRef(library);
   libraryRef.current = library;
   useEffect(() => {
     const onPop = () => {
       const route = readRoute();
-      const entry = route && libraryRef.current?.find((e) => e.key === route.key);
+      const entry = route && libraryRef.current?.find((e) => routeId(e.key) === route.id);
       if (!entry) return setOpen(null);
-      setOpen((o) => (o?.key === entry.key ? o : { id: Date.now(), key: entry.key, filename: entry.filename, builtOn: entry.builtOn, book: entry.book, report: entry.report, startCell: route.cell, doc: entry.doc }));
+      setOpen((o) => (o?.key === entry.key ? o : { id: Date.now(), key: entry.key, filename: entry.filename, builtOn: entry.builtOn, book: entry.book, report: entry.report, startCell: routeCell(route, entry.book), doc: entry.doc }));
     };
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
