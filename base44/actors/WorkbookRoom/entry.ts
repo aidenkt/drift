@@ -1,11 +1,15 @@
-// Who has a workbook open right now, and which cell each person is on. One room per workbook.
+// Who has a workbook open right now, what each person has highlighted, and their edits as they
+// happen. One room per workbook.
 //
 // Visitors connect anonymously (Since signs in with Clerk, not Base44), then say hello with their
 // Clerk session token. Actors can't read secrets, so the `workbooks` function checks the token
 // and the person's access; only then do they appear in the room.
 import { Actor } from "base44:runtime/actors";
 
-type Person = { email: string; name: string; role: string; cell: string | null };
+// cell: the active cell; range: the highlighted range when it's more than one cell ("P&L!C18:G18");
+// open: the change they have open in the side panel
+type Person = { email: string; name: string; role: string; cell: string | null; range: string | null; open: string | null };
+const short = (v: unknown) => (typeof v === "string" && v.length <= 64 ? v : null);
 
 export default class WorkbookRoom extends Actor {
   people = new Map<string, Person>(); // conn.id -> person, once they've said hello
@@ -38,7 +42,7 @@ export default class WorkbookRoom extends Actor {
           token: typeof m.token === "string" ? m.token : undefined,
         });
         const who = res.data as { email: string; name: string; role: string };
-        this.people.set(conn.id, { ...who, cell: null });
+        this.people.set(conn.id, { ...who, cell: null, range: null, open: null });
         await this.save();
         this.announce();
       } catch (e) {
@@ -51,9 +55,14 @@ export default class WorkbookRoom extends Actor {
     const me = this.people.get(conn.id);
     if (!me) return; // hasn't been let in
 
-    if (m.type === "cell" && typeof m.cell === "string" && m.cell.length <= 64) {
-      me.cell = m.cell;
+    if (m.type === "cell" && short(m.cell)) {
+      me.cell = short(m.cell);
+      me.range = short(m.range);
+      me.open = short(m.open);
       this.announce(); // cursor moves are frequent: broadcast, don't persist
+    } else if (m.type === "op" && me.role !== "viewer") {
+      // live edits go to everyone; `from` is the sending tab, which skips its own
+      this.broadcast({ type: "op", from: short(m.from), by: me.email, name: me.name, op: m.op });
     } else if (m.type === "saved") {
       this.broadcast({ type: "saved", by: me.email, name: me.name });
     }
@@ -75,7 +84,7 @@ export default class WorkbookRoom extends Actor {
     for (const p of this.people.values()) byEmail.set(p.email, p);
     this.broadcast({
       type: "presence",
-      people: [...byEmail.values()].map((p) => ({ email: p.email, name: p.name, role: p.role, cell: p.cell })),
+      people: [...byEmail.values()].map((p) => ({ email: p.email, name: p.name, role: p.role, cell: p.cell, range: p.range ?? null, open: p.open ?? null })),
     });
   }
 }

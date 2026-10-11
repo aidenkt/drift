@@ -7,7 +7,8 @@ import { Panel } from "../components/icons";
 import Spreadsheet, { type CellChange } from "../components/Spreadsheet";
 import Timeline, { reviewOrder } from "../components/Timeline";
 import { SAMPLE_TIMELINE, type TimelineEvent } from "../data/timeline";
-import { colorFor, createShared, joinPresence, me, saveShared, type Person, type SharedDoc } from "../lib/collab";
+import { colorFor, createShared, joinPresence, me, saveShared, type Me, type Person, type SharedDoc } from "../lib/collab";
+import { apply as applyCells, diff, snapshot, type CellsOp } from "../lib/live";
 import { downloadXlsx, normalizeRef, rawRef, syncSheets, writeRef, xlsxBytes, xlsxName, type Book, type CellUpdate } from "../lib/workbook";
 import { value } from "../lib/format";
 import { assess } from "../lib/resolve";
@@ -100,13 +101,17 @@ export default function WorkbookPage({ model, onImport, onBack, onRename, onNew,
   }, [model.report, events]);
   const stale = [...constants.values()].filter((c) => c.check?.status === "stale").length;
 
-  const keep = (e: TimelineEvent, on: boolean) => {
+  const setKeep = (id: string, at: string | null) =>
     setKept((prev) => {
       const next = new Map(prev);
-      if (on) next.set(e.id, new Date().toISOString());
-      else next.delete(e.id);
+      if (at) next.set(id, at);
+      else next.delete(id);
       return next;
     });
+  const keep = (e: TimelineEvent, on: boolean) => {
+    const at = on ? new Date().toISOString() : null;
+    setKeep(e.id, at);
+    send({ kept: { id: e.id, at } });
     if (on) advance(e.id);
   };
 
@@ -174,20 +179,75 @@ export default function WorkbookPage({ model, onImport, onBack, onRename, onNew,
   // the first invite uploads the workbook as it is now
   const ensureDoc = async () => doc ?? createShared(xlsxBytes(model.book), xlsxName(model.filename)).then((d) => (updateDoc(d), d));
 
+  /* ---------- live edits: what changed in the cells goes to everyone with the workbook open ---------- */
+  type Op = { cells?: CellsOp; event?: TimelineEvent; kept?: { id: string; at: string | null }; touched?: { id: string; at: string } };
+  const send = (op: Op) => room.current?.send(op);
+  const live = useRef<{ snap: ReturnType<typeof snapshot> | null; applying: boolean; timer?: number }>({ snap: null, applying: false });
+  const dirty = useRef(false); // changed here since the last save; others' edits are theirs to save
+  const flush = () => {
+    const l = live.current;
+    clearTimeout(l.timer);
+    l.timer = undefined;
+    if (!l.snap) return;
+    const next = snapshot(model.book);
+    const cells = diff(l.snap, next);
+    l.snap = next;
+    if (cells) {
+      dirty.current = true;
+      send({ cells });
+    }
+  };
+  const pushCells = () => {
+    const l = live.current;
+    if (l.applying || !l.snap) return;
+    clearTimeout(l.timer);
+    l.timer = window.setTimeout(flush, 80);
+  };
+  const receive = useRef<(op: Op, by: Me) => void>(() => {});
+  receive.current = (op, by) => {
+    if (op.cells) {
+      if (live.current.timer) flush(); // ours go out first, or the snapshot below would swallow them
+      live.current.applying = true;
+      try {
+        applyCells(model.book, op.cells);
+      } finally {
+        live.current.applying = false;
+      }
+      live.current.snap = snapshot(model.book);
+      setRev((r) => r + 1);
+    }
+    if (op.event) {
+      const ev = { ...op.event, by: by.name };
+      setEdits((prev) => (prev.some((e) => e.id === ev.id) ? prev : [ev, ...prev]));
+    }
+    if (op.kept) setKeep(op.kept.id, op.kept.at);
+    if (op.touched) setTouched((prev) => new Map(prev).set(op.touched!.id, { at: op.touched!.at, by: by.name }));
+  };
+
   useEffect(() => {
     if (!doc) return;
     const r = joinPresence(doc.doc_id, {
       onPeople: setPeople,
-      onSaved: (by) => by.email !== me().email && setNotice(`${by.name} saved changes. Reopen the model to see them.`),
+      onOp: (op, by) => receive.current(op as Op, by),
       onError: setNotice,
     });
     room.current = r;
+    live.current.snap = snapshot(model.book);
+    // any change to the cells, from typing, pasting, undo or a new sheet
+    const hf = model.book.hf;
+    const events = ["valuesUpdated", "sheetAdded", "sheetRemoved", "sheetRenamed"] as const;
+    events.forEach((e) => hf.on(e, pushCells));
     return () => {
+      events.forEach((e) => hf.off(e, pushCells));
+      clearTimeout(live.current.timer);
+      live.current.snap = null;
       r.close();
       room.current = null;
       setPeople([]);
     };
-  }, [doc?.doc_id]);
+  }, [doc?.doc_id, model.book]);
+  // edits that don't change a value (a formula with the same result, a number format) still count
+  useEffect(() => pushCells(), [rev, edits]);
   const history = (redo: boolean) => {
     const hf = model.book.hf;
     if (redo ? hf.isThereSomethingToRedo() : hf.isThereSomethingToUndo()) {
@@ -229,11 +289,11 @@ export default function WorkbookPage({ model, onImport, onBack, onRename, onNew,
 
   // clicking a cell picks out its latest change in the list; an open change follows along
   // shared workbooks save themselves a moment after each change, for editors and the owner
-  const saved = useRef({ rev, edits });
   useEffect(() => {
-    if (!doc || !canSave || (saved.current.rev === rev && saved.current.edits === edits)) return;
+    if (!doc || !canSave) return;
     const t = window.setTimeout(() => {
-      saved.current = { rev, edits };
+      if (!dirty.current) return;
+      dirty.current = false;
       saveShared(doc.doc_id, xlsxBytes(model.book))
         .then(() => room.current?.saved())
         .catch((e) => setNotice(`Couldn't save: ${e.message}`));
@@ -241,8 +301,10 @@ export default function WorkbookPage({ model, onImport, onBack, onRename, onNew,
     return () => clearTimeout(t);
   }, [rev, edits, doc, canSave]);
 
-  const onSelectCell = (ref: string) => {
-    room.current?.setCell(ref);
+  const [here, setHere] = useState<{ cell: string | null; range: string | null }>({ cell: null, range: null });
+  useEffect(() => room.current?.setHere({ ...here, open: openId }), [here, openId, people.length]);
+  const onSelectCell = (ref: string, range?: string) => {
+    setHere({ cell: ref, range: range ?? null });
     onCell?.(ref);
     const key = normalizeRef(ref);
     if (openEvent?.cells.some((c) => normalizeRef(c) === key)) return;
@@ -295,7 +357,9 @@ export default function WorkbookPage({ model, onImport, onBack, onRename, onNew,
     // editing a stale assumption's cell resolves (or re-checks) that entry rather than adding one
     const check = !many && !moved && !title && SAMPLE_TIMELINE.find((e) => sample && e.status === "stale" && e.cells.some((c) => normalizeRef(c) === normalizeRef(ref)));
     if (check) {
-      setTouched((prev) => new Map(prev).set(check.id, { at: new Date().toISOString(), by: "You" }));
+      const at = new Date().toISOString();
+      setTouched((prev) => new Map(prev).set(check.id, { at, by: "You" }));
+      send({ touched: { id: check.id, at } });
       setKept((prev) => (prev.has(check.id) ? new Map([...prev].filter(([id]) => id !== check.id)) : prev));
       setRev((r) => r + 1);
       onEdited?.();
@@ -328,7 +392,25 @@ export default function WorkbookPage({ model, onImport, onBack, onRename, onNew,
       edit: many || title ? undefined : { before, after },
     };
     setEdits((prev) => [event, ...prev]);
+    send({ event });
     onEdited?.();
+  };
+
+  // the others in the workbook, and which change each has open
+  const others = people.filter((p) => p.email !== me().email);
+  const viewers = useMemo(() => {
+    const by = new Map<string, Person[]>();
+    for (const p of others) if (p.open) by.set(p.open, [...(by.get(p.open) ?? []), p]);
+    return by;
+  }, [people]);
+  const whereIs = (p: Person) => {
+    const open = p.open && events.find((e) => e.id === p.open);
+    return open ? open.title : (p.range ?? p.cell);
+  };
+  const jumpTo = (p: Person) => {
+    if (p.open && events.some((e) => e.id === p.open)) return select(p.open);
+    close();
+    if (p.cell) showCell(p.cell);
   };
 
   return (
@@ -350,7 +432,7 @@ export default function WorkbookPage({ model, onImport, onBack, onRename, onNew,
         onCopy={onCopy}
         onTrash={onTrash}
         onShare={() => setSharing(true)}
-        presence={doc && people.length > 0 ? <Presence people={people} onJump={showCell} /> : null}
+        presence={doc && people.length > 0 ? <Presence people={people} where={whereIs} onJump={jumpTo} /> : null}
       />
       {sharing && (
         <ShareDialog filename={model.filename} doc={doc} ensureDoc={ensureDoc} onChange={updateDoc} onClose={() => setSharing(false)} />
@@ -378,9 +460,9 @@ export default function WorkbookPage({ model, onImport, onBack, onRename, onNew,
             onEdit={onEdit}
             onSelectCell={onSelectCell}
             onHistory={() => setRev((r) => r + 1)}
-            peers={people
-              .filter((p) => p.email !== me().email && p.cell)
-              .map((p) => ({ cell: p.cell!, color: colorFor(p.email), name: p.name }))}
+            peers={others
+              .filter((p) => p.cell)
+              .map((p) => ({ cell: p.cell!, range: p.range, color: colorFor(p.email), name: p.name }))}
             rev={rev}
             toolbarEnd={
               <button
@@ -405,7 +487,7 @@ export default function WorkbookPage({ model, onImport, onBack, onRename, onNew,
             onPointerDown={startResize}
             onDoubleClick={resetWidth}
           />
-          <Timeline events={events} selectedId={openId ?? cellEventId} onSelect={select} />
+          <Timeline events={events} selectedId={openId ?? cellEventId} onSelect={select} viewers={viewers} />
           <div className="sidebar-detail" inert={!openEvent}>
             {shownLive && (
               <EventDetail
@@ -416,6 +498,7 @@ export default function WorkbookPage({ model, onImport, onBack, onRename, onNew,
                 onApply={apply}
                 onKeep={keep}
                 onClose={close}
+                viewers={viewers.get(shownLive.id) ?? []}
               />
             )}
           </div>

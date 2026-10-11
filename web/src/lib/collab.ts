@@ -1,4 +1,5 @@
-/** Shared workbooks on Base44: who you are, who a workbook is shared with, who has it open.
+/** Shared workbooks on Base44: who you are, who a workbook is shared with, who has it open and
+ *  what they're doing in it.
  *  Sign-in stays with Clerk: every call carries the Clerk session token, and the `workbooks`
  *  function and WorkbookRoom actor (see /base44) check it. */
 import { createClient } from "@base44/sdk";
@@ -16,7 +17,10 @@ export type SharedDoc = {
   updated: number;
   updated_by: string | null;
 };
-export type Person = Me & { role: Role; cell: string | null };
+/** cell: their active cell; range: what they've highlighted, when it's more than one cell
+ *  ("P&L!C18:G18"); open: the id of the change they have open. */
+export type Person = Me & { role: Role; cell: string | null; range: string | null; open: string | null };
+export type Here = { cell: string | null; range: string | null; open: string | null };
 
 /* ---------- identity ---------- */
 
@@ -73,30 +77,43 @@ export const saveShared = (id: string, bytes: ArrayBuffer) => call<{ updated: nu
 export const shareWith = (id: string, email: string, role: "editor" | "viewer") => call<SharedDoc>("share", { id, email, role });
 export const unshare = (id: string, email: string) => call<SharedDoc>("unshare", { id, email });
 
-/* ---------- presence ---------- */
+/* ---------- presence and live edits ---------- */
 
-type Handlers = { onPeople: (p: Person[]) => void; onSaved: (by: { email: string; name: string }) => void; onError: (msg: string) => void };
+type Handlers = {
+  onPeople: (p: Person[]) => void;
+  /** Someone else's edit, as it happens (see lib/live). */
+  onOp: (op: unknown, by: Me) => void;
+  onError: (msg: string) => void;
+};
+
+// tells this tab's own edits apart when the room echoes them back
+const TAB = Math.random().toString(36).slice(2, 10);
 
 /** Joins a workbook's WorkbookRoom. The room asks who we are on every (re)connect. */
 export function joinPresence(id: string, h: Handlers) {
   const room = base44.actors.WorkbookRoom(id).connect();
-  let cell: string | null = null;
+  let here: Here | null = null;
   const sub = room.subscribe((data) => {
-    const msg = data as { type: string; people?: Person[]; by?: string; name?: string; detail?: string };
+    const msg = data as { type: string; people?: Person[]; by?: string; name?: string; detail?: string; from?: string; op?: unknown };
     if (msg.type === "hello?")
       void credentials().then((c) => {
         room.send({ type: "hello", ...c });
-        if (cell) room.send({ type: "cell", cell });
+        if (here?.cell) room.send({ type: "cell", ...here });
       });
     if (msg.type === "presence") h.onPeople(msg.people ?? []);
-    if (msg.type === "saved") h.onSaved({ email: msg.by ?? "", name: msg.name ?? msg.by ?? "" });
+    if (msg.type === "op" && msg.from !== TAB) h.onOp(msg.op, { email: msg.by ?? "", name: msg.name ?? msg.by ?? "" });
     if (msg.type === "error") h.onError(msg.detail ?? "No access to this workbook");
   });
 
   return {
-    setCell(next: string) {
-      cell = next;
-      room.send({ type: "cell", cell });
+    /** Where we are: the active cell, the highlighted range, the open change. */
+    setHere(next: Here) {
+      here = next;
+      if (next.cell) room.send({ type: "cell", ...next });
+    },
+    /** Send an edit to everyone else in the room. */
+    send(op: unknown) {
+      room.send({ type: "op", from: TAB, op });
     },
     /** Tell the others a new version was saved. */
     saved() {

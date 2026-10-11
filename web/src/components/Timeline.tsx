@@ -2,11 +2,14 @@ import { useLayoutEffect, useMemo, useRef, useState, useEffect } from "react";
 import type { TimelineEvent } from "../data/timeline";
 import { inRange, parseQuery } from "../lib/dates";
 import { ago, clock, deltaMoney, shortDate, value } from "../lib/format";
+import { Faces } from "./Presence";
 
 type Props = {
   events: TimelineEvent[];
   selectedId: string | null;
   onSelect: (id: string) => void;
+  /** change id -> the other people who have it open */
+  viewers?: Map<string, { email: string; name: string }[]>;
 };
 
 const MARK: Record<TimelineEvent["status"], string> = {
@@ -61,7 +64,7 @@ function haystack(e: TimelineEvent): string {
     .toLowerCase();
 }
 
-export default function Timeline({ events, selectedId, onSelect }: Props) {
+export default function Timeline({ events, selectedId, onSelect, viewers }: Props) {
   const [query, setQuery] = useState("");
   const [staleOnly, setStaleOnly] = useState(false);
   const staleCount = events.filter((e) => e.status === "stale").length;
@@ -125,6 +128,7 @@ export default function Timeline({ events, selectedId, onSelect }: Props) {
       >
         <span className="tl-row">
           <span className="tl-title">{e.title}</span>
+          <Faces people={viewers?.get(e.id) ?? []} />
           <span className={`tl-badge ${e.status}`}>{MARK[e.status]}</span>
         </span>
         <Delta e={e} />
