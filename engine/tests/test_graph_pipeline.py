@@ -8,7 +8,7 @@ import openpyxl
 import pytest
 
 import pipeline
-from checks import label, series
+from checks import label, news, series
 
 SCHEMA = json.loads((Path(__file__).parents[2] / "schema" / "constant.schema.json").read_text())
 
@@ -49,11 +49,13 @@ def test_a_live_value_flows_through_to_impact(model, monkeypatch):
         c["label"] = wb.context(c["cell"])["row_label"] or ""
         c["driver"] = "eurusd" if c["cell"] == "Model!B1" else None
 
-    def check(c, built_on):
+    def check(c, built_on, as_of=None):
         return {"kind": "series", "status": "stale", "live": 1.5, "evidence": []}
 
     monkeypatch.setattr(label, "apply", apply)
+    # stub both routes: the checks half decides whether a driver goes to series or news
     monkeypatch.setattr(series, "check", check)
+    monkeypatch.setattr(news, "check", check)
     report = _run(model)
     jsonschema.validate(report, SCHEMA)
 
