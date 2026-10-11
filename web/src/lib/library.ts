@@ -1,7 +1,12 @@
 /** Imported workbooks kept in the browser (IndexedDB) so they stay on the home page across reloads. */
 
-/** report: the model_id whose checks travel with the file, for copies of the example model. */
-export type StoredFile = { key: string; filename: string; added: string; buf: ArrayBuffer; blank?: boolean; report?: string };
+/** report: the model_id whose checks travel with the file, for copies of the example model.
+ *  updated: for cached copies of Base44 workbooks ("cache:<doc id>"), the version they hold. */
+export type StoredFile = { key: string; filename: string; added: string; buf: ArrayBuffer; blank?: boolean; report?: string; updated?: number };
+
+/** Base44 workbooks are cached here by doc id, so the home page only downloads what changed. */
+export const cacheKey = (docId: string) => `cache:${docId}`;
+export const isCache = (key: string) => key.startsWith("cache:");
 
 const DB = "since";
 const STORE = "files";
