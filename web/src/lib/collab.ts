@@ -41,6 +41,8 @@ function guest(): Me {
 }
 
 export const me = (): Me => clerk?.me ?? guest();
+/** Signed in with Clerk: workbooks live on Base44. Without it (local dev) they stay in this browser. */
+export const signedIn = () => clerk !== null;
 
 /** Who's asking: the Clerk session token. Without Clerk (local dev) there's none, and sharing
  *  answers "Sign in to share". */
@@ -76,6 +78,8 @@ export const fetchSharedFile = (id: string) => call<{ data: string }>("file", { 
 export const saveShared = (id: string, bytes: ArrayBuffer) => call<{ updated: number }>("save", { id, data: toBase64(bytes) });
 export const shareWith = (id: string, email: string, role: "editor" | "viewer") => call<SharedDoc>("share", { id, email, role });
 export const unshare = (id: string, email: string) => call<SharedDoc>("unshare", { id, email });
+export const renameShared = (id: string, filename: string) => call<SharedDoc>("rename", { id, filename });
+export const deleteShared = (id: string) => call<{ deleted: string }>("delete", { id });
 
 /* ---------- presence and live edits ---------- */
 

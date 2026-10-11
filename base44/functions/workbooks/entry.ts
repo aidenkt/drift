@@ -167,6 +167,14 @@ export default async function handler(req: Request): Promise<Response> {
         await db.Workbook.update(w.id, { file_uri, updated, updated_by: user.email });
         return Response.json({ updated });
       }
+      case "rename": {
+        const { w, role } = await load(["owner", "editor"]);
+        const filename = String(body.filename ?? "").trim();
+        if (!filename || filename.length > 200) throw new Fail(422, "A name needs 1 to 200 characters");
+        const updated = now();
+        await db.Workbook.update(w.id, { filename, updated, updated_by: user.email });
+        return Response.json(view({ ...w, filename, updated, updated_by: user.email }, role));
+      }
       case "share": {
         const { w } = await load(["owner"]);
         const email = String(body.email ?? "").trim().toLowerCase();

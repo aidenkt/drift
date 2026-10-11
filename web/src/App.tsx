@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { analyze, getModel, getModelFile, listModels } from "./api";
-import { fetchSharedFile, listShared, type SharedDoc } from "./lib/collab";
+import { deleteShared, fetchSharedFile, listShared, renameShared, type SharedDoc } from "./lib/collab";
 import { listFiles, removeFile, saveFile } from "./lib/library";
 import { loadPlacement, place } from "./lib/folders";
 import { modelPath, readRoute, routeCell, routeId } from "./lib/route";
@@ -63,6 +63,7 @@ async function sharedEntries(local: Entry[]): Promise<Entry[]> {
     const mine = local.find((e) => e.key === byDoc[doc.doc_id]);
     if (mine) {
       mine.doc = doc;
+      mine.filename = doc.filename; // Base44's name wins over one kept in this browser
       continue;
     }
     try {
@@ -158,7 +159,7 @@ export default function App() {
       // last edited starts as when the file itself was saved (or imported, if it doesn't say)
       const renamed = names();
       const entries = [...checked, ...imported].map((e) => ({ ...e, filename: renamed[e.key] ?? e.filename, edited: e.book.modified ?? e.added }));
-      const shared = (await sharedEntries(entries)).map((e) => ({ ...e, filename: renamed[e.key] ?? e.filename }));
+      const shared = await sharedEntries(entries);
       if (!live) return;
       const all = [...entries, ...shared];
       setLibrary(all);
@@ -239,10 +240,24 @@ export default function App() {
   /** New name without the extension; the original extension stays. */
   const renameEntry = (key: string, name: string) => {
     const rename = (filename: string) => name + (filename.match(ACCEPT)?.[0] ?? ".xlsx");
-    const entry = library?.find((x) => x.key === key);
-    if (entry) saveName(key, rename(entry.filename));
-    setLibrary((prev) => prev?.map((x) => (x.key === key ? { ...x, filename: rename(x.filename) } : x)) ?? null);
-    setOpen((o) => (o && o.key === key ? { ...o, filename: rename(o.filename) } : o));
+    const entry = library?.find((x) => x.key === key) ?? (open?.key === key ? open : undefined);
+    if (!entry) return;
+    const before = entry.filename;
+    const after = rename(before);
+    const show = (filename: string) => {
+      setLibrary((prev) => prev?.map((x) => (x.key === key ? { ...x, filename } : x)) ?? null);
+      setOpen((o) => (o && o.key === key ? { ...o, filename } : o));
+    };
+    show(after);
+    // a workbook on Base44 is renamed there, for everyone; the rest keep their name in this browser
+    if (!entry.doc) return saveName(key, after);
+    saveName(key, null);
+    renameShared(entry.doc.doc_id, after)
+      .then((doc) => sharedEntry(key, doc))
+      .catch((e) => {
+        show(before);
+        setError(`Couldn't rename: ${e.message}`);
+      });
   };
 
   /** A fresh copy of the example model, with its checks, saved in this browser and opened. */
@@ -281,8 +296,8 @@ export default function App() {
   /** A model was shared (uploaded) or its access changed: remember the link and show it. */
   const sharedEntry = (key: string, doc: SharedDoc) => {
     if (!key.startsWith("doc:")) localStorage.setItem(LINKS, JSON.stringify({ ...links(), [key]: doc.doc_id }));
-    setLibrary((prev) => prev?.map((x) => (x.key === key ? { ...x, doc } : x)) ?? null);
-    setOpen((o) => (o && o.key === key ? { ...o, doc } : o));
+    setLibrary((prev) => prev?.map((x) => (x.key === key ? { ...x, doc, filename: doc.filename } : x)) ?? null);
+    setOpen((o) => (o && o.key === key ? { ...o, doc, filename: doc.filename } : o));
   };
 
   /** A copy of the workbook as it stands, saved in this browser and opened. Checks stay with the original. */
@@ -298,6 +313,8 @@ export default function App() {
   };
 
   const removeEntry = (e: Entry) => {
+    // deleting your own workbook deletes it on Base44 too; one shared with you just leaves this list
+    if (e.doc?.role === "owner") void deleteShared(e.doc.doc_id).catch((err) => setError(`Couldn't delete: ${err.message}`));
     place(e.key, null);
     saveName(e.key, null);
     void removeFile(e.key).catch(() => {});
@@ -337,6 +354,7 @@ export default function App() {
           onBack={() => setOpen(null)}
           onCell={(cell) => followCell(open.key, cell)}
           onRename={(name) => renameEntry(open.key, name)}
+          uploadOnOpen={!open.key.startsWith("model:")}
           onShared={(doc) => sharedEntry(open.key, doc)}
           onNew={() => createBlank(loadPlacement()[open.key] ?? null)}
           onCopy={() => copyEntry(open.key, open.book, open.filename)}

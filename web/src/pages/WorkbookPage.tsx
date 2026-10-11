@@ -7,7 +7,7 @@ import { Panel } from "../components/icons";
 import Spreadsheet, { type CellChange } from "../components/Spreadsheet";
 import Timeline, { reviewOrder } from "../components/Timeline";
 import { SAMPLE_TIMELINE, type TimelineEvent } from "../data/timeline";
-import { colorFor, createShared, joinPresence, me, saveShared, type Me, type Person, type SharedDoc } from "../lib/collab";
+import { colorFor, createShared, joinPresence, me, saveShared, signedIn, type Me, type Person, type SharedDoc } from "../lib/collab";
 import { apply as applyCells, diff, snapshot, type CellsOp } from "../lib/live";
 import { downloadXlsx, normalizeRef, rawRef, syncSheets, writeRef, xlsxBytes, xlsxName, type Book, type CellUpdate } from "../lib/workbook";
 import { value } from "../lib/format";
@@ -41,6 +41,9 @@ type Props = {
   onEdited?: () => void;
   /** The workbook was uploaded for sharing, or its access list changed. */
   onShared?: (doc: SharedDoc) => void;
+  /** Signed in, upload to Base44 as soon as it opens (imports, new sheets) rather than on the
+   *  first edit (checked models everyone sees, so looking at one doesn't make a copy). */
+  uploadOnOpen?: boolean;
 };
 
 const PANEL = { timeline: 320 };
@@ -54,7 +57,7 @@ const stored = (key: keyof typeof PANEL) => {
 };
 const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n));
 
-export default function WorkbookPage({ model, onImport, onBack, onRename, onNew, onCopy, onTrash, onCell, onEdited, onShared }: Props) {
+export default function WorkbookPage({ model, onImport, onBack, onRename, onNew, onCopy, onTrash, onCell, onEdited, onShared, uploadOnOpen }: Props) {
   // browser tab: "Since · case_study_aug2026", back to "Since" on the home page
   useEffect(() => {
     document.title = `Since · ${model.filename.replace(/\.(xlsx|xlsm|xls)$/i, "")}`;
@@ -187,10 +190,19 @@ export default function WorkbookPage({ model, onImport, onBack, onRename, onNew,
     onShared?.(next);
   };
   // the first invite uploads the workbook as it is now
-  const ensureDoc = async () => doc ?? createShared(xlsxBytes(model.book), xlsxName(model.filename)).then((d) => (updateDoc(d), d));
+  // the first upload, kept so opening, sharing and React's double effects all wait on the same one
+  const creating = useRef<Promise<SharedDoc> | null>(null);
+  const ensureDoc = async () =>
+    doc ?? (creating.current ??= createShared(xlsxBytes(model.book), xlsxName(model.filename)).then((d) => (updateDoc(d), d)));
+  // signed in, every workbook lives on Base44: one that isn't there yet is uploaded, and from
+  // then on it saves, syncs and shows on every device like a shared one
+  const upload = () => {
+    if (signedIn() && !doc) ensureDoc().catch((e) => setNotice(`Couldn't save to Base44: ${e.message}`));
+  };
+  useEffect(() => void (uploadOnOpen && upload()), []);
 
   /* ---------- live edits: what changed in the cells goes to everyone with the workbook open ---------- */
-  type Op = { cells?: CellsOp; event?: TimelineEvent; kept?: { id: string; at: string | null }; touched?: { id: string; at: string } };
+  type Op = { cells?: CellsOp; event?: TimelineEvent; kept?: { id: string; at: string | null }; touched?: { id: string; at: string }; filename?: string };
   const send = (op: Op) => room.current?.send(op);
   const live = useRef<{ snap: ReturnType<typeof snapshot> | null; applying: boolean; timer?: number }>({ snap: null, applying: false });
   const dirty = useRef(false); // changed here since the last save; others' edits are theirs to save
@@ -232,6 +244,8 @@ export default function WorkbookPage({ model, onImport, onBack, onRename, onNew,
     }
     if (op.kept) setKeep(op.kept.id, op.kept.at);
     if (op.touched) setTouched((prev) => new Map(prev).set(op.touched!.id, { at: op.touched!.at, by: by.name }));
+    // renamed by someone else: Base44 already has it, so only the title changes here
+    if (op.filename && doc) updateDoc({ ...doc, filename: op.filename });
   };
 
   useEffect(() => {
@@ -258,6 +272,12 @@ export default function WorkbookPage({ model, onImport, onBack, onRename, onNew,
   }, [doc?.doc_id, model.book]);
   // edits that don't change a value (a formula with the same result, a number format) still count
   useEffect(() => pushCells(), [rev, edits]);
+  // the first change to a workbook that isn't on Base44 yet puts it there
+  const opened = useRef({ rev, edits, kept, touched });
+  useEffect(() => {
+    const o = opened.current;
+    if (o.rev !== rev || o.edits !== edits || o.kept !== kept || o.touched !== touched) upload();
+  }, [rev, edits, kept, touched]);
   const history = (redo: boolean) => {
     const hf = model.book.hf;
     if (redo ? hf.isThereSomethingToRedo() : hf.isThereSomethingToUndo()) {
@@ -438,7 +458,10 @@ export default function WorkbookPage({ model, onImport, onBack, onRename, onNew,
         onImport={onImport}
         onDownload={download}
         onHome={onBack}
-        onRename={onRename}
+        onRename={(name) => {
+          onRename(name);
+          send({ filename: name + (model.filename.match(/\.(xlsx|xlsm|xls)$/i)?.[0] ?? ".xlsx") });
+        }}
         onNew={onNew}
         onCopy={onCopy}
         onTrash={onTrash}

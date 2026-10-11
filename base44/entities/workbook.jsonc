@@ -1,6 +1,7 @@
-// A shared workbook: who owns it and who it's shared with. Only the `workbooks` function reads
-// or writes it (as service role), after checking the caller's Clerk session; nobody gets
-// direct access, so every rule below is admin-only.
+// A workbook: who owns it and who it's shared with. Every workbook a signed-in person opens
+// lives here, shared or not. Only the `workbooks` function reads or writes it (as service
+// role), after checking the caller's Clerk session; nobody gets direct access, so every rule
+// below is admin-only.
 {
   "name": "Workbook",
   "type": "object",
