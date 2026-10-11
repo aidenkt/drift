@@ -1,6 +1,7 @@
 # Every push to main deploys the whole app to Base44: entities, the workbooks function, the
 # WorkbookRoom actor and the site (https://since.base44.app). Run by hand from the Actions tab too.
 # Secrets: BASE44_API_KEY (a Base44 workspace API key, b44k_...) and VITE_CLERK_PUBLISHABLE_KEY.
+# Variable: ENGINE_URL, the public address of the engine (engine/Dockerfile). Optional.
 name: Deploy to Base44
 
 on:
@@ -34,3 +35,7 @@ jobs:
           BASE44_APP_ID: 6acaab66ecbcf0974bea29c3
           BASE44_API_KEY: ${{ secrets.BASE44_API_KEY }}
           VITE_CLERK_PUBLISHABLE_KEY: ${{ secrets.VITE_CLERK_PUBLISHABLE_KEY }}
+          # the site checks imports against the engine once the ENGINE_URL repo variable is set
+          # (https://..., no trailing slash); without it the site shows the bundled sample
+          VITE_USE_FIXTURE: ${{ vars.ENGINE_URL && '0' || '1' }}
+          VITE_ENGINE_URL: ${{ vars.ENGINE_URL }}

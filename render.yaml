@@ -1,0 +1,22 @@
+# Render blueprint for the engine (the web app is on Base44). New > Blueprint in Render, pick this repo,
+# fill in the keys, then put the service's URL in the ENGINE_URL repo variable on GitHub.
+services:
+  - type: web
+    name: since-engine
+    runtime: docker
+    dockerfilePath: ./engine/Dockerfile
+    dockerContext: .
+    healthCheckPath: /models
+    envVars:
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_MODEL
+        sync: false
+      - key: BRIGHTDATA_API_KEY
+        sync: false
+      - key: BRIGHTDATA_SERP_ZONE
+        sync: false
+      - key: BRIGHTDATA_UNLOCKER_ZONE
+        sync: false
+      - key: FRED_API_KEY
+        sync: false
