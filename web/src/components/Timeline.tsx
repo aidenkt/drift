@@ -35,9 +35,13 @@ function topEffect(e: TimelineEvent) {
   return moved.find((i) => i.label === "Enterprise value") ?? moved.reduce((a, b) => (Math.abs(b.delta) > Math.abs(a.delta) ? b : a));
 }
 
-/** Stale changes in the order the list shows them: biggest dollar effect first. */
+/** When a change happened: the moment it was made, else its day. ISO strings sort as text. */
+const when = (e: TimelineEvent) => e.at ?? e.date ?? "";
+const newestFirst = (a: TimelineEvent, b: TimelineEvent) => when(b).localeCompare(when(a));
+
+/** Stale changes in the order the list shows them: newest first. */
 export function reviewOrder(events: TimelineEvent[]): TimelineEvent[] {
-  return events.filter((e) => e.status === "stale").sort((a, b) => Math.abs(topEffect(b)?.delta ?? 0) - Math.abs(topEffect(a)?.delta ?? 0));
+  return events.filter((e) => e.status === "stale").sort(newestFirst);
 }
 
 /** Everything a search can match: title, cells, driver, values, sources and dates. */
@@ -84,13 +88,26 @@ export default function Timeline({ events, selectedId, onSelect, viewers }: Prop
       ),
     [events, parsed, staleOnly],
   );
-  // stale first, biggest dollar effect on top; current and resolved collapse at the bottom
-  const size = (e: TimelineEvent) => (e.status === "stale" ? Math.abs(topEffect(e)?.delta ?? 0) : -1);
-  const open = shown.filter((e) => !resolved(e) && !quiet(e)).sort((a, b) => size(b) - size(a));
+  // newest on top; current and resolved collapse at the bottom
+  const open = shown.filter((e) => !resolved(e) && !quiet(e)).sort(newestFirst);
   const current = shown.filter(quiet);
   const done = shown.filter(resolved);
   const currentOpen = showCurrent || current.some((e) => e.id === selectedId);
   const doneOpen = showResolved || done.some((e) => e.id === selectedId);
+
+  // changes that arrive while the list is open grow in at the top; the ones there at first just show
+  const seen = useRef<Set<string> | null>(null);
+  const [fresh, setFresh] = useState<Set<string>>(new Set());
+  useLayoutEffect(() => {
+    const ids = events.map((e) => e.id);
+    if (!seen.current) return void (seen.current = new Set(ids));
+    const added = ids.filter((id) => !seen.current!.has(id));
+    ids.forEach((id) => seen.current!.add(id));
+    if (!added.length) return;
+    setFresh((f) => new Set([...f, ...added]));
+    // not cleared on the next change: each arrival keeps its own animation to the end
+    window.setTimeout(() => setFresh((f) => new Set([...f].filter((id) => !added.includes(id)))), 1800);
+  }, [events]);
 
   // one highlight that glides to the selected change instead of jumping
   const list = useRef<HTMLDivElement>(null);
@@ -103,7 +120,13 @@ export default function Timeline({ events, selectedId, onSelect, viewers }: Prop
     place();
     const ro = new ResizeObserver(place);
     ro.observe(on);
-    return () => ro.disconnect();
+    // a change growing in above pushes the selected one down
+    const scroller = list.current!;
+    scroller.addEventListener("animationend", place);
+    return () => {
+      ro.disconnect();
+      scroller.removeEventListener("animationend", place);
+    };
   }, [selectedId, shown, doneOpen, currentOpen]);
 
   // "/" jumps to search, like most review tools
@@ -120,7 +143,7 @@ export default function Timeline({ events, selectedId, onSelect, viewers }: Prop
   }, []);
 
   const item = (e: TimelineEvent) => (
-    <li key={e.id}>
+    <li key={e.id} className={fresh.has(e.id) ? "tl-new" : undefined}>
       <button
         className={`tl-item ${e.status} ${e.id === selectedId ? "on" : ""}`}
         onClick={() => onSelect(e.id)}

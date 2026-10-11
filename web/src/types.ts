@@ -9,9 +9,10 @@ export type Check = {
   as_of: string | null;
   source_name: string | null;
   source_url: string | null;
-  evidence: { quote: string; url: string; publisher?: string; date?: string }[];
+  // image: the page's preview image (og:image), when it has one
+  evidence: { quote: string; url: string; publisher?: string; date?: string; image?: string }[];
   // news behind the move, and the checker's reading of it
-  events?: { summary: string; direction: "raises" | "lowers" | "unclear"; quote: string; url: string; publisher?: string; date?: string }[];
+  events?: { summary: string; direction: "raises" | "lowers" | "unclear"; quote: string; url: string; publisher?: string; date?: string; image?: string }[];
   effects?: { output: string; direction: "up" | "down" | "unclear" }[]; // output is a label here, not a cell
   assumption?: string | null;
   prediction?: string | null;

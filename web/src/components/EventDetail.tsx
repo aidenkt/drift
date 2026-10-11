@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import type { Source, TimelineEvent } from "../data/timeline";
 import { deltaMoney, money, value } from "../lib/format";
 import { liveUpdates, whatIf, type Book, type CellUpdate } from "../lib/workbook";
@@ -204,10 +204,16 @@ export default function EventDetail({ event: e, book, rev, onShowCell, onApply, 
 /** A source as an article card: its image, the headline, then the site it came from. */
 function SourceCard({ src }: { src: Source }) {
   const site = src.url ? new URL(src.url).hostname.replace(/^www\./, "") : src.via;
+  // a page's own image can refuse to load elsewhere; then the card shows the publisher instead
+  const [broken, setBroken] = useState(false);
   const body = (
     <>
       <span className="src-image" aria-hidden>
-        {src.image ? <img src={src.image} alt="" loading="lazy" /> : <span className="src-mark">{src.publisher}</span>}
+        {src.image && !broken ? (
+          <img src={src.image} alt="" loading="lazy" referrerPolicy="no-referrer" onError={() => setBroken(true)} />
+        ) : (
+          <span className="src-mark">{src.publisher}</span>
+        )}
         {src.value && <span className="src-value mono">{src.value}</span>}
       </span>
       <span className="src-title">{src.title}</span>
